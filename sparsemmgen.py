@@ -31,7 +31,7 @@ def main(params: Parameters) -> None:
 	# MyPy does not support 'module interfaces'
 	# https://github.com/python/mypy/issues/1741
 
-	text = make_cfunc(params.output_funcname, block)
+	text = make_cfunc(params.output_funcname, params.n, params.k, block)
 
 
 	if params.output_filename is None:

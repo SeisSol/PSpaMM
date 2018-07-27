@@ -44,12 +44,17 @@ class Register_ARM(Register):
     @property
     def ugly_scalar(self):
         return (self.value.split(".")[0]).replace("v", "q")
+
+    @property
+    def ugly_scalar_1d(self):
+        return (self.value.split(".")[0]).replace("v", "d")
     @property
 
     def ugly_1d(self):
         return self.value.replace("2d", "1d")
 
 r   = lambda n: Register_ARM(AsmType.i64, "x"+str(n))
+xzr = Register_ARM(AsmType.i64, "xzr")
 ymm = lambda n: Register_ARM(AsmType.f64x4, "ymm"+str(n))
 zmm = lambda n: Register_ARM(AsmType.f64x8, "v"+str(n) + ".2d")
 

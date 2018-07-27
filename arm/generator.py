@@ -10,6 +10,14 @@ from codegen.sugar import *
 #}};
 
 template = """
+    double arr[{k}*{n}] __attribute__((aligned(PAGESIZE_STACK)));
+
+    for(int i = 0; i < {k}; i++)
+        for(int j = 0; j < {n}; j++)
+            arr[i*{n} + j] = B[((j * {k}) % ({n} * {k})) + i];
+    B = arr;
+
+
   __asm__ __volatile__(
     "ldr x0, %0\\n\\t"
     "ldr x1, %1\\n\\t"
@@ -31,7 +39,7 @@ def make_reg_blocks(bm:int, bn:int, bk:int, v_size:int):
 
     starting_regs = [r(0), r(1), r(2)]
 
-    additional_regs = [r(11)]
+    additional_regs = [r(11), xzr]
 
     loop_reg = r(12)
 
@@ -92,6 +100,20 @@ def move_register_block(cursor: CursorDef,
                       asm.add(ld(addr, registers[ir,ic], True, comment, registers[ir+next_offset[0],ic+next_offset[1]]))
 
     return asm
+
+def make_zero_block(registers: Matrix[Register], additional_regs) -> Block:
+
+    rows, cols = registers.shape
+    asm = block(f"zero registers")
+
+    cur11 = -1000
+    skipflag = False
+    for ic in range(cols):
+        for ir in range(rows):
+            asm.add(mov(additional_regs[1], registers[ir,ic], True))
+
+    return asm
+
 
 def make_microkernel(A: CursorDef,
                      B: CursorDef,

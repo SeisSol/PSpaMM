@@ -84,8 +84,10 @@ class InlinePrinter(Visitor):
             src_str = "#" + stmt.src.ugly
         else:
             src_str = stmt.src.ugly
-
-        s = f"mov {stmt.dest.ugly}, {src_str}"
+        if stmt.typ == AsmType.f64x8:
+            s = f"fmov {stmt.dest.ugly_scalar_1d}, {src_str}"
+        else:
+            s = f"mov {stmt.dest.ugly}, {src_str}"
         self.addLine(s, stmt.comment)
 
 
