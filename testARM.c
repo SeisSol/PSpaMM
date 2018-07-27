@@ -808,10 +808,12 @@ int main(void) {
   double *A;
   double *B;
   double *C;
+  double *arr;
 
   int resA = posix_memalign((double *)(&A), 64, M*K*sizeof(double));
   int resB = posix_memalign((double *)(&B), 64, N*K*sizeof(double));
   int resC = posix_memalign((double *)(&C), 64, M*N*sizeof(double));
+  int resArr = posix_memalign((double *)(&arr), 64, N*K*sizeof(double));
 
   for(int i = 0; i < M*K; i++)
   {
@@ -824,6 +826,7 @@ int main(void) {
   for(int i = 0; i < N*K; i++)
   {
     B[i] = i;
+    arr[i*N + j] = velocityDOFS[((j * K) % (N * K)) + i];
   }
 
   for(int i = 0; i < M*N; i++)
@@ -860,7 +863,7 @@ int main(void) {
   start = clock();
   for(int i = 0; i < 1; i++)
   {
-    gemm(A,B,C);
+    gemm(A,arr,C);
   }
   end = clock();
   cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
