@@ -19,15 +19,15 @@ void gemm(const double* A, const double* B, double* C) {
         "LOOP_TOP_0_%=:\r\n"
           // Unrolling over bn and bk
             // zero registers
-            "fmov v26.2d, #0\r\n"
-            "fmov v27.2d, #0\r\n"
-            "fmov v28.2d, #0\r\n"
-            "fmov v29.2d, #0\r\n"
-            "fmov v30.2d, #0\r\n"
-            "fmov v31.2d, #0\r\n"
+            "fmov v26.2d, #0.0\r\n"
+            "fmov v27.2d, #0.0\r\n"
+            "fmov v28.2d, #0.0\r\n"
+            "fmov v29.2d, #0.0\r\n"
+            "fmov v30.2d, #0.0\r\n"
+            "fmov v31.2d, #0.0\r\n"
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=0)
-              "add v0.2d, v0.2d, [x0, 0]\r\n"                             // A [0,0] [0,0]
+              "ldp q0, q1, [x0, 0]\r\n"                                   // A [0,0] [0,0]
             "ldr q2, [x1, 0]\r\n"                                       // B[0,0][0,0]
             "ldr q3, [x1, 8]\r\n"                                       // B[0,0][0,1]
             "ldr q4, [x1, 16]\r\n"                                      // B[0,0][0,2]
@@ -39,7 +39,7 @@ void gemm(const double* A, const double* B, double* C) {
             "fmla v31.2d, v1.2d, v4.1d[0]\r\n"                          // C[2:4,2] += A[2:4,0]*B[0,0][0,2]
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=1)
-              "add v0.2d, v0.2d, [x0, 32]\r\n"                            // A [0,1] [0,0]
+              "ldp q0, q1, [x0, 32]\r\n"                                  // A [0,1] [0,0]
             "ldr q2, [x1, 24]\r\n"                                      // B[1,0][0,0]
             "ldr q3, [x1, 32]\r\n"                                      // B[1,0][0,1]
             "ldr q4, [x1, 40]\r\n"                                      // B[1,0][0,2]
@@ -51,7 +51,7 @@ void gemm(const double* A, const double* B, double* C) {
             "fmla v31.2d, v1.2d, v4.1d[0]\r\n"                          // C[2:4,2] += A[2:4,0]*B[1,0][0,2]
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=2)
-              "add v0.2d, v0.2d, [x0, 64]\r\n"                            // A [0,2] [0,0]
+              "ldp q0, q1, [x0, 64]\r\n"                                  // A [0,2] [0,0]
             "ldr q2, [x1, 48]\r\n"                                      // B[2,0][0,0]
             "ldr q3, [x1, 56]\r\n"                                      // B[2,0][0,1]
             "ldr q4, [x1, 64]\r\n"                                      // B[2,0][0,2]
@@ -63,7 +63,7 @@ void gemm(const double* A, const double* B, double* C) {
             "fmla v31.2d, v1.2d, v4.1d[0]\r\n"                          // C[2:4,2] += A[2:4,0]*B[2,0][0,2]
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=3)
-              "add v0.2d, v0.2d, [x0, 96]\r\n"                            // A [0,3] [0,0]
+              "ldp q0, q1, [x0, 96]\r\n"                                  // A [0,3] [0,0]
             "ldr q2, [x1, 72]\r\n"                                      // B[3,0][0,0]
             "ldr q3, [x1, 80]\r\n"                                      // B[3,0][0,1]
             "ldr q4, [x1, 88]\r\n"                                      // B[3,0][0,2]
@@ -75,7 +75,7 @@ void gemm(const double* A, const double* B, double* C) {
             "fmla v31.2d, v1.2d, v4.1d[0]\r\n"                          // C[2:4,2] += A[2:4,0]*B[3,0][0,2]
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=4)
-              "add v0.2d, v0.2d, [x0, 128]\r\n"                           // A [0,4] [0,0]
+              "ldp q0, q1, [x0, 128]\r\n"                                 // A [0,4] [0,0]
             "ldr q2, [x1, 96]\r\n"                                      // B[4,0][0,0]
             "ldr q3, [x1, 104]\r\n"                                     // B[4,0][0,1]
             "ldr q4, [x1, 112]\r\n"                                     // B[4,0][0,2]
@@ -87,7 +87,7 @@ void gemm(const double* A, const double* B, double* C) {
             "fmla v31.2d, v1.2d, v4.1d[0]\r\n"                          // C[2:4,2] += A[2:4,0]*B[4,0][0,2]
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=5)
-              "add v0.2d, v0.2d, [x0, 160]\r\n"                           // A [0,5] [0,0]
+              "ldp q0, q1, [x0, 160]\r\n"                                 // A [0,5] [0,0]
             "ldr q2, [x1, 120]\r\n"                                     // B[5,0][0,0]
             "ldr q3, [x1, 128]\r\n"                                     // B[5,0][0,1]
             "ldr q4, [x1, 136]\r\n"                                     // B[5,0][0,2]
@@ -99,7 +99,7 @@ void gemm(const double* A, const double* B, double* C) {
             "fmla v31.2d, v1.2d, v4.1d[0]\r\n"                          // C[2:4,2] += A[2:4,0]*B[5,0][0,2]
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=6)
-              "add v0.2d, v0.2d, [x0, 192]\r\n"                           // A [0,6] [0,0]
+              "ldp q0, q1, [x0, 192]\r\n"                                 // A [0,6] [0,0]
             "ldr q2, [x1, 144]\r\n"                                     // B[6,0][0,0]
             "ldr q3, [x1, 152]\r\n"                                     // B[6,0][0,1]
             "ldr q4, [x1, 160]\r\n"                                     // B[6,0][0,2]
@@ -111,7 +111,7 @@ void gemm(const double* A, const double* B, double* C) {
             "fmla v31.2d, v1.2d, v4.1d[0]\r\n"                          // C[2:4,2] += A[2:4,0]*B[6,0][0,2]
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=7)
-              "add v0.2d, v0.2d, [x0, 224]\r\n"                           // A [0,7] [0,0]
+              "ldp q0, q1, [x0, 224]\r\n"                                 // A [0,7] [0,0]
             "ldr q2, [x1, 168]\r\n"                                     // B[7,0][0,0]
             "ldr q3, [x1, 176]\r\n"                                     // B[7,0][0,1]
             "ldr q4, [x1, 184]\r\n"                                     // B[7,0][0,2]
@@ -124,7 +124,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=8)
               "add x11, x0, #256\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,8] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,8] [0,0]
             "ldr q2, [x1, 192]\r\n"                                     // B[8,0][0,0]
             "ldr q3, [x1, 200]\r\n"                                     // B[8,0][0,1]
             "ldr q4, [x1, 208]\r\n"                                     // B[8,0][0,2]
@@ -137,7 +137,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=9)
               "add x11, x0, #288\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,9] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,9] [0,0]
             "ldr q2, [x1, 216]\r\n"                                     // B[9,0][0,0]
             "ldr q3, [x1, 224]\r\n"                                     // B[9,0][0,1]
             "ldr q4, [x1, 232]\r\n"                                     // B[9,0][0,2]
@@ -150,7 +150,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=10)
               "add x11, x0, #320\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,10] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,10] [0,0]
             "ldr q2, [x1, 240]\r\n"                                     // B[10,0][0,0]
             "ldr q3, [x1, 248]\r\n"                                     // B[10,0][0,1]
             "add x11, x1, #256\r\n"                                     // 
@@ -164,7 +164,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=11)
               "add x11, x0, #352\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,11] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,11] [0,0]
             "add x11, x1, #264\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[11,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[11,0][0,1]
@@ -178,7 +178,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=12)
               "add x11, x0, #384\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,12] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,12] [0,0]
             "add x11, x1, #288\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[12,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[12,0][0,1]
@@ -192,7 +192,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=13)
               "add x11, x0, #416\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,13] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,13] [0,0]
             "add x11, x1, #312\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[13,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[13,0][0,1]
@@ -206,7 +206,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=14)
               "add x11, x0, #448\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,14] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,14] [0,0]
             "add x11, x1, #336\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[14,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[14,0][0,1]
@@ -220,7 +220,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=15)
               "add x11, x0, #480\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,15] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,15] [0,0]
             "add x11, x1, #360\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[15,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[15,0][0,1]
@@ -234,7 +234,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=16)
               "add x11, x0, #512\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,16] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,16] [0,0]
             "add x11, x1, #384\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[16,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[16,0][0,1]
@@ -248,7 +248,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=17)
               "add x11, x0, #544\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,17] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,17] [0,0]
             "add x11, x1, #408\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[17,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[17,0][0,1]
@@ -262,7 +262,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=18)
               "add x11, x0, #576\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,18] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,18] [0,0]
             "add x11, x1, #432\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[18,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[18,0][0,1]
@@ -276,7 +276,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=19)
               "add x11, x0, #608\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,19] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,19] [0,0]
             "add x11, x1, #456\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[19,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[19,0][0,1]
@@ -290,7 +290,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=20)
               "add x11, x0, #640\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,20] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,20] [0,0]
             "add x11, x1, #480\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[20,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[20,0][0,1]
@@ -304,7 +304,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=21)
               "add x11, x0, #672\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,21] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,21] [0,0]
             "add x11, x1, #504\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[21,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[21,0][0,1]
@@ -318,7 +318,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=22)
               "add x11, x0, #704\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,22] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,22] [0,0]
             "add x11, x1, #528\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[22,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[22,0][0,1]
@@ -332,7 +332,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=23)
               "add x11, x0, #736\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,23] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,23] [0,0]
             "add x11, x1, #552\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[23,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[23,0][0,1]
@@ -346,7 +346,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=24)
               "add x11, x0, #768\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,24] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,24] [0,0]
             "add x11, x1, #576\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[24,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[24,0][0,1]
@@ -360,7 +360,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=25)
               "add x11, x0, #800\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,25] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,25] [0,0]
             "add x11, x1, #600\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[25,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[25,0][0,1]
@@ -374,7 +374,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=26)
               "add x11, x0, #832\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,26] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,26] [0,0]
             "add x11, x1, #624\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[26,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[26,0][0,1]
@@ -388,7 +388,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=27)
               "add x11, x0, #864\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,27] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,27] [0,0]
             "add x11, x1, #648\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[27,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[27,0][0,1]
@@ -402,7 +402,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=28)
               "add x11, x0, #896\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,28] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,28] [0,0]
             "add x11, x1, #672\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[28,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[28,0][0,1]
@@ -416,7 +416,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=29)
               "add x11, x0, #928\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,29] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,29] [0,0]
             "add x11, x1, #696\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[29,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[29,0][0,1]
@@ -430,7 +430,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=30)
               "add x11, x0, #960\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,30] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,30] [0,0]
             "add x11, x1, #720\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[30,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[30,0][0,1]
@@ -444,7 +444,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=31)
               "add x11, x0, #992\r\n"                                     // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,31] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,31] [0,0]
             "add x11, x1, #744\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[31,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[31,0][0,1]
@@ -458,7 +458,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=32)
               "add x11, x0, #1024\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,32] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,32] [0,0]
             "add x11, x1, #768\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[32,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[32,0][0,1]
@@ -472,7 +472,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=33)
               "add x11, x0, #1056\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,33] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,33] [0,0]
             "add x11, x1, #792\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[33,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[33,0][0,1]
@@ -486,7 +486,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=34)
               "add x11, x0, #1088\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,34] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,34] [0,0]
             "add x11, x1, #816\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[34,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[34,0][0,1]
@@ -500,7 +500,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=35)
               "add x11, x0, #1120\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,35] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,35] [0,0]
             "add x11, x1, #840\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[35,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[35,0][0,1]
@@ -514,7 +514,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=36)
               "add x11, x0, #1152\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,36] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,36] [0,0]
             "add x11, x1, #864\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[36,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[36,0][0,1]
@@ -528,7 +528,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=37)
               "add x11, x0, #1184\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,37] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,37] [0,0]
             "add x11, x1, #888\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[37,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[37,0][0,1]
@@ -542,7 +542,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=38)
               "add x11, x0, #1216\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,38] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,38] [0,0]
             "add x11, x1, #912\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[38,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[38,0][0,1]
@@ -556,7 +556,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=39)
               "add x11, x0, #1248\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,39] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,39] [0,0]
             "add x11, x1, #936\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[39,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[39,0][0,1]
@@ -570,7 +570,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=40)
               "add x11, x0, #1280\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,40] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,40] [0,0]
             "add x11, x1, #960\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[40,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[40,0][0,1]
@@ -584,7 +584,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=41)
               "add x11, x0, #1312\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,41] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,41] [0,0]
             "add x11, x1, #984\r\n"                                     // 
             "ldr q2, [x11, 0]\r\n"                                      // B[41,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[41,0][0,1]
@@ -598,7 +598,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=42)
               "add x11, x0, #1344\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,42] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,42] [0,0]
             "add x11, x1, #1008\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[42,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[42,0][0,1]
@@ -612,7 +612,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=43)
               "add x11, x0, #1376\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,43] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,43] [0,0]
             "add x11, x1, #1032\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[43,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[43,0][0,1]
@@ -626,7 +626,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=44)
               "add x11, x0, #1408\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,44] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,44] [0,0]
             "add x11, x1, #1056\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[44,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[44,0][0,1]
@@ -640,7 +640,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=45)
               "add x11, x0, #1440\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,45] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,45] [0,0]
             "add x11, x1, #1080\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[45,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[45,0][0,1]
@@ -654,7 +654,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=46)
               "add x11, x0, #1472\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,46] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,46] [0,0]
             "add x11, x1, #1104\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[46,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[46,0][0,1]
@@ -668,7 +668,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=47)
               "add x11, x0, #1504\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,47] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,47] [0,0]
             "add x11, x1, #1128\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[47,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[47,0][0,1]
@@ -682,7 +682,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=48)
               "add x11, x0, #1536\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,48] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,48] [0,0]
             "add x11, x1, #1152\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[48,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[48,0][0,1]
@@ -696,7 +696,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=49)
               "add x11, x0, #1568\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,49] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,49] [0,0]
             "add x11, x1, #1176\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[49,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[49,0][0,1]
@@ -710,7 +710,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=50)
               "add x11, x0, #1600\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,50] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,50] [0,0]
             "add x11, x1, #1200\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[50,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[50,0][0,1]
@@ -724,7 +724,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=51)
               "add x11, x0, #1632\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,51] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,51] [0,0]
             "add x11, x1, #1224\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[51,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[51,0][0,1]
@@ -738,7 +738,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=52)
               "add x11, x0, #1664\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,52] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,52] [0,0]
             "add x11, x1, #1248\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[52,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[52,0][0,1]
@@ -752,7 +752,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=53)
               "add x11, x0, #1696\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,53] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,53] [0,0]
             "add x11, x1, #1272\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[53,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[53,0][0,1]
@@ -766,7 +766,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=54)
               "add x11, x0, #1728\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,54] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,54] [0,0]
             "add x11, x1, #1296\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[54,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[54,0][0,1]
@@ -780,7 +780,7 @@ void gemm(const double* A, const double* B, double* C) {
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=55)
               "add x11, x0, #1760\r\n"                                    // 
-              "add v0.2d, v0.2d, [x11, 0]\r\n"                            // A [0,55] [0,0]
+              "ldp q0, q1, [x11, 0]\r\n"                                  // A [0,55] [0,0]
             "add x11, x1, #1320\r\n"                                    // 
             "ldr q2, [x11, 0]\r\n"                                      // B[55,0][0,0]
             "ldr q3, [x11, 8]\r\n"                                      // B[55,0][0,1]
@@ -792,9 +792,9 @@ void gemm(const double* A, const double* B, double* C) {
             "fmla v29.2d, v1.2d, v3.1d[0]\r\n"                          // C[2:4,1] += A[2:4,0]*B[55,0][0,1]
             "fmla v31.2d, v1.2d, v4.1d[0]\r\n"                          // C[2:4,2] += A[2:4,0]*B[55,0][0,2]
             // Store C register block @ (d=0,r=0)
-            "add [x2, 0], [x2, 0], v26.2d\r\n"                          // C [0,0] [0,0]
-            "add [x2, 32], [x2, 32], v28.2d\r\n"                        // C [0,0] [0,1]
-            "add [x2, 64], [x2, 64], v30.2d\r\n"                        // C [0,0] [0,2]
+            "stp q26, q27, [x2, 0]\r\n"                                 // C [0,0] [0,0]
+            "stp q28, q29, [x2, 32]\r\n"                                // C [0,0] [0,1]
+            "stp q30, q31, [x2, 64]\r\n"                                // C [0,0] [0,2]
         "add x0, x0, #32\r\n"                                       // Move A to (d=1,r=0)
         "add x2, x2, #32\r\n"                                       // Move C to (d=1,r=0)
         "add x12, x12, #1\r\n"
@@ -802,7 +802,6 @@ void gemm(const double* A, const double* B, double* C) {
         "b.lo LOOP_TOP_0_%=\r\n"
 
     : : "m"(A), "m"(B), "m"(C) : "r0","r11","r12","r2","v0","v2","v26","v27","v28","v29","v3","v30","v31","v4");
-
 
 };
 
