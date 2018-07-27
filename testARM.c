@@ -3,6 +3,10 @@
 #include <cblas.h>
 #include <time.h>
 
+#define M 4
+#define N 3
+#define K 56
+
 
 void gemm(const double* A, const double* B, double* C) {
 
@@ -803,77 +807,15 @@ void gemm(const double* A, const double* B, double* C) {
 
 int main(void) {
 
-  const double B2[168] = {1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-                          1.0,1.0,1.0,
-  };
-  //const double AA[64] = {1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1};
-  //double *A = (double *)malloc(56 * 9 * sizeof(double));
-  //double *B = (double *)malloc(64 * sizeof(double));
-  //double *C = (double *)malloc(64 * sizeof(double));
-  
   double *A;
   double *B;
   double *C;
 
-  int resA = posix_memalign((double *)(&A), 64, 4*56*sizeof(double));
-  int resB = posix_memalign((double *)(&B), 64, 3*56*sizeof(double));
-  int resC = posix_memalign((double *)(&C), 64, 4*3*sizeof(double));
+  int resA = posix_memalign((double *)(&A), 64, M*K*sizeof(double));
+  int resB = posix_memalign((double *)(&B), 64, N*K*sizeof(double));
+  int resC = posix_memalign((double *)(&C), 64, M*N*sizeof(double));
 
-  for(int i = 0; i < 4*56; i++)
+  for(int i = 0; i < M*K; i++)
   {
     if((i / 4) % 2 == 0)
       A[i] = 1;
@@ -881,12 +823,12 @@ int main(void) {
       A[i] = 0;
   }
 
-  for(int i = 0; i < 168; i++)
+  for(int i = 0; i < N*K; i++)
   {
     B[i] = i;
   }
 
-  for(int i = 0; i < 4*3; i++)
+  for(int i = 0; i < M*N; i++)
   {
     C[i] = 0;
   }
@@ -894,22 +836,22 @@ int main(void) {
 
   printf("A\n");
 
-  for(int i = 0; i < 4*56; i++)
+  for(int i = 0; i < M*K; i++)
   {
-    if(i % 56 == 0)
+    if(i % K == 0)
       printf("\n");
-    printf("%f  ", A[((i * 4) % (4 * 56)) + i / 56]);
+    printf("%f  ", A[((i * M) % (M * K)) + i / K]);
   }
 
   printf("\n");
 
   printf("B\n");
 
-  for(int i = 0; i < 3 * 56; i++)
+  for(int i = 0; i < N * K; i++)
   {
-    if(i % 3 == 0)
+    if(i % N == 0)
       printf("\n");
-    printf("%f  ", B[((i * 56) % (56 * 3)) + i / 3]);
+    printf("%f  ", B[((i * K) % (K * N)) + i / N]);
   }
 
   printf("\n");
@@ -939,11 +881,11 @@ int main(void) {
 */
   printf("C\n");
 
-  for(int i = 0; i < 4 * 3; i++)
+  for(int i = 0; i < M * N; i++)
   {
-    if(i % 3 == 0)
+    if(i % N == 0)
       printf("\n");
-    printf("%f  ", C[((i * 4) % (4 * 3)) + i / 3]);
+    printf("%f  ", C[((i * M) % (M * N)) + i / N]);
   }
 
   printf("\n");
