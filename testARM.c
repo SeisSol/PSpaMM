@@ -9,7 +9,6 @@
 
 
 void gemm(const double* A, const double* B, double* C) {
-
   __asm__ __volatile__(
     "ldr x0, %0\n\t"
     "ldr x1, %1\n\t"
@@ -800,7 +799,6 @@ void gemm(const double* A, const double* B, double* C) {
         "b.lo LOOP_TOP_0_%=\r\n"
 
     : : "m"(A), "m"(B), "m"(C) : "r0","r11","r12","r2","v0","v2","v26","v27","v28","v29","v3","v30","v31","v4");
-
 };
 
 
