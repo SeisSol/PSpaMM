@@ -19,12 +19,12 @@ void gemm(const double* A, const double* B, double* C) {
         "LOOP_TOP_0_%=:\r\n"
           // Unrolling over bn and bk
             // zero registers
-            "fmov v26.2d, #0.0\r\n"
-            "fmov v27.2d, #0.0\r\n"
-            "fmov v28.2d, #0.0\r\n"
-            "fmov v29.2d, #0.0\r\n"
-            "fmov v30.2d, #0.0\r\n"
-            "fmov v31.2d, #0.0\r\n"
+            "fmov d26, #0.0\r\n"
+            "fmov d27, #0.0\r\n"
+            "fmov d28, #0.0\r\n"
+            "fmov d29, #0.0\r\n"
+            "fmov d30, #0.0\r\n"
+            "fmov d31, #0.0\r\n"
             // Block GEMM microkernel
               // Load A register block @ (d=0,r=0)
               "ldp q0, q1, [x0, 0]\r\n"                                   // A [0,0] [0,0]
