@@ -883,7 +883,7 @@ int main(void) {
 
   for(int i = 0; i < 168; i++)
   {
-    B[i] = 0;
+    B[i] = i;
   }
 
   for(int i = 0; i < 4*3; i++)
@@ -909,7 +909,7 @@ int main(void) {
   {
     if(i % 3 == 0)
       printf("\n");
-    printf("%f  ", B2[i]);
+    printf("%f  ", B[((i * 56) % (56 * 3)) + i / 3]);
   }
 
   printf("\n");
