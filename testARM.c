@@ -9,6 +9,14 @@
 
 
 void gemm(const double* A, const double* B, double* C) {
+    double arr[56*3] __attribute__((aligned(PAGESIZE_STACK)));
+
+    for(int i = 0; i < 56; i++)
+        for(int j = 0; j < 3; j++)
+            arr[i*3 + j] = B[((j * 56) % (3 * 56)) + i];
+    B = arr;
+
+
   __asm__ __volatile__(
     "ldr x0, %0\n\t"
     "ldr x1, %1\n\t"
@@ -802,6 +810,7 @@ void gemm(const double* A, const double* B, double* C) {
         "b.lo LOOP_TOP_0_%=\r\n"
 
     : : "m"(A), "m"(B), "m"(C) : "r0","r11","r12","r2","v0","v2","v26","v27","v28","v29","v3","v30","v31","v4");
+
 
 };
 
