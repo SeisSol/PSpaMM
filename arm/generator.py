@@ -10,14 +10,6 @@ from codegen.sugar import *
 #}};
 
 template = """
-    double arr[{k}*{n}] __attribute__((aligned(PAGESIZE_STACK)));
-
-    for(int i = 0; i < {k}; i++)
-        for(int j = 0; j < {n}; j++)
-            arr[i*{n} + j] = B[((j * {k}) % ({n} * {k})) + i];
-    B = arr;
-
-
   __asm__ __volatile__(
     "ldr x0, %0\\n\\t"
     "ldr x1, %1\\n\\t"

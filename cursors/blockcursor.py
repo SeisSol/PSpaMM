@@ -119,11 +119,12 @@ class BlockCursorDef(CursorDef):
              dest_cell: Coords
             ) -> Tuple[MemoryAddress, str]:
 
-        dest_loc = CursorLocation(dest_block, dest_cell)
-        offset_bytes = self.offset(src_loc, dest_loc) * self.scalar_bytes
+        src_offset_abs = self.offset(src.current_block, Coords(), src.current_cell)
+        dest_offset_abs = self.offset(src.current_block, dest_block, dest_cell)
+        rel_offset = self.scalar_bytes * (dest_offset_abs - src_offset_abs)
         comment = f"{self.name}[{dest_block.down},{dest_block.right}][{dest_cell.down},{dest_cell.right}]"
 
-        addr = architecture.operands.mem(self.base_ptr, self.index_ptr, self.scale, offset_bytes)
+        addr = architecture.operands.mem(self.base_ptr, self.index_ptr, self.scale, rel_offset)
         
         return (addr, comment)
 
