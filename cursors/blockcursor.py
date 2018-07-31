@@ -49,18 +49,20 @@ class BlockCursorDef(CursorDef):
         # makes a lot of things easier
         x = 0
         offsets = Matrix.full(rows+1, cols+1, -1)
-        for Bci in range(self.Bc):        # Iterate over blocks of columns
-            for Bri in range(self.Br):    # Iterate over blocks of rows
+
+        for i in range(self.c):
+            for j in range(self.r):
+                Bci = i // self.bc
+                Bri = j // self.br
                 index = cast(int, blocks[Bri, Bci])
-                pattern = patterns[index]                    # Pattern for current block
-                for bci in range(self.bc):                        # Iterate over cols inside block
-                    for bri in range(self.br):                    # Iterate over rows inside block
-                        if pattern[bri,bci]:
-                            offsets[Bri*self.br + bri, Bci*self.bc + bci] = x
-                            x += 1
-        # TODO: Handle fringes correctly.
+                pattern = patterns[index]   
+                if pattern[j % self.br,i % self.bc]:
+                    offsets[Bri*self.br + j % self.br, Bci*self.bc + i % self.bc] = x
+                    x += 1
+
         self.offsets = offsets
 
+        print(self.offsets)
 
 
     def offset(self,
@@ -119,12 +121,11 @@ class BlockCursorDef(CursorDef):
              dest_cell: Coords
             ) -> Tuple[MemoryAddress, str]:
 
-        src_offset_abs = self.offset(src.current_block, Coords(), src.current_cell)
-        dest_offset_abs = self.offset(src.current_block, dest_block, dest_cell)
-        rel_offset = self.scalar_bytes * (dest_offset_abs - src_offset_abs)
+        dest_loc = CursorLocation(dest_block, dest_cell)
+        offset_bytes = self.offset(src_loc, dest_loc) * self.scalar_bytes
         comment = f"{self.name}[{dest_block.down},{dest_block.right}][{dest_cell.down},{dest_cell.right}]"
 
-        addr = architecture.operands.mem(self.base_ptr, self.index_ptr, self.scale, rel_offset)
+        addr = architecture.operands.mem(self.base_ptr, self.index_ptr, self.scale, offset_bytes)
         
         return (addr, comment)
 
