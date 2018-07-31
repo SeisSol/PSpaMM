@@ -70,7 +70,10 @@ class UnrolledParameters(Parameters):
 
         for Bni in range(0,Bn):
 
-            asm.add(architecture.generator.make_zero_block(p.C_regs, p.additional_regs))
+            if p.beta == 1:
+                asm.add(architecture.generator.move_register_block(p.C, C_ptr, Coords(), p.C_regs, p.v_size, p.additional_regs, None, False))
+            else:
+                asm.add(architecture.generator.make_zero_block(p.C_regs, p.additional_regs))
 
             for Bki in range(0,Bk):
 

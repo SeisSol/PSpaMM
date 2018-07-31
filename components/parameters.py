@@ -11,6 +11,7 @@ class Parameters:
 				 lda: int, 
 				 ldb: int, 
 				 ldc: int,
+				 beta: int,
 				 mtx_filename: str,
 				 mtx_format: str = 'any',
 				 output_funcname: str = None,
@@ -30,6 +31,8 @@ class Parameters:
 		self.lda = lda
 		self.ldb = ldb
 		self.ldc = ldc
+
+		self.beta = beta
 
 		self.bm = bm
 		self.bn = bn

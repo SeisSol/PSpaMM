@@ -55,6 +55,8 @@ if __name__=="__main__":
 	parser.add_argument("ldb", type=int, help="Leading dimension of B (zero if B is sparse)")
 	parser.add_argument("ldc", type=int, help="Leading dimension of C")
 
+	parser.add_argument("beta", type=int, help="beta, if zero then C is set to 0 otherwise new result is added to old C")
+
 	parser.add_argument("--bm", type=int, help="Size of m-blocks")
 	parser.add_argument("--bn", type=int, help="Size of n-blocks")
 	parser.add_argument("--bk", type=int, help="Size of k-blocks")
