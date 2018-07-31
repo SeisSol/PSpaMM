@@ -62,8 +62,6 @@ class BlockCursorDef(CursorDef):
 
         self.offsets = offsets
 
-        print(self.offsets)
-
 
     def offset(self,
                src_loc: CursorLocation,
