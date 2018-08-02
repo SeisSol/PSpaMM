@@ -16,6 +16,7 @@ class BlockCursorDef(CursorDef):
                  base_ptr: Register,
                  rows: int,
                  cols: int,
+                 ld: int,
                  block_rows: int,
                  block_cols: int,
                  blocks: Matrix[int],
@@ -28,6 +29,7 @@ class BlockCursorDef(CursorDef):
         self.scalar_bytes = 8
         self.r = rows
         self.c = cols
+        self.ld = ld
         self.br = block_rows
         self.bc = block_cols  # The reported blocksizes are the truth
         self.blocks = blocks
@@ -59,6 +61,8 @@ class BlockCursorDef(CursorDef):
                 if pattern[j % self.br,i % self.bc]:
                     offsets[Bri*self.br + j % self.br, Bci*self.bc + i % self.bc] = x
                     x += 1
+            if ld != 0:
+                x += self.ld - self.r
 
         self.offsets = offsets
 

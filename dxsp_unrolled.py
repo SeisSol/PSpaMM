@@ -7,10 +7,18 @@ from codegen.sugar import *
 from codegen.forms import *
 from cursors import *
 import architecture
+import numpy
 
 #DEPRECATED
 def choose_params(params: Parameters) -> Parameters:
-    pattern = Matrix.load(params.mtx_filename)
+    if params.ldb == 0:
+        pattern = Matrix.load(params.mtx_filename)
+    else:
+        mtx = numpy.zeros((params.k, params.n))
+        for i in range(params.k):
+            for j in range(params.n):
+                mtx[i, j] = 1
+        pattern = Matrix(mtx)
     
     return UnrolledParameters(params, pattern)
 
@@ -53,7 +61,7 @@ class UnrolledParameters(Parameters):
         self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.loop_reg, self.additional_regs = architecture.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size)
 
         self.A = DenseCursorDef("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk)
-        self.B = BlockCursorDef("B", self.starting_regs[1], self.k, self.n, self.bk, self.bn, blocks, patterns)
+        self.B = BlockCursorDef("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, blocks, patterns)
         self.C = DenseCursorDef("C", self.starting_regs[2], self.m, self.n, self.ldc, self.bm, self.bn)
 
 

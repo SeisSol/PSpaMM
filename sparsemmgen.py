@@ -64,7 +64,7 @@ if __name__=="__main__":
 	parser.add_argument("--v_size", type=int, help="Size of vectors")
 	parser.add_argument("--arch", help="Architecture", default="knl")
 
-	parser.add_argument("mtx_filename", help="Path to MTX file describing the sparse matrix")
+	parser.add_argument("--mtx_filename", help="Path to MTX file describing the sparse matrix")
 	parser.add_argument("--mtx_format", help="Constraint on sparsity pattern", choices=mtx_formats, default="Any")
 
 	parser.add_argument("--output_funcname", help="Name for generated C++ function")
