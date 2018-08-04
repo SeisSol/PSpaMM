@@ -201,7 +201,6 @@ class BlockCursorDef(CursorDef):
         for Bci in range(Bc):
             for Bri in range(Br):
                 target_block = Coords(down=Bri, right=Bci, absolute=True)
-                print(str(Bri) + " " + str(Bci))
                 if self.has_nonzero_block(None, target_block):
                     return self.start_location(target_block)
         raise Exception("Matrix is completely empty!")
