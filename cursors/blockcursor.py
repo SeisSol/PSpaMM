@@ -65,9 +65,6 @@ class BlockCursorDef(CursorDef):
                 x += self.ld - self.r
 
         self.offsets = offsets
-        print("offsets")
-        print(self.offsets)
-        print("offsets_end")
 
     def offset(self,
                src_loc: CursorLocation,
@@ -95,7 +92,7 @@ class BlockCursorDef(CursorDef):
         if (src_offset == -1 or dest_offset == -1):
             raise Exception("Cursor location does not exist in memory!")
 
-        return str(src_cell.down) + " " + str(src_cell.right) + " " + str(dest_cell.down) + " " + str(dest_cell.right), dest_offset - src_offset
+        return dest_offset
 
 
     def move(self,
@@ -126,9 +123,8 @@ class BlockCursorDef(CursorDef):
             ) -> Tuple[MemoryAddress, str]:
 
         dest_loc = CursorLocation(dest_block, dest_cell)
-        add_comment, offset_val = self.offset(src_loc, dest_loc)
-        offset_bytes = offset_val * self.scalar_bytes
-        comment = f"{self.name}[{dest_block.down},{dest_block.right}][{dest_cell.down},{dest_cell.right}] {add_comment}"
+        offset_bytes = self.offset(src_loc, dest_loc) * self.scalar_bytes
+        comment = f"{self.name}[{dest_block.down},{dest_block.right}][{dest_cell.down},{dest_cell.right}]"
 
         addr = architecture.operands.mem(self.base_ptr, self.index_ptr, self.scale, offset_bytes)
         
@@ -205,10 +201,10 @@ class BlockCursorDef(CursorDef):
         for Bci in range(Bc):
             for Bri in range(Br):
                 target_block = Coords(down=Bri, right=Bci, absolute=True)
+                print(str(Bri) + " " + str(Bci))
                 if self.has_nonzero_block(None, target_block):
                     return self.start_location(target_block)
         raise Exception("Matrix is completely empty!")
-
 
 
     def _bounds_check(self, abs_cells: Coords) -> None:
