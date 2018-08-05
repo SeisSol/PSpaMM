@@ -74,7 +74,10 @@ class InlinePrinter(Visitor):
         if stmt.typ == AsmType.i64:
             s = f"movq {src_str}, {stmt.dest.ugly}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
-            s = f"vmovapd {src_str}, {stmt.dest.ugly}"
+            if isinstance(stmt.src, Constant) and stmt.src.value == 0:
+                s = f"vpxord {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly}"
+            else:
+                s = f"vmovapd {src_str}, {stmt.dest.ugly}"
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
