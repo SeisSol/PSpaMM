@@ -66,7 +66,7 @@ def make_zero_block(registers: Matrix[Register], additional_regs) -> Block:
 
     for ic in range(cols):
         for ir in range(rows):
-            asm.add(mov(0, registers[ir,ic], True))
+            asm.add(mov(0, registers[ir,ic], False))
 
     return asm
 
