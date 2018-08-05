@@ -1,0 +1,20 @@
+#!/bin/bash
+
+echo "void ${3}(const double* A, const double* B, double* C, const double* A_prefetch, const double* B_prefetch, const double* C_prefetch) {" >> ${2}
+
+BS=$(../../../sparse_mm/blocksize.py ${4} ${5} 2)
+
+BM=$(echo $BS | cut -f1 -d-)
+BN=$(echo $BS | cut -f2 -d-)
+
+MTX=""
+
+if [ $1 = "sparse" ]; then
+    MTX="--mtx_filename ${17}"
+fi
+
+../../../sparse_mm/sparsemmgen.py ${4} ${5} ${6} ${7} ${8} ${9} ${11} $MTX --bm $BM --bn $BN --bk 1 --v_size 2 --arch arm --mtx_format bcsr  >> ${2}
+
+echo "}" >> ${2}
+
+

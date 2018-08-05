@@ -59,6 +59,18 @@ def move_register_block(cursor: CursorDef,
                     asm.add(mov(addr, registers[ir,ic], True, comment))
     return asm
 
+def make_zero_block(registers: Matrix[Register], additional_regs) -> Block:
+
+    rows, cols = registers.shape
+    asm = block(f"zero registers")
+
+    for ic in range(cols):
+        for ir in range(rows):
+            asm.add(mov(0, registers[ir,ic], True))
+
+    return asm
+
+
 def make_microkernel(A: CursorDef,
                      B: CursorDef,
                      A_ptr: CursorLocation,

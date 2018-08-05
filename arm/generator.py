@@ -98,8 +98,6 @@ def make_zero_block(registers: Matrix[Register], additional_regs) -> Block:
     rows, cols = registers.shape
     asm = block(f"zero registers")
 
-    cur11 = -1000
-    skipflag = False
     for ic in range(cols):
         for ir in range(rows):
             asm.add(mov(additional_regs[1], registers[ir,ic], True))

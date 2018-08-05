@@ -59,7 +59,7 @@ class BlockCursorDef(CursorDef):
                 index = cast(int, blocks[Bri, Bci])
                 pattern = patterns[index]   
                 if pattern[j % self.br,i % self.bc]:
-                    offsets[Bri*self.br + j % self.br, Bci*self.bc + i % self.bc] = x
+                    offsets[j, i] = x
                     x += 1
             if ld != 0:
                 x += self.ld - self.r
