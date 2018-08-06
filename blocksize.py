@@ -24,6 +24,9 @@ def lowerToNextDiv(m, n, bm, bn):
 def ARM_condition(bm, bn):
 	return (bn+1) * (bm / v) + bn <= 32
 
+def KNL_condition(bm, bn):
+	return (bn+1) * (bm / v) <= 32
+
 bm = 96
 bn = 100
 
