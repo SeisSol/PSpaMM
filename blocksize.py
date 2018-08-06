@@ -10,7 +10,7 @@ v=int(sys.argv[3])
 def lowerToNextDiv(m, n, bm, bn):
 	if bm > bn and bm > v:
 		bm -= v
-		while m % bm != 0 and bm > v:
+		while m % bm != 0:
 			bm -= v
 	else:
 		bn -= 1
