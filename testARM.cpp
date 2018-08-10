@@ -1,4 +1,5 @@
-#include <stdlib.h> 
+#include <stdlib.h>
+#include <stdio.h>
 #include <cblas.h>
 #include <time.h>
 #include <iostream>
@@ -6,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <cstring>
 
 #include "gemms.h"
 
@@ -15,6 +17,20 @@
 #define M 8
 #define N 56
 #define K 56
+
+void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double beta, double* C) {
+  if (beta == 0.0) {
+    memset(C, 0, m*n * sizeof(double));
+  }
+  for (unsigned col = 0; col < n; ++col) {
+    for (unsigned row = 0; row < m; ++row) {
+      for (unsigned s = 0; s < k; ++s) {
+        C[row + col * m] += A[row + s * m] * B[s + col * k];
+      }
+    }
+  }
+}
+
 
 int main(void) {
 
@@ -83,23 +99,23 @@ int main(void) {
   start = clock();
   for(int i = 0; i < 1; i++)
   {
-    gemm(A,Bsparse,C);
+    //gemm(A,Bsparse,C);
   }
   end = clock();
   cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
 
   printf("time used by sparse MM : %f\n", cpu_time_used);
-/*
+
   start = clock();
   for(int i = 0; i < 1; i++)
   {
-    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, 4, 3, 56, 1, A, 4, B, 56, 1, C, 4);
+    gemm_ref(8, 56, 56, A, B, 0, C);
   }
   end = clock();
   cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
   
   printf("time used by blas : %f\n", cpu_time_used);
-*/
+
   printf("C\n");
 
   for(int i = 0; i < M * N; i++)
