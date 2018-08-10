@@ -6,10 +6,8 @@ from arm.operands import *
 from codegen.ast import *
 from codegen.sugar import *
 
-#void {funcName} (const double* A, const double* B, double* C) {{
-#}};
-
 template = """
+void {funcName} (const double* A, const double* B, double* C) {{
   __asm__ __volatile__(
     "ldr x0, %0\\n\\t"
     "ldr x1, %1\\n\\t"
@@ -17,6 +15,8 @@ template = """
 {body_text}
 
     : : "m"(A), "m"(B), "m"(C) : {clobbered});
+
+}};
 """
 
 def make_reg_blocks(bm:int, bn:int, bk:int, v_size:int):

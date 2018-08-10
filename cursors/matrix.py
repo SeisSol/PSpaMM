@@ -82,7 +82,8 @@ class Matrix(Generic[T]):
     def load(cls, filename) -> "Matrix[float]":
         m = mmread(filename)
         m = m.astype(numpy.float64)
-        m = m.todense()
+        if not isinstance(m, numpy.ndarray):
+            m = m.todense()
         return Matrix(m)
 
     def store(self, filename) -> None:
