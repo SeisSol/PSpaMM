@@ -68,6 +68,7 @@ int main(void) {
     if(B[i] != 0)
     {
       Bsparse[counter] = B[i];
+      counter++;
     }
   }
 
@@ -99,7 +100,7 @@ int main(void) {
   start = clock();
   for(int i = 0; i < 1; i++)
   {
-    //gemm(A,Bsparse,C);
+    gemm(A,Bsparse,C);
   }
   end = clock();
   cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
@@ -109,7 +110,7 @@ int main(void) {
   start = clock();
   for(int i = 0; i < 1; i++)
   {
-    gemm_ref(8, 56, 56, A, B, 0, C);
+    //gemm_ref(8, 56, 56, A, B, 0, C);
   }
   end = clock();
   cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
