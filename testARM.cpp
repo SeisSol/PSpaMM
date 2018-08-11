@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <cblas.h>
 #include <time.h>
 #include <iostream>
 #include <fstream>
@@ -98,7 +97,7 @@ int main(void) {
   clock_t start, end;
   double cpu_time_used;
   start = clock();
-  for(int i = 0; i < 1; i++)
+  for(int i = 0; i < 10000000; i++)
   {
     gemm(A,Bsparse,C);
   }
@@ -108,9 +107,9 @@ int main(void) {
   printf("time used by sparse MM : %f\n", cpu_time_used);
 
   start = clock();
-  for(int i = 0; i < 1; i++)
+  for(int i = 0; i < 10000000; i++)
   {
-    //gemm_ref(8, 56, 56, A, B, 0, C);
+    gemm_ref(8, 56, 56, A, B, 0, C);
   }
   end = clock();
   cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
