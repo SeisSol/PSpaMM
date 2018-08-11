@@ -105,7 +105,7 @@ int main(void) {
     gemm(A,Bsparse,C);
   }
 
-  for(int j = 0; j < 20; j++)
+  for(int j = 0; j < 1; j++)
   {
     start = clock();
     for(int i = 0; i < 10000000; i++)
@@ -117,7 +117,7 @@ int main(void) {
       min_time_sparse = ((double) (end - start));
   }
 
-  printf("time used by sparse MM : %f\n", min_time_sparse);
+  printf("time used by sparse MM : %f\n", min_time_sparse / CLOCKS_PER_SEC);
 
 
   double min_time_libxsmm = 999999999999999999; 
@@ -127,7 +127,7 @@ int main(void) {
     gemm_libxsmm(A,B,C);
   }
 
-  for(int j = 0; j < 20; j++)
+  for(int j = 0; j < 1; j++)
   {
     start = clock();
     for(int i = 0; i < 10000000; i++)
@@ -139,7 +139,7 @@ int main(void) {
       min_time_libxsmm = ((double) (end - start));
   }
   
-  printf("time used by dense libxsmm : %f\n", min_time_libxsmm);
+  printf("time used by dense libxsmm : %f\n", min_time_libxsmm / CLOCKS_PER_SEC);
 
   printf("C\n");
 
