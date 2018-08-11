@@ -8,7 +8,8 @@
 #include <sstream>
 #include <cstring>
 
-#include "gemms.h"
+#include "gemms_sparse.h"
+#include "gemms_libxsmm.h"
 
 
 
@@ -109,12 +110,12 @@ int main(void) {
   start = clock();
   for(int i = 0; i < 10000000; i++)
   {
-    gemm_ref(8, 56, 56, A, B, 0, C);
+    gemm_libxsmm(A,B,C);
   }
   end = clock();
   cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
   
-  printf("time used by blas : %f\n", cpu_time_used);
+  printf("time used by dense libxsmm : %f\n", cpu_time_used);
 
   printf("C\n");
 
