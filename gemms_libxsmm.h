@@ -1,5 +1,4 @@
-void gemm_libxsmm(const double* A, const double* B, double* C, const double* A_prefetch, const double* B_prefetch, const double* C_prefetch) {
-#ifdef __AVX512F__
+void gemm_libxsmm(const double* A, const double* B, double* C) {
   __asm__ __volatile__("movq %0, %%rdi\n\t"
                        "movq %1, %%rsi\n\t"
                        "movq %2, %%rdx\n\t"
@@ -1713,16 +1712,5 @@ void gemm_libxsmm(const double* A, const double* B, double* C, const double* A_p
                        "cmpq $56, %%r13\n\t"
                        "jl 0b\n\t"
                        : : "m"(A), "m"(B), "m"(C) : "k1","rax","rbx","rcx","rdx","rdi","rsi","r8","r9","r10","r11","r12","r13","r14","r15","zmm0","zmm1","zmm2","zmm3","zmm4","zmm5","zmm6","zmm7","zmm8","zmm9","zmm10","zmm11","zmm12","zmm13","zmm14","zmm15","zmm16","zmm17","zmm18","zmm19","zmm20","zmm21","zmm22","zmm23","zmm24","zmm25","zmm26","zmm27","zmm28","zmm29","zmm30","zmm31");
-#else
-#pragma message ("LIBXSMM KERNEL COMPILATION ERROR in: " __FILE__)
-#error No kernel was compiled, lacking support for current architecture?
-#endif
 
-#ifndef NDEBUG
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
-libxsmm_num_total_flops += 50176;
-#endif
-}
-
+};
