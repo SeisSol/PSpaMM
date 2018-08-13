@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <cblas.h>
 #include <stdio.h>
 #include <time.h>
 #include <iostream>
@@ -9,19 +8,18 @@
 #include <sstream>
 #include <cstring>
 
+#include "gemms_knl_dense.h"
+#include "gemms_knl_sparse.h"
+#include "gemms_libxsmm_dense.h"
+#include "gemms_libxsmm_sparse.h"
 
-#include "gemms_arm_sparse.h"
-#include "gemms_arm_dense.h"
-
-
-#define F "56x56.mtx"
 #define M 8
 #define N 56
 #define K 56
 #define S 294
 #define ITER 10000000
 
-void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double beta, double* C) {
+void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double beta, double* C){
   if (beta == 0.0) {
     memset(C, 0, m*n * sizeof(double));
   }
@@ -39,16 +37,22 @@ int main(void) {
 
   double *A;
   double *B;
-  double *C;
+  double *C1;
+  double *C2;
+  double *C3;
+  double *C4;
   double *Bsparse;
 
   int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, M*K*sizeof(double));
   int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, K*N*sizeof(double));
   int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, K*N*sizeof(double));
-  int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, M*N*sizeof(double));
+  int resC1 = posix_memalign(reinterpret_cast<void **>(&C1), 64, M*N*sizeof(double));
+  int resC2 = posix_memalign(reinterpret_cast<void **>(&C2), 64, M*N*sizeof(double));
+  int resC3 = posix_memalign(reinterpret_cast<void **>(&C3), 64, M*N*sizeof(double));
+  int resC4 = posix_memalign(reinterpret_cast<void **>(&C4), 64, M*N*sizeof(double));
 
   std::string line;
-  std::ifstream f(F);
+  std::ifstream f("56x56.mtx");
   getline(f, line);
   getline(f, line);
 
@@ -105,7 +109,7 @@ int main(void) {
 
   for(int i = 0; i < ITER/20; i++)
   {
-    gemm_sparse(A,Bsparse,C);
+    gemm_sparse(A,Bsparse,C1);
   }
 
   for(int j = 0; j < 1; j++)
@@ -113,7 +117,7 @@ int main(void) {
     start = clock();
     for(int i = 0; i < ITER; i++)
     {
-      gemm_sparse(A,Bsparse,C);
+      gemm_sparse(A,Bsparse,C1);
     }
     end = clock();
     if(((double) (end - start)) < min_time_sparse)
@@ -126,7 +130,7 @@ int main(void) {
 
   for(int i = 0; i < ITER/20; i++)
   {
-    gemm_dense(A,B,C);
+    gemm_dense(A,B,C2);
   }
 
   for(int j = 0; j < 1; j++)
@@ -134,7 +138,7 @@ int main(void) {
     start = clock();
     for(int i = 0; i < ITER; i++)
     {
-      gemm_dense(A,B,C);
+      gemm_dense(A,B,C2);
     }
     end = clock();
     if(((double) (end - start)) < min_time_dense)
@@ -143,11 +147,11 @@ int main(void) {
 
 
 
-  double min_time_openblas = 999999999999999999; 
+  double min_time_libxsmm_dense = 999999999999999999; 
 
   for(int i = 0; i < ITER/20; i++)
   {
-    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1, A, M, B, K, 0, C, M);
+    gemm_libxsmm_dense(A,B,C3);
   }
 
   for(int j = 0; j < 1; j++)
@@ -155,13 +159,33 @@ int main(void) {
     start = clock();
     for(int i = 0; i < ITER; i++)
     {
-       cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1, A, M, B, K, 0, C, M);
+      gemm_libxsmm_dense(A,B,C3);
     }
     end = clock();
-    if(((double) (end - start)) < min_time_openblas)
-      min_time_openblas = ((double) (end - start));
+    if(((double) (end - start)) < min_time_libxsmm_dense)
+      min_time_libxsmm_dense = ((double) (end - start));
+  }
+ 
+  double min_time_libxsmm_sparse = 999999999999999999; 
+
+  for(int i = 0; i < ITER/20; i++)
+  {
+    gemm_libxsmm_sparse(A,B,C4);
+  }
+
+  for(int j = 0; j < 1; j++)
+  {
+    start = clock();
+    for(int i = 0; i < ITER; i++)
+    {
+      gemm_libxsmm_sparse(A,B,C4);
+    }
+    end = clock();
+    if(((double) (end - start)) < min_time_libxsmm_sparse)
+      min_time_libxsmm_sparse = ((double) (end - start));
   }
   
+ 
 
 //  printf("C\n");
 
@@ -172,9 +196,28 @@ int main(void) {
 //    printf("%f  ", C[((i * M) % (M * N)) + i / N]);
 //  }
 
+
+  for(int i = 0; i < N * M; i++)
+  {
+    if(C1[i] == C2[i] == C3[i] == C4[i])
+      printf("Test scuccessfull!\n");
+    else
+    {
+      printf("Test fails!\n");
+      printf("C1[%i] = %f ", i, C1[i]);
+      printf("C2[%i] = %f ", i, C2[i]);
+      printf("C3[%i] = %f ", i, C3[i]);
+      printf("C4[%i] = %f \n", i, C4[i]);
+    }
+
+  }
+
+
+
   min_time_sparse = min_time_sparse / CLOCKS_PER_SEC;
   min_time_dense = min_time_dense / CLOCKS_PER_SEC;
-  min_time_openblas = min_time_openblas / CLOCKS_PER_SEC;
+  min_time_libxsmm_sparse = min_time_libxsmm_sparse / CLOCKS_PER_SEC;
+  min_time_libxsmm_dense = min_time_libxsmm_dense / CLOCKS_PER_SEC;
 
   printf("\n");
 
@@ -183,7 +226,8 @@ int main(void) {
 
   double sparseFLOPS =sparseFLOP/ min_time_sparse;
   double denseFLOPS = denseFLOP / min_time_dense;
-  double FLOPSopenblas = denseFLOP / min_time_openblas;
+  double sparseFLOPSlibxsmm = sparseFLOP / min_time_libxsmm_sparse;
+  double denseFLOPSlibxsmm = denseFLOP / min_time_libxsmm_dense;
 
 
   printf("Matrix Multiplication M = %i, N = %i, K = %i, non-zero elements: %i\n\n", M, N, K, S);
@@ -193,11 +237,13 @@ int main(void) {
 
   printf("time used by sparse MM:      %f\n", min_time_sparse);
   printf("time used by dense MM:       %f\n", min_time_dense);
-  printf("time used by dense openblas: %f\n", min_time_openblas);
+  printf("time used by libxsmm dense:  %f\n", min_time_libxsmm_dense);
+  printf("time used by libxsmm sparse: %f\n", min_time_libxsmm_sparse);
 
-  printf("GFLOPS by sparse MM: %f\n", sparseFLOPS / 1000000000);
-  printf("GFLOPS by dense MM:  %f\n", denseFLOPS / 1000000000);
-  printf("GFLOPS by openbblas: %f\n", FLOPSopenblas / 1000000000);
+  printf("GFLOPS by sparse MM:      %f\n", sparseFLOPS / 1000000000);
+  printf("GFLOPS by dense MM:       %f\n", denseFLOPS / 1000000000);
+  printf("GFLOPS by libxsmm sparse: %f\n", sparseFLOPSlibxsmm / 1000000000);
+  printf("GFLOPS by libxsmm dense:  %f\n", denseFLOPSlibxsmm / 1000000000);
 
   return 0;
 }

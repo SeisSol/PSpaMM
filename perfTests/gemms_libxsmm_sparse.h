@@ -1,4 +1,4 @@
-void gemm_libxsmm_sparse(const double* A, const double* B, double* C, const double* A_prefetch, const double* B_prefetch, const double* C_prefetch) {
+void gemm_libxsmm_sparse(const double* A, const double* B, double* C) {
   unsigned int l_m = 0;
 
   #pragma simd vectorlength(32)
@@ -298,13 +298,5 @@ void gemm_libxsmm_sparse(const double* A, const double* B, double* C, const doub
     C[424+l_m] += A[72+l_m] * B[291];
     C[424+l_m] += A[152+l_m] * B[292];
     C[424+l_m] += A[272+l_m] * B[293];
-  }
-
-#ifndef NDEBUG
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
-libxsmm_num_total_flops += 4704;
-#endif
+  };
 }
-
