@@ -1,4 +1,4 @@
-void gemm_libxsmm(const double* A, const double* B, double* C) {
+void gemm_libxsmm_dense(const double* A, const double* B, double* C) {
   __asm__ __volatile__("movq %0, %%rdi\n\t"
                        "movq %1, %%rsi\n\t"
                        "movq %2, %%rdx\n\t"
