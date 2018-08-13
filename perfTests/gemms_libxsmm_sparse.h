@@ -1,5 +1,11 @@
-void gemm_libxsmm_sparse(const double* A, const double* B, double* C) {
+void gemm_libxsmm_sparse(const double* A, const double* B, double* C, const double* A_prefetch, const double* B_prefetch, const double* C_prefetch) {
   unsigned int l_m = 0;
+  unsigned int l_n = 0;
+  for ( l_n = 0; l_n < 56; l_n++) {
+    #pragma simd
+    #pragma vector aligned
+    for ( l_m = 0; l_m < 8; l_m++) { C[(l_n*8)+l_m] = 0.0; }
+  }
 
   #pragma simd vectorlength(32)
   #pragma vector aligned
@@ -298,5 +304,6 @@ void gemm_libxsmm_sparse(const double* A, const double* B, double* C) {
     C[424+l_m] += A[72+l_m] * B[291];
     C[424+l_m] += A[152+l_m] * B[292];
     C[424+l_m] += A[272+l_m] * B[293];
-  };
+  }
 }
+
