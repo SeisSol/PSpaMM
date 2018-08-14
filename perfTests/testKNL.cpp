@@ -17,7 +17,7 @@
 #define N 56
 #define K 56
 #define S 294
-#define ITER 10000000
+#define ITER 1000
 
 void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double beta, double* C){
   if (beta == 0.0) {
@@ -50,6 +50,11 @@ int main(void) {
   int resC2 = posix_memalign(reinterpret_cast<void **>(&C2), 64, M*N*sizeof(double));
   int resC3 = posix_memalign(reinterpret_cast<void **>(&C3), 64, M*N*sizeof(double));
   int resC4 = posix_memalign(reinterpret_cast<void **>(&C4), 64, M*N*sizeof(double));
+
+  for(int i = 0; i < M * N; i++)
+  {
+    C4[i] = 5555555;
+  }
 
   std::string line;
   std::ifstream f("56x56.mtx");
@@ -170,7 +175,7 @@ int main(void) {
 
   for(int i = 0; i < ITER/20; i++)
   {
-    gemm_libxsmm_sparse(A,B,C4);
+    gemm_libxsmm_sparse(A,Bsparse,C4);
   }
 
   for(int j = 0; j < 1; j++)
@@ -178,7 +183,7 @@ int main(void) {
     start = clock();
     for(int i = 0; i < ITER; i++)
     {
-      gemm_libxsmm_sparse(A,B,C4);
+      gemm_libxsmm_sparse(A,Bsparse,C4);
     }
     end = clock();
     if(((double) (end - start)) < min_time_libxsmm_sparse)
@@ -187,31 +192,58 @@ int main(void) {
   
  
 
-//  printf("C\n");
+  printf("C1\n");
 
-//  for(int i = 0; i < M * N; i++)
-//  {
-//    if(i % N == 0)
-//      printf("\n");
-//    printf("%f  ", C[((i * M) % (M * N)) + i / N]);
-//  }
-
-
-  for(int i = 0; i < N * M; i++)
+  for(int i = 0; i < M * N; i++)
   {
-    if(C1[i] == C2[i] == C3[i] == C4[i])
-      printf("Test scuccessfull!\n");
-    else
-    {
-      printf("Test fails!\n");
-      printf("C1[%i] = %f ", i, C1[i]);
-      printf("C2[%i] = %f ", i, C2[i]);
-      printf("C3[%i] = %f ", i, C3[i]);
-      printf("C4[%i] = %f \n", i, C4[i]);
-    }
-
+    if(i % N == 0)
+      printf("\n");
+    printf("%f ", C1[((i * M) % (M * N)) + i / N]);
   }
 
+
+
+  printf("C2\n");
+
+  for(int i = 0; i < M * N; i++)
+  {
+    if(i % N == 0)
+      printf("\n");
+    printf("%f ", C2[((i * M) % (M * N)) + i / N]);
+  }
+
+
+
+  printf("C3\n");
+
+  for(int i = 0; i < M * N; i++)
+  {
+    if(i % N == 0)
+      printf("\n");
+    printf("%f ", C3[((i * M) % (M * N)) + i / N]);
+  }
+
+
+
+  printf("C4\n");
+
+  for(int i = 0; i < M * N; i++)
+  {
+    if(i % N == 0)
+      printf("\n");
+    printf("%f ", C4[((i * M) % (M * N)) + i / N]);
+  }
+
+/*
+  for(int i = 0; i < N * M; i++)
+  {
+    printf("C1[%i] = %f\n", i, C1[i]);
+    printf("C2[%i] = %f\n", i, C2[i]);
+    printf("C3[%i] = %f\n", i, C3[i]);
+    printf("C4[%i] = %f\n", i, C4[i]);
+    printf("------------------------\n");
+ }
+*/
 
 
   min_time_sparse = min_time_sparse / CLOCKS_PER_SEC;
