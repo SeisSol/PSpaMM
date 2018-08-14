@@ -1,4 +1,4 @@
-void gemm_libxsmm_sparse(const double* A, const double* B, double* C, const double* A_prefetch, const double* B_prefetch, const double* C_prefetch) {
+void gemm_libxsmm_sparse(const double* A, const double* B, double* C) {
   unsigned int l_m = 0;
   unsigned int l_n = 0;
   for ( l_n = 0; l_n < 56; l_n++) {
@@ -305,5 +305,6 @@ void gemm_libxsmm_sparse(const double* A, const double* B, double* C, const doub
     C[424+l_m] += A[152+l_m] * B[292];
     C[424+l_m] += A[272+l_m] * B[293];
   }
+
 }
 
