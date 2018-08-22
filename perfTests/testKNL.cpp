@@ -103,7 +103,7 @@ int main(void) {
   printf("\n");
 */
 
-  gemm_ref(m, n, k, A, B, 0, C);
+  gemm_ref(M, N, K, A, B, 0, C);
 
   clock_t start, end;
   double cpu_time_used;
