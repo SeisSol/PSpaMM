@@ -37,6 +37,7 @@ int main(void) {
 
   double *A;
   double *B;
+  double *C;
   double *C1;
   double *C2;
   double *C3;
@@ -46,6 +47,7 @@ int main(void) {
   int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, M*K*sizeof(double));
   int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, K*N*sizeof(double));
   int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, K*N*sizeof(double));
+  int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, M*N*sizeof(double));
   int resC1 = posix_memalign(reinterpret_cast<void **>(&C1), 64, M*N*sizeof(double));
   int resC2 = posix_memalign(reinterpret_cast<void **>(&C2), 64, M*N*sizeof(double));
   int resC3 = posix_memalign(reinterpret_cast<void **>(&C3), 64, M*N*sizeof(double));
@@ -76,7 +78,7 @@ int main(void) {
       counter++;
     }
   }
-
+/*
   printf("A\n");
 
   for(int i = 0; i < M*K; i++)
@@ -98,6 +100,9 @@ int main(void) {
   }
 
   printf("\n");
+*/
+
+  gemm_ref(m, n, k, A, B, 0, C);
 
   clock_t start, end;
   double cpu_time_used;
@@ -182,7 +187,7 @@ int main(void) {
       min_time_libxsmm_sparse = ((double) (end - start));
   }
   
- 
+/* 
 
   printf("\nC1\n");
 
@@ -225,10 +230,11 @@ int main(void) {
       printf("\n");
     printf("%f ", C4[((i * M) % (M * N)) + i / N]);
   }
+*/
 
   for(int i = 0; i < N * M; i++)
   {
-    if(std::abs(C1[i] - C2[i]) < 0.0001 && std::abs(C1[i] - C3[i]) < 0.0001 && std::abs(C1[i] - C4[i]) < 0.0001)
+    if(std::abs(C[i] - C1[i]) < 0.0001 && std::abs(C[i] - C2[i]) < 0.0001 && std::abs(C[i] - C3[i]) < 0.0001 && std::abs(C[i] - C4[i]) < 0.0001)
       printf("#");
     else
     {
