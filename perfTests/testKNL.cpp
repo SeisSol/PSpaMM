@@ -64,9 +64,7 @@ int main(void) {
   }
 
   for(int i = 0; i < M*K; i++)
-  {
     A[i] = 1;
-  }
 
   counter = 0;
   
@@ -79,16 +77,16 @@ int main(void) {
     }
   }
 
-//  printf("A\n");
+  printf("A\n");
 
-//  for(int i = 0; i < M*K; i++)
-//  {
-//    if(i % K == 0)
-//      printf("\n");
-//    printf("%f  ", A[((i * M) % (M * K)) + i / K]);
-//  }
+  for(int i = 0; i < M*K; i++)
+  {
+    if(i % K == 0)
+      printf("\n");
+    printf("%f  ", A[((i * M) % (M * K)) + i / K]);
+  }
 
-//  printf("\n");
+  printf("\n");
 
   printf("B\n");
 
@@ -108,7 +106,7 @@ int main(void) {
 
   for(int i = 0; i < ITER/20; i++)
   {
-  //  gemm_sparse(A,Bsparse,C1);
+    gemm_sparse(A,Bsparse,C1);
   }
 
   for(int j = 0; j < 1; j++)
@@ -116,7 +114,7 @@ int main(void) {
     start = clock();
     for(int i = 0; i < ITER; i++)
     {
-    //  gemm_sparse(A,Bsparse,C1);
+      gemm_sparse(A,Bsparse,C1);
     }
     end = clock();
     if(((double) (end - start)) < min_time_sparse)
@@ -129,7 +127,7 @@ int main(void) {
 
   for(int i = 0; i < ITER/20; i++)
   {
-  //  gemm_dense(A,B,C2);
+    gemm_dense(A,B,C2);
   }
 
   for(int j = 0; j < 1; j++)
@@ -137,7 +135,7 @@ int main(void) {
     start = clock();
     for(int i = 0; i < ITER; i++)
     {
-   //   gemm_dense(A,B,C2);
+      gemm_dense(A,B,C2);
     }
     end = clock();
     if(((double) (end - start)) < min_time_dense)
@@ -150,7 +148,7 @@ int main(void) {
 
   for(int i = 0; i < ITER/20; i++)
   {
-   // gemm_libxsmm_dense(A,B,C3);
+    gemm_libxsmm_dense(A,B,C3);
   }
 
   for(int j = 0; j < 1; j++)
@@ -158,7 +156,7 @@ int main(void) {
     start = clock();
     for(int i = 0; i < ITER; i++)
     {
-   //   gemm_libxsmm_dense(A,B,C3);
+      gemm_libxsmm_dense(A,B,C3);
     }
     end = clock();
     if(((double) (end - start)) < min_time_libxsmm_dense)
@@ -228,16 +226,13 @@ int main(void) {
     printf("%f ", C4[((i * M) % (M * N)) + i / N]);
   }
 
-/*
   for(int i = 0; i < N * M; i++)
   {
-    printf("C1[%i] = %f\n", i, C1[i]);
-    printf("C2[%i] = %f\n", i, C2[i]);
-    printf("C3[%i] = %f\n", i, C3[i]);
-    printf("C4[%i] = %f\n", i, C4[i]);
-    printf("------------------------\n");
- }
-*/
+    if(C1[i] == C2[i] == C3[i] == C4[i])
+      printf("#");
+    else
+      printf("\nFAIL\n");
+  }
 
 
   min_time_sparse = min_time_sparse / CLOCKS_PER_SEC;
