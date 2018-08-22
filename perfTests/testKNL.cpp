@@ -228,10 +228,13 @@ int main(void) {
 
   for(int i = 0; i < N * M; i++)
   {
-    if(C1[i] == C2[i] == C3[i] == C4[i])
+    if(std::abs(C1[i] - C2[i]) < 0.0001 && std::abs(C1[i] - C3[i]) < 0.0001 && std::abs(C1[i] - C4[i]) < 0.0001)
       printf("#");
     else
+    {
       printf("\nFAIL\n");
+      printf("%f\n%f\n%f\n%f\n", C1[i], C2[i], C3[i], C4[i]);
+    }
   }
 
 
