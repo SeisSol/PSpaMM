@@ -7,6 +7,7 @@
 #include <vector>
 #include <sstream>
 #include <cstring>
+#include <cmath>
 
 #include "gemms_knl_dense.h"
 #include "gemms_knl_sparse.h"
