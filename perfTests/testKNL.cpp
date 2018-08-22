@@ -17,7 +17,7 @@
 #define N 56
 #define K 56
 #define S 294
-#define ITER 1000
+#define ITER 10000000
 
 void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double beta, double* C){
   if (beta == 0.0) {
@@ -50,11 +50,6 @@ int main(void) {
   int resC2 = posix_memalign(reinterpret_cast<void **>(&C2), 64, M*N*sizeof(double));
   int resC3 = posix_memalign(reinterpret_cast<void **>(&C3), 64, M*N*sizeof(double));
   int resC4 = posix_memalign(reinterpret_cast<void **>(&C4), 64, M*N*sizeof(double));
-
-  for(int i = 0; i < M * N; i++)
-  {
-    C4[i] = 5555555;
-  }
 
   std::string line;
   std::ifstream f("56x56.mtx");
@@ -95,17 +90,16 @@ int main(void) {
 
 //  printf("\n");
 
-//  printf("B\n");
+  printf("B\n");
 
-//  for(int i = 0; i < N * K; i++)
-//  {
-//    if(i % N == 0)
-//      printf("\n");
-//    printf("%f  ", B[((i * K) % (K * N)) + i / N]);
-//  }
+  for(int i = 0; i < N * K; i++)
+  {
+    if(i % N == 0)
+      printf("\n");
+    printf("%f  ", B[((i * K) % (K * N)) + i / N]);
+  }
 
-//  printf("\n");
-
+  printf("\n");
 
   clock_t start, end;
   double cpu_time_used;
@@ -114,7 +108,7 @@ int main(void) {
 
   for(int i = 0; i < ITER/20; i++)
   {
-    gemm_sparse(A,Bsparse,C1);
+  //  gemm_sparse(A,Bsparse,C1);
   }
 
   for(int j = 0; j < 1; j++)
@@ -122,7 +116,7 @@ int main(void) {
     start = clock();
     for(int i = 0; i < ITER; i++)
     {
-      gemm_sparse(A,Bsparse,C1);
+    //  gemm_sparse(A,Bsparse,C1);
     }
     end = clock();
     if(((double) (end - start)) < min_time_sparse)
@@ -135,7 +129,7 @@ int main(void) {
 
   for(int i = 0; i < ITER/20; i++)
   {
-    gemm_dense(A,B,C2);
+  //  gemm_dense(A,B,C2);
   }
 
   for(int j = 0; j < 1; j++)
@@ -143,7 +137,7 @@ int main(void) {
     start = clock();
     for(int i = 0; i < ITER; i++)
     {
-      gemm_dense(A,B,C2);
+   //   gemm_dense(A,B,C2);
     }
     end = clock();
     if(((double) (end - start)) < min_time_dense)
@@ -156,7 +150,7 @@ int main(void) {
 
   for(int i = 0; i < ITER/20; i++)
   {
-    gemm_libxsmm_dense(A,B,C3);
+   // gemm_libxsmm_dense(A,B,C3);
   }
 
   for(int j = 0; j < 1; j++)
@@ -164,7 +158,7 @@ int main(void) {
     start = clock();
     for(int i = 0; i < ITER; i++)
     {
-      gemm_libxsmm_dense(A,B,C3);
+   //   gemm_libxsmm_dense(A,B,C3);
     }
     end = clock();
     if(((double) (end - start)) < min_time_libxsmm_dense)
@@ -192,7 +186,7 @@ int main(void) {
   
  
 
-  printf("C1\n");
+  printf("\nC1\n");
 
   for(int i = 0; i < M * N; i++)
   {
@@ -203,7 +197,7 @@ int main(void) {
 
 
 
-  printf("C2\n");
+  printf("\nC2\n");
 
   for(int i = 0; i < M * N; i++)
   {
@@ -214,7 +208,7 @@ int main(void) {
 
 
 
-  printf("C3\n");
+  printf("\nC3\n");
 
   for(int i = 0; i < M * N; i++)
   {
@@ -225,7 +219,7 @@ int main(void) {
 
 
 
-  printf("C4\n");
+  printf("\nC4\n");
 
   for(int i = 0; i < M * N; i++)
   {
