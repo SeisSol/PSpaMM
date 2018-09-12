@@ -5,10 +5,6 @@ from typing import List, Dict
 AsmType = Enum('AsmType', ['unknown','i8','i16','i32','i64','f32','f64',
                            'f32x4','f32x8','f32x16','f64x2','f64x4','f64x8'])
 
-AsmType.__doc__ = """Enum of different concrete types, the useful subset of
-    the cross product {Int,Float} x {size} x {vector length}.
-    Each Operand has exactly one concrete type."""
-
 class Operand:
     @property
     def ugly(self):
@@ -59,12 +55,8 @@ class MemoryAddress(Operand):
 
     def __init__(self,
                  base: Register,
-                 index: Register,
-                 scale: int,
                  disp: int) -> None:
         self.base = base
-        self.index = index
-        self.scale = scale
         self.disp = disp
 
     @property

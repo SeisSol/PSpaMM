@@ -2,43 +2,27 @@
 
 import argparse
 
-#from codegen import *
-from components.parameters import Parameters
-from codegen.ccode import *
-import dxsp_unrolled	
 import architecture
-import arm.generator
-import arm.operands
-import knl.generator
-import knl.operands
 
+from matmul import *
 
+from codegen.ccode import *
+from codegen.architectures import *
 
 
 mtx_formats = ['any','csc','csr','bsc','bsr','bcsc','bcsr']
 
 
-def main(params: Parameters) -> None:
-	architecture.init()
-	architecture.arch = params.arch
-	architecture.generator = architecture.get_class(params.arch + ".generator")
-	architecture.operands = architecture.get_class(params.arch + ".operands")
+def main(alg: MatMul) -> None:
 
-	generator = dxsp_unrolled
-	params = generator.choose_params(params)       # type: ignore
-	block = generator.make_alg(params)             # type: ignore
+	block = MatMul.make(alg)
 
-	# MyPy does not support 'module interfaces'
-	# https://github.com/python/mypy/issues/1741
+	text = make_cfunc(alg.output_funcname, block)
 
-	text = make_cfunc(params.output_funcname, block)
-
-
-	if params.output_filename is None:
+	if alg.output_filename is None:
 		print(text)
-
 	else:
-		with open(params.output_filename, "a") as f:
+		with open(alg.output_filename, "a") as f:
 			f.write(text)
 
 
@@ -61,7 +45,6 @@ if __name__=="__main__":
 	parser.add_argument("--bn", type=int, help="Size of n-blocks")
 	parser.add_argument("--bk", type=int, help="Size of k-blocks")
 
-	parser.add_argument("--v_size", type=int, help="Size of vectors")
 	parser.add_argument("--arch", help="Architecture", default="knl")
 
 	parser.add_argument("--mtx_filename", help="Path to MTX file describing the sparse matrix")
@@ -71,10 +54,5 @@ if __name__=="__main__":
 	parser.add_argument("--output_filename", help="Path to destination C++ file")
 
 	args = parser.parse_args()
-	params = Parameters(**args.__dict__)
-	main(params)
-
-
-
-
-
+	alg = MatMul(**args.__dict__)
+	main(alg)

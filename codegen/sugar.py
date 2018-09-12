@@ -117,9 +117,3 @@ def block(description: str, *args: AsmStmt):
     b = BlockBuilder(description)
     b.contents = list(args)
     return b
-
-
-def inline(block: Block):
-    printer = InlinePrinter()
-    printer.visitBlock(block)
-    return "\n".join(printer.output)

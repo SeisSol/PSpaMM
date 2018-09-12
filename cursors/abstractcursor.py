@@ -29,7 +29,7 @@ class CursorLocation:
         self.current_cell = current_cell
 
 
-class CursorDef:
+class Cursor:
     name: str
     base_ptr: Register
     index_ptr: Register
@@ -54,18 +54,6 @@ class CursorDef:
     def bcf(self) -> int:
         return self.c % self.bc
 
-    def has_nonzero_cell(self,
-                         src: CursorLocation,
-                         dest_block: Coords,
-                         dest_cell: Coords
-                        ) -> bool:
-        raise NotImplementedError()
-
-
-    def has_nonzero_block(self, src: CursorLocation, dest_block: Coords) -> bool:
-        raise NotImplementedError()
-
-
     def move(self,
              src: CursorLocation,
              dest_block: Coords
@@ -87,10 +75,10 @@ class CursorDef:
 
 
 class CursorMovement(Command):
-    matrix: CursorDef
+    matrix: Cursor
 
 class CursorLookup(MemoryAddress):
-    matrix: CursorDef
+    matrix: Cursor
     src: CursorLocation
     dest: CursorLocation
 

@@ -3,9 +3,9 @@ from cursors.matrix import Matrix
 from cursors.coords import Coords
 
 from codegen.sugar import *
-from typing import cast # TODO: Use function overloads correctly now that I know how
+from typing import cast
 
-class BlockCursorDef(CursorDef):
+class BlockCursor(Cursor):
 
     blocks: Matrix[int]
     patterns: List[Matrix[bool]]
@@ -24,34 +24,17 @@ class BlockCursorDef(CursorDef):
 
         self.name = name
         self.base_ptr = base_ptr
-        self.index_ptr = None
-        self.scale = 1
         self.scalar_bytes = 8
         self.r = rows
         self.c = cols
         self.ld = ld
         self.br = block_rows
-        self.bc = block_cols  # The reported blocksizes are the truth
+        self.bc = block_cols
         self.blocks = blocks
         self.patterns = patterns
 
-        # The block patterns that are passed in need to conform with the truth,
-        # not the other way around.
-        topleftblock = blocks[0,0]
-        topleftblock = cast(int, topleftblock)
-        brp, bcp = patterns[topleftblock].shape
-        Brp, Bcp = blocks.shape
-
-        assert(brp==self.br)
-        assert(bcp==self.bc)
-        assert(Brp==self.Br)
-        assert(Bcp==self.Bc)
-
-        # This enforces a constant blocksize (excluding fringes), which
-        # makes a lot of things easier
+        self.offsets = Matrix.full(rows, cols, -1)
         x = 0
-        offsets = Matrix.full(rows+1, cols+1, -1)
-
         for i in range(self.c):
             for j in range(self.r):
                 Bci = i // self.bc
@@ -59,12 +42,10 @@ class BlockCursorDef(CursorDef):
                 index = cast(int, blocks[Bri, Bci])
                 pattern = patterns[index]   
                 if pattern[j % self.br,i % self.bc]:
-                    offsets[j, i] = x
+                    self.offsets[j, i] = x
                     x += 1
             if ld != 0:
                 x += self.ld - self.r
-
-        self.offsets = offsets
 
     def offset(self,
                src_loc: CursorLocation,
@@ -101,10 +82,6 @@ class BlockCursorDef(CursorDef):
             ) -> Tuple[AsmStmt, CursorLocation]:
 
         comment = f"Move {self.name} to {str(dest_block)}"
-        if self.index_ptr is None:
-            ptr_to_move = self.base_ptr
-        else:
-            ptr_to_move = self.index_ptr
 
         if dest_block.absolute:
             dest_loc = self.start_location(dest_block)
@@ -113,7 +90,7 @@ class BlockCursorDef(CursorDef):
 
         offset_bytes = self.offset(src_loc, dest_loc) * self.scalar_bytes
         
-        return add(offset_bytes, ptr_to_move, comment), dest_loc
+        return add(offset_bytes, self.base_ptr, comment), dest_loc
 
 
     def look(self,
@@ -126,7 +103,7 @@ class BlockCursorDef(CursorDef):
         offset_bytes = self.offset(src_loc, dest_loc) * self.scalar_bytes
         comment = f"{self.name}[{dest_block.down},{dest_block.right}][{dest_cell.down},{dest_cell.right}]"
 
-        addr = architecture.operands.mem(self.base_ptr, self.index_ptr, self.scale, offset_bytes)
+        addr = architecture.operands.mem(self.base_ptr, offset_bytes)
         
         return (addr, comment)
 
@@ -206,20 +183,28 @@ class BlockCursorDef(CursorDef):
         raise Exception("Matrix is completely empty!")
 
 
-    def _bounds_check(self, abs_cells: Coords) -> None:
-        ri,ci = abs_cells.down, abs_cells.right
-        r, c = self.offsets.shape
-        if ri >= r or ci >= c or ri < 0 or ci < 0:
-            raise Exception(f"Entry {ri},{ci} outside matrix!")
+def sparse_mask(A_regs: Matrix[Register],
+           A: Cursor,
+           A_ptr: CursorLocation,
+           A_block_offset: Coords,
+           B: Cursor,
+           B_ptr: CursorLocation,
+           B_block_offset: Coords,
+           v_size: int
+          ) -> Matrix[bool]:
 
-    def pattern(self) -> Matrix[bool]:
-        return Matrix(self.offsets._underlying != -1)
+    Vr, Vc = A_regs.shape
+    mask = Matrix.full(Vr, Vc, False)
+    A_br, A_bc, A_idx, A_pat = A.get_block(A_ptr, A_block_offset)
+    B_br, B_bc, B_idx, B_pat = B.get_block(B_ptr, B_block_offset)
 
+    assert(Vr*v_size == A_br)   # bm must tile m exactly for now
+    assert(Vc >= A_bc)     # Matrix block must fit in register block
+    assert(A_bc == B_br)   # Matrix blocks are compatible
 
+    # Mask out registers not used in current block, including zero-rows of B
+    for Vci in range(A_bc):
+        if B_pat[Vci,:].any(axis=1):
+            mask[:,Vci] = True
 
-def minicursor(name: str, base_ptr: Register, pattern: Matrix[bool]):
-    rows, cols = pattern.shape
-    cursor = BlockCursorDef(name, base_ptr, rows, cols, rows, cols, Matrix([[0]]), [pattern])
-    return cursor
-
-
+    return mask

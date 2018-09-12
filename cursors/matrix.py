@@ -92,56 +92,6 @@ class Matrix(Generic[T]):
         mm = csc_matrix(m)
         mmwrite(filename, mm, symmetry='general')
 
-
-    # TODO: This currently only supports a perfect tiling
-
-    def to_blocks(self, bn, bk) -> Tuple["Matrix[int]", List["Matrix[bool]"]]:
-
-        k,n = self.shape
-        Bk,Bn = k//bk, n//bn
-        patterns : List[Matrix[bool]] = []
-        blocks = Matrix.full(Bk,Bn,-1)
-        x = 0
-
-        for Bni in range(Bn):
-            for Bki in range(Bk):
-                block = self[(Bki*bk):((Bki+1)*bk), (Bni*bn):((Bni+1)*bn)]
-                found = False
-                for pi in range(len(patterns)):
-                    if patterns[pi] == block:
-                        blocks[Bki,Bni] = pi
-                        found = True
-                if not found:
-                    blocks[Bki,Bni] = x
-                    x += 1
-                    patterns.append(block)
-
-        return blocks, patterns
-
-
-    # TODO: Use generics correctly. Right now this only works on Matrix[bool]
-
-    @classmethod
-    def from_blocks(cls, blocks:"Matrix[int]", patterns:List["Matrix[bool]"]) -> "Matrix[bool]":
-
-        # Compute final matrix size
-        # TODO: This assumes a perfect tiling
-        br, bc = patterns[0].shape
-        Br, Bc = blocks.shape
-
-        # Create final matrix
-        m = Matrix.full(br*Br, bc*Bc, False)
-
-        # Paste each pattern in the correct place
-        for Bci in range(Bc):
-            for Bri in range(Br):
-                for bci in range(bc):
-                    for bri in range(br):
-                        m[Bri*br+bri, Bci*bc+bci] = patterns[blocks[Bri,Bci]][bri,bci]
-
-        return m
-
-
     @classmethod
     def rand_bool(cls, nnz, m, n, seed):
 

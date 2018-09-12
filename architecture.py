@@ -3,7 +3,7 @@ def init():
     global arch
     global generator
     global operands
-    arch = "nothing"
+    arch = "none"
     generator = None
     operands = None
 

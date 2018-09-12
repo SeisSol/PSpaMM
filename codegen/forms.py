@@ -40,38 +40,5 @@ class Loop(Block):
         self.body_contents = block("Loop body", *args)
         return self
 
-
-class JumpTable(Block):
-    def __init__(self,
-                 blocks: List[Block],
-                 mapping: List[int]) -> None:
-
-        self.blocks = blocks
-        self.mapping = mapping
-
-    @property
-    def contents(self):
-        n = len(self.blocks)
-        table_start = Label("jump_table_start")
-        table_end = Label("jump_table_end")
-        labels = [Label(f"jump_block_{i}" for i in range(n))]
-        contents = [table_start]
-
-        for m in self.mapping:
-            contents.append(data(labels[m]))
-
-        for i in range(n-1):
-            contents.append(label(labels[i]))
-            contents.append(blocks[i])
-            contents.append(jump(table_end, backwards=False))
-
-        contents.append(label(labels[n]))
-        contents.append(blocks[n])
-
-        contents.append(label(table_end))
-        return contents
-
-
-
 def loop(iter_var, initial_val, final_val, increment):
     return Loop(iter_var, initial_val, final_val, increment)

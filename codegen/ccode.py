@@ -5,9 +5,9 @@ import architecture
 
 
 def make_cfunc(funcName:str, body:Block) -> str:
-    Gen = architecture.get_class(architecture.arch + ".inlineprinter.InlinePrinter")
+    Generator = architecture.get_class("codegen.architectures." + architecture.arch + ".inlineprinter.InlinePrinter")
 
-    printer = Gen()
+    printer = Generator()
     printer.lmargin = 4
     body.accept(printer)
     body_text = "\n".join(printer.output)
