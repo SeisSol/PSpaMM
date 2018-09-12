@@ -8,6 +8,7 @@
 #include <sstream>
 #include <cstring>
 #include <cmath>
+#include "omp.h"  
 
 #include "gemms_knl_dense.h"
 #include "gemms_knl_sparse.h"
@@ -18,7 +19,7 @@
 #define N 56
 #define K 56
 #define S 294
-#define ITER 10000000
+#define ITER 1000000000
 
 void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double beta, double* C){
   if (beta == 0.0) {
@@ -45,14 +46,16 @@ int main(void) {
   double *C4;
   double *Bsparse;
 
-  int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, M*K*sizeof(double));
-  int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, K*N*sizeof(double));
-  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, K*N*sizeof(double));
-  int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, M*N*sizeof(double));
-  int resC1 = posix_memalign(reinterpret_cast<void **>(&C1), 64, M*N*sizeof(double));
-  int resC2 = posix_memalign(reinterpret_cast<void **>(&C2), 64, M*N*sizeof(double));
-  int resC3 = posix_memalign(reinterpret_cast<void **>(&C3), 64, M*N*sizeof(double));
-  int resC4 = posix_memalign(reinterpret_cast<void **>(&C4), 64, M*N*sizeof(double));
+  int num_threads = omp_get_max_threads();
+
+  int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, num_threads*M*K*sizeof(double));
+  int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, num_threads*K*N*sizeof(double));
+  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, num_threads*K*N*sizeof(double));
+  int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, num_threads*M*N*sizeof(double));
+  int resC1 = posix_memalign(reinterpret_cast<void **>(&C1), 64, num_threads*M*N*sizeof(double));
+  int resC2 = posix_memalign(reinterpret_cast<void **>(&C2), 64, num_threads*M*N*sizeof(double));
+  int resC3 = posix_memalign(reinterpret_cast<void **>(&C3), 64, num_threads*M*N*sizeof(double));
+  int resC4 = posix_memalign(reinterpret_cast<void **>(&C4), 64, num_threads*M*N*sizeof(double));
 
   std::string line;
   std::ifstream f("56x56.mtx");
@@ -62,11 +65,12 @@ int main(void) {
   int counter = 0;
 
   while(getline(f, line)) {
-    B[counter] = std::stod(line);
+    for(int i = 0; i < num_threads; i++)
+      B[i * K * N + counter] = std::stod(line);
     counter++;
   }
 
-  for(int i = 0; i < M*K; i++)
+  for(int i = 0; i < num_threads*M*K; i++)
     A[i] = 1;
 
   counter = 0;
@@ -75,10 +79,12 @@ int main(void) {
   {
     if(B[i] != 0)
     {
-      Bsparse[counter] = B[i];
+      for(int j = 0; j < num_threads; j++)
+        Bsparse[j * K * N + counter] = B[i];
       counter++;
     }
   }
+  
 /*
   printf("A\n");
 
@@ -105,87 +111,98 @@ int main(void) {
 
   gemm_ref(M, N, K, A, B, 0, C);
 
-  clock_t start, end;
+  double start, end;
   double cpu_time_used;
 
   double min_time_sparse = 999999999999999999; 
 
+/*
+  #pragma omp parallel for
   for(int i = 0; i < ITER/20; i++)
   {
     gemm_sparse(A,Bsparse,C1);
   }
-
+*/
   for(int j = 0; j < 1; j++)
   {
-    start = clock();
+    start = omp_get_wtime();
+    #pragma omp parallel for
     for(int i = 0; i < ITER; i++)
     {
-      gemm_sparse(A,Bsparse,C1);
+      gemm_sparse(&A[omp_get_thread_num() * M * K],&Bsparse[omp_get_thread_num() * K * N],&C1[omp_get_thread_num() * M * N]);
     }
-    end = clock();
-    if(((double) (end - start)) < min_time_sparse)
-      min_time_sparse = ((double) (end - start));
+    end = omp_get_wtime();
+    if(end - start < min_time_sparse)
+      min_time_sparse = end - start;
   }
-
 
 
   double min_time_dense = 999999999999999999; 
 
+/*
+  #pragma omp parallel for
   for(int i = 0; i < ITER/20; i++)
   {
     gemm_dense(A,B,C2);
   }
-
+*/
   for(int j = 0; j < 1; j++)
   {
-    start = clock();
+    start = omp_get_wtime();
+    #pragma omp parallel for
     for(int i = 0; i < ITER; i++)
-    {
-      gemm_dense(A,B,C2);
+    { 
+      gemm_dense(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C2[omp_get_thread_num() * M * N]);
     }
-    end = clock();
-    if(((double) (end - start)) < min_time_dense)
-      min_time_dense = ((double) (end - start));
+    end = omp_get_wtime();
+    if(end - start < min_time_dense)
+      min_time_dense = end - start;
   }
 
 
 
   double min_time_libxsmm_dense = 999999999999999999; 
 
+/*
+  #pragma omp parallel for
   for(int i = 0; i < ITER/20; i++)
   {
     gemm_libxsmm_dense(A,B,C3);
   }
-
+*/
   for(int j = 0; j < 1; j++)
   {
-    start = clock();
+    start = omp_get_wtime();
+    #pragma omp parallel for
     for(int i = 0; i < ITER; i++)
     {
-      gemm_libxsmm_dense(A,B,C3);
+      gemm_libxsmm_dense(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C3[omp_get_thread_num() * M * N]);
     }
-    end = clock();
-    if(((double) (end - start)) < min_time_libxsmm_dense)
-      min_time_libxsmm_dense = ((double) (end - start));
+    end = omp_get_wtime();
+    if(end - start < min_time_libxsmm_dense)
+      min_time_libxsmm_dense = end - start;
   }
  
   double min_time_libxsmm_sparse = 999999999999999999; 
 
+/* 
+  #pragma omp parallel for
   for(int i = 0; i < ITER/20; i++)
   {
     gemm_libxsmm_sparse(A,Bsparse,C4);
   }
-
+*/
   for(int j = 0; j < 1; j++)
   {
-    start = clock();
+    start = omp_get_wtime();
+    #pragma omp parallel for
     for(int i = 0; i < ITER; i++)
     {
-      gemm_libxsmm_sparse(A,Bsparse,C4);
+      gemm_libxsmm_sparse(&A[omp_get_thread_num() * M * K],&Bsparse[omp_get_thread_num() * K * N],&C4[omp_get_thread_num() * M * N]);
     }
-    end = clock();
-    if(((double) (end - start)) < min_time_libxsmm_sparse)
-      min_time_libxsmm_sparse = ((double) (end - start));
+    end = omp_get_wtime();
+    if(end - start < min_time_libxsmm_sparse)
+      min_time_libxsmm_sparse = end - start;
   }
   
 /* 
@@ -245,10 +262,10 @@ int main(void) {
   }
 
 
-  min_time_sparse = min_time_sparse / CLOCKS_PER_SEC;
-  min_time_dense = min_time_dense / CLOCKS_PER_SEC;
-  min_time_libxsmm_sparse = min_time_libxsmm_sparse / CLOCKS_PER_SEC;
-  min_time_libxsmm_dense = min_time_libxsmm_dense / CLOCKS_PER_SEC;
+  min_time_sparse = min_time_sparse;
+  min_time_dense = min_time_dense;
+  min_time_libxsmm_sparse = min_time_libxsmm_sparse;
+  min_time_libxsmm_dense = min_time_libxsmm_dense;
 
   printf("\n");
 
