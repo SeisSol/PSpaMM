@@ -88,15 +88,14 @@ int main(int argc, char** argv) {
   for(int i = 0; i < num_threads; i++)
     gemm_ref(M, N, K, &A[i * M * K], &B[i * K * N], 1, &C[i * M * N]);
 
-  clock_t start, end;
-  double cpu_time_used;
+  double start, end;
 
   start = omp_get_wtime();
   #pragma omp parallel for
   for(int i = 0; i < ITER; i++)
     gemm_sparse(&A[omp_get_thread_num() * M * K],&Bsparse[omp_get_thread_num() * K * N],&C1[omp_get_thread_num() * M * N]);
   end = omp_get_wtime();
-  double min_time_sparse = double(end) - (double) start;
+  double min_time_sparse = end - start;
 
 
   start = omp_get_wtime();
@@ -104,7 +103,7 @@ int main(int argc, char** argv) {
   for(int i = 0; i < ITER; i++)
     gemm_dense(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C2[omp_get_thread_num() * M * N]);
   end = omp_get_wtime();
-  double min_time_sparse = double(end) - (double) start;
+  double min_time_dense = end - start;
 
 
 //  start = omp_get_wtime();
@@ -112,7 +111,7 @@ int main(int argc, char** argv) {
 //  for(int i = 0; i < ITER; i++)
 //    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1, &A[omp_get_thread_num() * M * K], M, &B[omp_get_thread_num() * K * N], K, 0, &C3[omp_get_thread_num() * M * N], M);
 //  end = omp_get_wtime();
-  double min_time_sparse = double(end) - (double) start;
+  double min_time_openblas = end - start;
  
 
   double max_deviation1 = 0;
