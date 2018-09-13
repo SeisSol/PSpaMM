@@ -13,15 +13,26 @@ def decompose_pattern(pattern:Matrix[bool], bk:int, bn:int) -> Tuple[Matrix[int]
     k,n = pattern.shape
     Bk,Bn = k//bk, n//bn
     patterns : List[Matrix[bool]] = []
-    blocks = Matrix.full(Bk,Bn,-1)
     x = 0
+
+    n_overhead = n % bn
+
+    if n_overhead > 0:
+        Bn += 1
+
+    blocks = Matrix.full(Bk,Bn,-1)
 
     for Bni in range(Bn):
         for Bki in range(Bk):
-            block = pattern[(Bki*bk):((Bki+1)*bk), (Bni*bn):((Bni+1)*bn)]
+            corner_case = True
+            if Bni + 1 == Bn and n_overhead > 0:
+                block = pattern[(Bki*bk):((Bki+1)*bk), (Bni*bn):((Bni)*bn+n_overhead)]
+            else:
+                block = pattern[(Bki*bk):((Bki+1)*bk), (Bni*bn):((Bni+1)*bn)]
+                corner_case = False
             found = False
             for pi in range(len(patterns)):
-                if patterns[pi] == block:
+                if not corner_case and patterns[pi] == block:
                     blocks[Bki,Bni] = pi
                     found = True
             if not found:
@@ -107,15 +118,25 @@ class MatMul:
         A_ptr = CursorLocation()
         B_ptr = self.B.start()
         C_ptr = CursorLocation()
+
         Bn = self.n // self.bn
         Bk = self.k // self.bk
+        vm = self.bm // self.v_size
+
+        n_overhead = self.n % self.bn
+
+        if n_overhead > 0:
+            Bn += 1
 
         for Bni in range(0,Bn):
-
-            if self.beta == 1:
-                asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), self.C_regs, self.v_size, self.additional_regs, None, False))
+            if Bni + 1 == Bn and n_overhead > 0:
+                regs = self.C_regs[0:vm, 0:n_overhead]
             else:
-                asm.add(self.generator.make_zero_block(self.C_regs, self.additional_regs))
+                regs = self.C_regs
+            if self.beta == 1:
+                asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, False))
+            else:
+                asm.add(self.generator.make_zero_block(regs, self.additional_regs))
 
             for Bki in range(0,Bk):
 
@@ -123,9 +144,9 @@ class MatMul:
                 to_B = Coords(right=Bni, down=Bki, absolute=True)
 
                 if self.B.has_nonzero_block(B_ptr, to_B):
-                    asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, self.C_regs, self.v_size, self.additional_regs, to_A, to_B))
+                    asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.v_size, self.additional_regs, to_A, to_B))
 
-            asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), self.C_regs, self.v_size, self.additional_regs, None, True))
+            asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, True))
 
             if (Bni != Bn-1):
                 move_C, C_ptr = self.C.move(C_ptr, Coords(right=1))
@@ -144,6 +165,9 @@ class MatMul:
         Bn = alg.n // alg.bn
         Bk = alg.k // alg.bk
 
+        if alg.n % alg.bn != 0:
+            Bn += 1
+
         asm = block(f"unrolled_{alg.m}x{alg.n}x{alg.k}",
 
             loop(alg.loop_reg, 0, Bm, 1).body(
@@ -152,4 +176,16 @@ class MatMul:
                 alg.C.move(C_ptr, Coords(down=1, right=1-Bn))[0]
             )
         )
+
+        vm_overhead = (alg.m % alg.bm) // alg.v_size
+
+        if vm_overhead > 0:
+            alg.m = alg.m % alg.bm
+            alg.bm = alg.m % alg.bm
+            alg.A_regs = alg.C_regs[0:alg.bm // alg.v_size, 0:alg.bk]
+            alg.C_regs = alg.C_regs[0:alg.bm // alg.v_size, 0:alg.bn]
+            alg.A.r = alg.m
+            asm.add(alg.make_nk_unroll())
+
+
         return asm
