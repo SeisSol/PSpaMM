@@ -8,6 +8,7 @@
 #include <vector>
 #include <sstream>
 #include <cstring>
+#include "omp.h"
 
 
 #include "gemms_arm_sparse.h"
@@ -17,7 +18,7 @@
 #define N 56
 #define K 56
 #define S 294
-#define ITER 10000000
+#define ITER 65536
 
 void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double beta, double* C) {
   if (beta == 0.0) {
@@ -33,17 +34,25 @@ void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double b
 }
 
 
-int main(void) {
+int main(int argc, char** argv) {
+
+  int num_threads = omp_get_max_threads();
 
   double *A;
   double *B;
   double *C;
+  double *C1;
+  double *C2;
+  double *C3;
   double *Bsparse;
 
-  int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, M*K*sizeof(double));
-  int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, K*N*sizeof(double));
-  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, K*N*sizeof(double));
-  int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, M*N*sizeof(double));
+  int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, num_threads*M*K*sizeof(double));
+  int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, num_threads*K*N*sizeof(double));
+  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, num_threads*K*N*sizeof(double));  
+  int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, num_threads*M*N*sizeof(double));
+  int resC1 = posix_memalign(reinterpret_cast<void **>(&C1), 64, num_threads*M*N*sizeof(double));
+  int resC2 = posix_memalign(reinterpret_cast<void **>(&C2), 64, num_threads*M*N*sizeof(double));
+  int resC3 = posix_memalign(reinterpret_cast<void **>(&C3), 64, num_threads*M*N*sizeof(double));
 
   std::string line;
   std::ifstream f("56x56.mtx");
@@ -53,14 +62,13 @@ int main(void) {
   int counter = 0;
 
   while(getline(f, line)) {
-    B[counter] = std::stod(line);
+    for(int i = 0; i < num_threads; i++)
+      B[i * K * N + counter] = std::stod(line);
     counter++;
   }
 
-  for(int i = 0; i < M*K; i++)
-  {
+  for(int i = 0; i < num_threads*M*K; i++)
     A[i] = 1;
-  }
 
   counter = 0;
   
@@ -68,10 +76,98 @@ int main(void) {
   {
     if(B[i] != 0)
     {
-      Bsparse[counter] = B[i];
+      for(int j = 0; j < num_threads; j++)
+        Bsparse[j * K * N + counter] = B[i];
       counter++;
     }
   }
+
+  #pragma omp parallel for
+  for(int i = 0; i < num_threads; i++)
+    gemm_ref(M, N, K, &A[omp_get_thread_num() * M * K], &B[omp_get_thread_num() * K * N], 1, C);
+
+  clock_t start, end;
+  double cpu_time_used;
+
+  start = omp_get_wtime();
+  #pragma omp parallel for
+  for(int i = 0; i < ITER; i++)
+    gemm_sparse(&A[omp_get_thread_num() * M * K],&Bsparse[omp_get_thread_num() * K * N],&C1[omp_get_thread_num() * M * N]);
+  end = omp_get_wtime();
+  double min_time_sparse = end - start;
+
+
+  start = omp_get_wtime();
+  #pragma omp parallel for
+  for(int i = 0; i < ITER; i++)
+    gemm_dense(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C2[omp_get_thread_num() * M * N]);
+  end = omp_get_wtime();
+  double min_time_dense = end - start;
+
+
+  start = omp_get_wtime();
+  #pragma omp parallel for
+  for(int i = 0; i < ITER; i++)
+    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1, &A[omp_get_thread_num() * M * K], M, &B[omp_get_thread_num() * K * N], K, 0, &C3[omp_get_thread_num() * M * N], M);
+  end = omp_get_wtime();
+  double min_time_openblas = end - start;
+ 
+
+  double max_deviation1 = 0;
+  double max_deviation2 = 0;
+  double max_deviation3 = 0;
+
+  for(int i = 0; i < num_threads * N * M; i++)
+  {
+    if(std::abs(C[i] - C1[i]) > max_deviation)
+      max_deviation1 = std::abs(C[i] - C1[i]);
+
+    if(std::abs(C[i] - C2[i]) > max_deviation)
+      max_deviation2 = std::abs(C[i] - C2[i]);
+
+    if(std::abs(C[i] - C3[i]) > max_deviation)
+      max_deviation3 = std::abs(C[i] - C3[i]);
+  }
+
+  printf("Matrix Multiplication M = %i, N = %i, K = %i, non-zero elements: %i\n\n", M, N, K, S);
+
+  printf("Max deviation:\n");
+  printf("sparse: %f\n", max_deviation1);
+  printf("sparse: %f\n", max_deviation2);
+  printf("sparse: %f\n", max_deviation3);
+
+  printf("\n");
+
+  min_time_sparse = min_time_sparse / CLOCKS_PER_SEC;
+  min_time_dense = min_time_dense / CLOCKS_PER_SEC;
+  min_time_openblas = min_time_openblas / CLOCKS_PER_SEC;
+
+  long sparseFLOP = M * S * ((long) ITER);
+  long denseFLOP = M * N * K * ((long) ITER);
+
+  double sparseFLOPS = sparseFLOP/ min_time_sparse;
+  double denseFLOPS = denseFLOP / min_time_dense;
+  double FLOPSopenblas = denseFLOP / min_time_openblas;
+
+
+
+  printf("dense MM FLOP:  %ld\n", denseFLOP);
+  printf("sparse MM FLOP: %ld\n", sparseFLOP);
+
+  printf("time used by sparse MM:      %f\n", min_time_sparse);
+  printf("time used by dense MM:       %f\n", min_time_dense);
+  printf("time used by dense openblas: %f\n", min_time_openblas);
+
+  printf("GFLOPS by sparse MM: %f\n", sparseFLOPS / 1000000000);
+  printf("GFLOPS by dense MM:  %f\n", denseFLOPS / 1000000000);
+  printf("GFLOPS by openbblas: %f\n", FLOPSopenblas / 1000000000);
+
+  printf("\n");
+
+  return 0;
+}
+
+
 
 //  printf("A\n");
 
@@ -96,71 +192,6 @@ int main(void) {
 //  printf("\n");
 
 
-  clock_t start, end;
-  double cpu_time_used;
-
-  double min_time_sparse = 999999999999999999; 
-
-  for(int i = 0; i < ITER/20; i++)
-  {
-    gemm_sparse(A,Bsparse,C);
-  }
-
-  for(int j = 0; j < 1; j++)
-  {
-    start = clock();
-    for(int i = 0; i < ITER; i++)
-    {
-      gemm_sparse(A,Bsparse,C);
-    }
-    end = clock();
-    if(((double) (end - start)) < min_time_sparse)
-      min_time_sparse = ((double) (end - start));
-  }
-
-
-
-  double min_time_dense = 999999999999999999; 
-
-  for(int i = 0; i < ITER/20; i++)
-  {
-    gemm_dense(A,B,C);
-  }
-
-  for(int j = 0; j < 1; j++)
-  {
-    start = clock();
-    for(int i = 0; i < ITER; i++)
-    {
-      gemm_dense(A,B,C);
-    }
-    end = clock();
-    if(((double) (end - start)) < min_time_dense)
-      min_time_dense = ((double) (end - start));
-  }
-
-
-
-  double min_time_openblas = 999999999999999999; 
-
-  for(int i = 0; i < ITER/20; i++)
-  {
-    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1, A, M, B, K, 0, C, M);
-  }
-
-  for(int j = 0; j < 1; j++)
-  {
-    start = clock();
-    for(int i = 0; i < ITER; i++)
-    {
-       cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1, A, M, B, K, 0, C, M);
-    }
-    end = clock();
-    if(((double) (end - start)) < min_time_openblas)
-      min_time_openblas = ((double) (end - start));
-  }
-  
-
 //  printf("C\n");
 
 //  for(int i = 0; i < M * N; i++)
@@ -169,33 +200,3 @@ int main(void) {
 //      printf("\n");
 //    printf("%f  ", C[((i * M) % (M * N)) + i / N]);
 //  }
-
-  min_time_sparse = min_time_sparse / CLOCKS_PER_SEC;
-  min_time_dense = min_time_dense / CLOCKS_PER_SEC;
-  min_time_openblas = min_time_openblas / CLOCKS_PER_SEC;
-
-  printf("\n");
-
-  long sparseFLOP = M * S * ((long) ITER);
-  long denseFLOP = M * N * K * ((long) ITER);
-
-  double sparseFLOPS =sparseFLOP/ min_time_sparse;
-  double denseFLOPS = denseFLOP / min_time_dense;
-  double FLOPSopenblas = denseFLOP / min_time_openblas;
-
-
-  printf("Matrix Multiplication M = %i, N = %i, K = %i, non-zero elements: %i\n\n", M, N, K, S);
-
-  printf("dense MM FLOP:  %ld\n", denseFLOP);
-  printf("sparse MM FLOP: %ld\n", sparseFLOP);
-
-  printf("time used by sparse MM:      %f\n", min_time_sparse);
-  printf("time used by dense MM:       %f\n", min_time_dense);
-  printf("time used by dense openblas: %f\n", min_time_openblas);
-
-  printf("GFLOPS by sparse MM: %f\n", sparseFLOPS / 1000000000);
-  printf("GFLOPS by dense MM:  %f\n", denseFLOPS / 1000000000);
-  printf("GFLOPS by openbblas: %f\n", FLOPSopenblas / 1000000000);
-
-  return 0;
-}
