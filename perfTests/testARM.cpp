@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <cstdlib>
-#include <cblas.h>
 #include <stdio.h>
 #include <time.h>
 #include <iostream>
@@ -9,7 +8,8 @@
 #include <vector>
 #include <sstream>
 #include <cstring>
-#include "omp.h"
+#include <cmath>
+#include <omp.h>
 
 
 #include "gemms_arm_sparse.h"
@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
   }
 
   for(int i = 0; i < num_threads; i++)
-    gemm_ref(M, N, K, &A[i * M * K], &B[i * K * N], 1, &C1[i * M * N]);
+    gemm_ref(M, N, K, &A[i * M * K], &B[i * K * N], 1, &C[i * M * N]);
 
   clock_t start, end;
   double cpu_time_used;
@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
   for(int i = 0; i < ITER; i++)
     gemm_sparse(&A[omp_get_thread_num() * M * K],&Bsparse[omp_get_thread_num() * K * N],&C1[omp_get_thread_num() * M * N]);
   end = omp_get_wtime();
-  double min_time_sparse = end - start;
+  double min_time_sparse = double(end) - (double) start;
 
 
   start = omp_get_wtime();
@@ -104,15 +104,15 @@ int main(int argc, char** argv) {
   for(int i = 0; i < ITER; i++)
     gemm_dense(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C2[omp_get_thread_num() * M * N]);
   end = omp_get_wtime();
-  double min_time_dense = end - start;
+  double min_time_sparse = double(end) - (double) start;
 
 
-  start = omp_get_wtime();
-  #pragma omp parallel for
-  for(int i = 0; i < ITER; i++)
-    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1, &A[omp_get_thread_num() * M * K], M, &B[omp_get_thread_num() * K * N], K, 0, &C3[omp_get_thread_num() * M * N], M);
-  end = omp_get_wtime();
-  double min_time_openblas = end - start;
+//  start = omp_get_wtime();
+//  #pragma omp parallel for
+//  for(int i = 0; i < ITER; i++)
+//    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1, &A[omp_get_thread_num() * M * K], M, &B[omp_get_thread_num() * K * N], K, 0, &C3[omp_get_thread_num() * M * N], M);
+//  end = omp_get_wtime();
+  double min_time_sparse = double(end) - (double) start;
  
 
   double max_deviation1 = 0;
@@ -135,14 +135,14 @@ int main(int argc, char** argv) {
 
   printf("Max deviation:\n");
   printf("sparse: %f\n", max_deviation1);
-  printf("sparse: %f\n", max_deviation2);
-  printf("sparse: %f\n", max_deviation3);
+  printf("dense: %f\n", max_deviation2);
+  printf("openblas: %f\n", max_deviation3);
 
   printf("\n");
 
-  min_time_sparse = min_time_sparse / CLOCKS_PER_SEC;
-  min_time_dense = min_time_dense / CLOCKS_PER_SEC;
-  min_time_openblas = min_time_openblas / CLOCKS_PER_SEC;
+  min_time_sparse = min_time_sparse;
+  min_time_dense = min_time_dense;
+  min_time_openblas = min_time_openblas;
 
   long sparseFLOP = M * S * ((long) ITER);
   long denseFLOP = M * N * K * ((long) ITER);
