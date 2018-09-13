@@ -4,10 +4,10 @@ from codegen.analysis import *
 import architecture
 
 
-def make_cfunc(funcName:str, body:Block) -> str:
-    Generator = architecture.get_class("codegen.architectures." + architecture.arch + ".inlineprinter.InlinePrinter")
+def make_cfunc(funcName:str, template:str, body:Block) -> str:
+    Printer_class = architecture.get_class("codegen.architectures." + architecture.arch + ".inlineprinter.InlinePrinter")
 
-    printer = Generator()
+    printer = Printer_class()
     printer.lmargin = 4
     body.accept(printer)
     body_text = "\n".join(printer.output)
@@ -17,8 +17,6 @@ def make_cfunc(funcName:str, body:Block) -> str:
     regs = [f'"{reg.clobbered}"' for reg in analyzer.clobbered_registers]
     regs.sort()
     clobbered = ",".join(regs)
-
-    template = architecture.generator.template
 
     return template.format(funcName = funcName,
                            body_text = body_text,

@@ -1,6 +1,6 @@
 from typing import List
 from codegen.ast import *
-from codegen.visitors import Visitor
+from codegen.visitor import Visitor
 from codegen.operands import *
 
 

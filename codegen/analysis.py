@@ -1,4 +1,4 @@
-from codegen.visitors import Visitor
+from codegen.visitor import Visitor
 from codegen.sugar import *
 
 from typing import List, Set
