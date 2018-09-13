@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <cstdlib>
 #include <cblas.h>
 #include <stdio.h>
 #include <time.h>
@@ -14,11 +15,6 @@
 #include "gemms_arm_sparse.h"
 #include "gemms_arm_dense.h"
 
-#define M 8
-#define N 56
-#define K 56
-#define S 294
-#define ITER 65536
 
 void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double beta, double* C) {
   if (beta == 0.0) {
@@ -38,6 +34,13 @@ int main(int argc, char** argv) {
 
   int num_threads = omp_get_max_threads();
 
+  int M = atoi(argv[1]);
+  int N = atoi(argv[2]);
+  int K = atoi(argv[3]);
+  int S = atoi(argv[4]);
+  int ITER = atoi(argv[5]);
+  std::string mtx = argv[6];
+
   double *A;
   double *B;
   double *C;
@@ -55,7 +58,7 @@ int main(int argc, char** argv) {
   int resC3 = posix_memalign(reinterpret_cast<void **>(&C3), 64, num_threads*M*N*sizeof(double));
 
   std::string line;
-  std::ifstream f("56x56.mtx");
+  std::ifstream f(mtx);
   getline(f, line);
   getline(f, line);
 
@@ -82,9 +85,8 @@ int main(int argc, char** argv) {
     }
   }
 
-  #pragma omp parallel for
   for(int i = 0; i < num_threads; i++)
-    gemm_ref(M, N, K, &A[omp_get_thread_num() * M * K], &B[omp_get_thread_num() * K * N], 1, C);
+    gemm_ref(M, N, K, &A[i * M * K], &B[i * K * N], 1, &C1[i * M * N]);
 
   clock_t start, end;
   double cpu_time_used;
@@ -119,13 +121,13 @@ int main(int argc, char** argv) {
 
   for(int i = 0; i < num_threads * N * M; i++)
   {
-    if(std::abs(C[i] - C1[i]) > max_deviation)
+    if(std::abs(C[i] - C1[i]) > max_deviation1)
       max_deviation1 = std::abs(C[i] - C1[i]);
 
-    if(std::abs(C[i] - C2[i]) > max_deviation)
+    if(std::abs(C[i] - C2[i]) > max_deviation2)
       max_deviation2 = std::abs(C[i] - C2[i]);
 
-    if(std::abs(C[i] - C3[i]) > max_deviation)
+    if(std::abs(C[i] - C3[i]) > max_deviation3)
       max_deviation3 = std::abs(C[i] - C3[i]);
   }
 
