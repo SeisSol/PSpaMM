@@ -12,8 +12,8 @@
 #include <omp.h>
 
 
-#include "gemms_arm_sparse.h"
-#include "gemms_arm_dense.h"
+#include "arm/gemm_sparse.h"
+#include "arm/gemm_dense.h"
 
 
 void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double beta, double* C) {
