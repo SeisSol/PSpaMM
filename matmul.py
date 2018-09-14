@@ -182,7 +182,7 @@ class MatMul:
         if vm_overhead > 0:
             alg.m = alg.m % alg.bm
             alg.bm = alg.m % alg.bm
-            alg.A_regs = alg.C_regs[0:alg.bm // alg.v_size, 0:alg.bk]
+            alg.A_regs = alg.A_regs[0:alg.bm // alg.v_size, 0:alg.bk]
             alg.C_regs = alg.C_regs[0:alg.bm // alg.v_size, 0:alg.bn]
             alg.A.r = alg.m
             asm.add(alg.make_nk_unroll())
