@@ -19,7 +19,7 @@ BN=$N
 
 while [ $BN -gt 1 ] || [ $BM -gt 1 ]; do
 
-	BS=$(./../scripts/blocksize_arm.py $M $N $BM $BN)
+	BS=$(./../scripts/blocksize_all_arm.py $M $N $BM $BN)
 
 	BM=$(echo $BS | cut -f1 -d-)
 	BN=$(echo $BS | cut -f2 -d-)
