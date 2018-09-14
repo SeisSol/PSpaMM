@@ -1,27 +1,16 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
-#include <iostream>
 #include <fstream>
-#include <string>
-#include <vector>
-#include <sstream>
 #include <cstring>
 #include <cmath>
-#include "omp.h"  
+#include <omp.h>
+#include <stdio.h>
 
-#include "gemms_knl_dense.h"
-#include "gemms_knl_sparse.h"
-#include "gemms_libxsmm_dense.h"
-#include "gemms_libxsmm_sparse.h"
+#include "knl/gemm_sparse.h"
+#include "knl/gemm_dense.h"
+#include "knl/gemm_libxsmm_sparse.h"
+#include "knl/gemm_libxsmm_dense.h"
 
-#define M 8
-#define N 56
-#define K 56
-#define S 294
-#define ITER 1000000000
 
-void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double beta, double* C){
+void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double beta, double* C) {
   if (beta == 0.0) {
     memset(C, 0, m*n * sizeof(double));
   }
@@ -35,7 +24,17 @@ void gemm_ref(unsigned m, unsigned n, unsigned k, double* A, double* B, double b
 }
 
 
-int main(void) {
+int main(int argc, char** argv) {
+
+  int num_threads = omp_get_max_threads();
+
+  int M = atoi(argv[1]);
+  int N = atoi(argv[2]);
+  int K = atoi(argv[3]);
+  int BETA = atoi(argv[4]);
+  int S = atoi(argv[5]);
+  int ITER = atoi(argv[6]);
+  std::string mtx = argv[7];
 
   double *A;
   double *B;
@@ -46,11 +45,9 @@ int main(void) {
   double *C4;
   double *Bsparse;
 
-  int num_threads = omp_get_max_threads();
-
   int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, num_threads*M*K*sizeof(double));
   int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, num_threads*K*N*sizeof(double));
-  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, num_threads*K*N*sizeof(double));
+  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, num_threads*K*N*sizeof(double));  
   int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, num_threads*M*N*sizeof(double));
   int resC1 = posix_memalign(reinterpret_cast<void **>(&C1), 64, num_threads*M*N*sizeof(double));
   int resC2 = posix_memalign(reinterpret_cast<void **>(&C2), 64, num_threads*M*N*sizeof(double));
@@ -58,7 +55,7 @@ int main(void) {
   int resC4 = posix_memalign(reinterpret_cast<void **>(&C4), 64, num_threads*M*N*sizeof(double));
 
   std::string line;
-  std::ifstream f("56x56.mtx");
+  std::ifstream f(mtx);
   getline(f, line);
   getline(f, line);
 
@@ -84,214 +81,126 @@ int main(void) {
       counter++;
     }
   }
-  
-/*
-  printf("A\n");
 
-  for(int i = 0; i < M*K; i++)
-  {
-    if(i % K == 0)
-      printf("\n");
-    printf("%f  ", A[((i * M) % (M * K)) + i / K]);
-  }
-
-  printf("\n");
-
-  printf("B\n");
-
-  for(int i = 0; i < N * K; i++)
-  {
-    if(i % N == 0)
-      printf("\n");
-    printf("%f  ", B[((i * K) % (K * N)) + i / N]);
-  }
-
-  printf("\n");
-*/
-
-  gemm_ref(M, N, K, A, B, 0, C);
+  for(int i = 0; i < num_threads; i++)
+    gemm_ref(M, N, K, &A[i * M * K], &B[i * K * N], BETA, &C[i * M * N]);
 
   double start, end;
-  double cpu_time_used;
 
-  double min_time_sparse = 999999999999999999; 
-
-/*
+  start = omp_get_wtime();
   #pragma omp parallel for
-  for(int i = 0; i < ITER/20; i++)
-  {
-    gemm_sparse(A,Bsparse,C1);
-  }
-*/
-  for(int j = 0; j < 1; j++)
-  {
-    start = omp_get_wtime();
-    #pragma omp parallel for
-    for(int i = 0; i < ITER; i++)
-    {
-      gemm_sparse(&A[omp_get_thread_num() * M * K],&Bsparse[omp_get_thread_num() * K * N],&C1[omp_get_thread_num() * M * N]);
-    }
-    end = omp_get_wtime();
-    if(end - start < min_time_sparse)
-      min_time_sparse = end - start;
-  }
+  for(int i = 0; i < ITER; i++)
+    gemm_sparse(&A[omp_get_thread_num() * M * K],&Bsparse[omp_get_thread_num() * K * N],&C1[omp_get_thread_num() * M * N]);
+  end = omp_get_wtime();
+  double min_time_sparse = end - start;
 
 
-  double min_time_dense = 999999999999999999; 
-
-/*
+  start = omp_get_wtime();
   #pragma omp parallel for
-  for(int i = 0; i < ITER/20; i++)
-  {
-    gemm_dense(A,B,C2);
-  }
-*/
-  for(int j = 0; j < 1; j++)
-  {
-    start = omp_get_wtime();
-    #pragma omp parallel for
-    for(int i = 0; i < ITER; i++)
-    { 
-      gemm_dense(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C2[omp_get_thread_num() * M * N]);
-    }
-    end = omp_get_wtime();
-    if(end - start < min_time_dense)
-      min_time_dense = end - start;
-  }
+  for(int i = 0; i < ITER; i++)
+    gemm_dense(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C2[omp_get_thread_num() * M * N]);
+  end = omp_get_wtime();
+  double min_time_dense = end - start;
 
 
-
-  double min_time_libxsmm_dense = 999999999999999999; 
-
-/*
+  start = omp_get_wtime();
   #pragma omp parallel for
-  for(int i = 0; i < ITER/20; i++)
-  {
-    gemm_libxsmm_dense(A,B,C3);
-  }
-*/
-  for(int j = 0; j < 1; j++)
-  {
-    start = omp_get_wtime();
-    #pragma omp parallel for
-    for(int i = 0; i < ITER; i++)
-    {
-      gemm_libxsmm_dense(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C3[omp_get_thread_num() * M * N]);
-    }
-    end = omp_get_wtime();
-    if(end - start < min_time_libxsmm_dense)
-      min_time_libxsmm_dense = end - start;
-  }
+  for(int i = 0; i < ITER; i++)
+    gemm_libxsmm_sparse(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C2[omp_get_thread_num() * M * N]);
+  end = omp_get_wtime();
+  double min_time_libxsmm_sparse = end - start;
+
+
+  start = omp_get_wtime();
+  #pragma omp parallel for
+  for(int i = 0; i < ITER; i++)
+    gemm_libxsmm_dense(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C2[omp_get_thread_num() * M * N]);
+  end = omp_get_wtime();
+  double min_time_libxsmm_dense = end - start;
+
+
  
-  double min_time_libxsmm_sparse = 999999999999999999; 
 
-/* 
-  #pragma omp parallel for
-  for(int i = 0; i < ITER/20; i++)
+  double max_deviation1 = 0;
+  double max_deviation2 = 0;
+  double max_deviation3 = 0;
+  double max_deviation4 = 0;
+
+
+  for(int i = 0; i < num_threads * N * M; i++)
   {
-    gemm_libxsmm_sparse(A,Bsparse,C4);
+    if(std::abs(C[i] - C1[i]) > max_deviation1)
+      max_deviation1 = std::abs(C[i] - C1[i]);
+
+    if(std::abs(C[i] - C2[i]) > max_deviation2)
+      max_deviation2 = std::abs(C[i] - C2[i]);
+
+    if(std::abs(C[i] - C3[i]) > max_deviation3)
+      max_deviation3 = std::abs(C[i] - C3[i]);
+
+    if(std::abs(C[i] - C4[i]) > max_deviation4)
+      max_deviation4 = std::abs(C[i] - C4[i]);
   }
-*/
-  for(int j = 0; j < 1; j++)
-  {
-    start = omp_get_wtime();
-    #pragma omp parallel for
-    for(int i = 0; i < ITER; i++)
-    {
-      gemm_libxsmm_sparse(&A[omp_get_thread_num() * M * K],&Bsparse[omp_get_thread_num() * K * N],&C4[omp_get_thread_num() * M * N]);
-    }
-    end = omp_get_wtime();
-    if(end - start < min_time_libxsmm_sparse)
-      min_time_libxsmm_sparse = end - start;
-  }
-  
-/* 
-
-  printf("\nC1\n");
-
-  for(int i = 0; i < M * N; i++)
-  {
-    if(i % N == 0)
-      printf("\n");
-    printf("%f ", C1[((i * M) % (M * N)) + i / N]);
-  }
-
-
-
-  printf("\nC2\n");
-
-  for(int i = 0; i < M * N; i++)
-  {
-    if(i % N == 0)
-      printf("\n");
-    printf("%f ", C2[((i * M) % (M * N)) + i / N]);
-  }
-
-
-
-  printf("\nC3\n");
-
-  for(int i = 0; i < M * N; i++)
-  {
-    if(i % N == 0)
-      printf("\n");
-    printf("%f ", C3[((i * M) % (M * N)) + i / N]);
-  }
-
-
-
-  printf("\nC4\n");
-
-  for(int i = 0; i < M * N; i++)
-  {
-    if(i % N == 0)
-      printf("\n");
-    printf("%f ", C4[((i * M) % (M * N)) + i / N]);
-  }
-*/
-
-  for(int i = 0; i < N * M; i++)
-  {
-    if(std::abs(C[i] - C1[i]) < 0.0001 && std::abs(C[i] - C2[i]) < 0.0001 && std::abs(C[i] - C3[i]) < 0.0001 && std::abs(C[i] - C4[i]) < 0.0001)
-      printf("#");
-    else
-    {
-      printf("\nFAIL\n");
-      printf("%f\n%f\n%f\n%f\n", C1[i], C2[i], C3[i], C4[i]);
-    }
-  }
-
-
-  min_time_sparse = min_time_sparse;
-  min_time_dense = min_time_dense;
-  min_time_libxsmm_sparse = min_time_libxsmm_sparse;
-  min_time_libxsmm_dense = min_time_libxsmm_dense;
-
-  printf("\n");
 
   long sparseFLOP = M * S * ((long) ITER);
   long denseFLOP = M * N * K * ((long) ITER);
 
-  double sparseFLOPS =sparseFLOP/ min_time_sparse;
-  double denseFLOPS = denseFLOP / min_time_dense;
-  double sparseFLOPSlibxsmm = sparseFLOP / min_time_libxsmm_sparse;
-  double denseFLOPSlibxsmm = denseFLOP / min_time_libxsmm_dense;
+  double sparseGFLOPS = (sparseFLOP/ min_time_sparse) / 1000000000;
+  double denseGFLOPS = (denseFLOP / min_time_dense) / 1000000000;
+  double sparseGFLOPSlibxsmm = (sparseFLOP / min_time_libxsmm_sparse) / 1000000000;
+  double denseGFLOPSlibxsmm = (denseFLOP / min_time_libxsmm_dense) / 1000000000;
 
+  std::string state1;
+  std::string state2;
+  std::string state3;
+  std::string state4;
+  
+  state1 = state2 = state3 = state4 = "FAIL";
 
-  printf("Matrix Multiplication M = %i, N = %i, K = %i, non-zero elements: %i\n\n", M, N, K, S);
+  if(max_deviation1 < 0.00001)
+    state1 = "SUCCESS";
+  if(max_deviation2 < 0.00001)
+    state2 = "SUCCESS";
+  if(max_deviation3 < 0.00001)
+    state3 = "SUCCESS";
+  if(max_deviation4 < 0.00001)
+    state4 = "SUCCESS";
 
-  printf("dense MM FLOP:  %ld\n", denseFLOP);
-  printf("sparse MM FLOP: %ld\n", sparseFLOP);
-
-  printf("time used by sparse MM:      %f\n", min_time_sparse);
-  printf("time used by dense MM:       %f\n", min_time_dense);
-  printf("time used by libxsmm dense:  %f\n", min_time_libxsmm_dense);
-  printf("time used by libxsmm sparse: %f\n", min_time_libxsmm_sparse);
-
-  printf("GFLOPS by sparse MM:      %f\n", sparseFLOPS / 1000000000);
-  printf("GFLOPS by dense MM:       %f\n", denseFLOPS / 1000000000);
-  printf("GFLOPS by libxsmm sparse: %f\n", sparseFLOPSlibxsmm / 1000000000);
-  printf("GFLOPS by libxsmm dense:  %f\n", denseFLOPSlibxsmm / 1000000000);
+  printf("\n%s %s %s %s %f %f %f %f", state1.c_str(), state2.c_str(), state3.c_str(), state4.c_str(), sparseGFLOPS, denseGFLOPS, sparseGFLOPSlibxsmm, denseGFLOPSlibxsmm);
 
   return 0;
 }
+
+
+
+//  printf("A\n");
+
+//  for(int i = 0; i < M*K; i++)
+//  {
+//    if(i % K == 0)
+//      printf("\n");
+//    printf("%f  ", A[((i * M) % (M * K)) + i / K]);
+//  }
+
+//  printf("\n");
+
+//  printf("B\n");
+
+//  for(int i = 0; i < N * K; i++)
+//  {
+//    if(i % N == 0)
+//      printf("\n");
+//    printf("%f  ", B[((i * K) % (K * N)) + i / N]);
+//  }
+
+//  printf("\n");
+
+
+//  printf("C\n");
+
+//  for(int i = 0; i < M * N; i++)
+//  {
+//    if(i % N == 0)
+//      printf("\n");
+//    printf("%f  ", C[((i * M) % (M * N)) + i / N]);
+//  }

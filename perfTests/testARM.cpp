@@ -136,9 +136,9 @@ int main(int argc, char** argv) {
   long sparseFLOP = M * S * ((long) ITER);
   long denseFLOP = M * N * K * ((long) ITER);
 
-  double sparseFLOPS = sparseFLOP/ min_time_sparse;
-  double denseFLOPS = denseFLOP / min_time_dense;
-  double FLOPSopenblas = denseFLOP / min_time_openblas;
+  double sparseGFLOPS = (sparseFLOP/ min_time_sparse) / 1000000000;
+  double denseGFLOPS = (denseFLOP / min_time_dense) / 1000000000;
+  double denseGFLOPSopenblas = (denseFLOP / min_time_openblas) / 1000000000;
 
 
 
@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
   else
     state2 = "FAIL";
 
-  printf("\n%s %s %f %f", state1.c_str(), state2.c_str(), sparseFLOPS/1000000000, denseFLOPS/1000000000);
+  printf("\n%s %s %f %f", state1.c_str(), state2.c_str(), sparseGFLOPS, denseGFLOPS, denseGFLOPSopenblasden);
 
   return 0;
 }
