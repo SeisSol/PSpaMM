@@ -2,7 +2,7 @@
 #include <cstring>
 #include <cmath>
 #include <omp.h>
-
+#include <stdio.h>
 
 #include "arm/gemm_sparse.h"
 #include "arm/gemm_dense.h"
@@ -111,6 +111,10 @@ int main(int argc, char** argv) {
   double max_deviation2 = 0;
   double max_deviation3 = 0;
 
+  for(int i = 0; i < M; i++)
+	  for(int j = 0; j < N; j++)
+		  printf("C[%i,%i] = %f    C2[%i,%i] = %f\n", i, j, C[i + j*M], i, j, C2[i + j*M]);
+
   for(int i = 0; i < num_threads * N * M; i++)
   {
     if(std::abs(C[i] - C1[i]) > max_deviation1)
@@ -123,18 +127,14 @@ int main(int argc, char** argv) {
       max_deviation3 = std::abs(C[i] - C3[i]);
   }
 
-  printf("Matrix Multiplication M = %i, N = %i, K = %i, non-zero elements: %i\n\n", M, N, K, S);
+//  printf("Matrix Multiplication M = %i, N = %i, K = %i, non-zero elements: %i\n\n", M, N, K, S);
 
-  printf("Max deviation:\n");
-  printf("sparse: %f\n", max_deviation1);
-  printf("dense: %f\n", max_deviation2);
-  printf("openblas: %f\n", max_deviation3);
+//  printf("Max deviation:\n");
+//  printf("sparse: %f\n", max_deviation1);
+//  printf("dense: %f\n", max_deviation2);
+//  printf("openblas: %f\n", max_deviation3);
 
-  printf("\n");
-
-  min_time_sparse = min_time_sparse;
-  min_time_dense = min_time_dense;
-  min_time_openblas = min_time_openblas;
+//  printf("\n");
 
   long sparseFLOP = M * S * ((long) ITER);
   long denseFLOP = M * N * K * ((long) ITER);
@@ -145,18 +145,33 @@ int main(int argc, char** argv) {
 
 
 
-  printf("dense MM FLOP:  %ld\n", denseFLOP);
-  printf("sparse MM FLOP: %ld\n", sparseFLOP);
+//  printf("dense MM FLOP:  %ld\n", denseFLOP);
+//  printf("sparse MM FLOP: %ld\n", sparseFLOP);
 
-  printf("time used by sparse MM:      %f\n", min_time_sparse);
-  printf("time used by dense MM:       %f\n", min_time_dense);
-  printf("time used by dense openblas: %f\n", min_time_openblas);
+//  printf("time used by sparse MM:      %f\n", min_time_sparse);
+//  printf("time used by dense MM:       %f\n", min_time_dense);
+//  printf("time used by dense openblas: %f\n", min_time_openblas);
 
-  printf("GFLOPS by sparse MM: %f\n", sparseFLOPS / 1000000000);
-  printf("GFLOPS by dense MM:  %f\n", denseFLOPS / 1000000000);
-  printf("GFLOPS by openbblas: %f\n", FLOPSopenblas / 1000000000);
+//  printf("GFLOPS by sparse MM: %f\n", sparseFLOPS / 1000000000);
+//  printf("GFLOPS by dense MM:  %f\n", denseFLOPS / 1000000000);
+//  printf("GFLOPS by openbblas: %f\n", FLOPSopenblas / 1000000000);
 
-  printf("\n");
+//  printf("\n");
+
+  std::string state1;
+  std::string state2;
+  
+  if(max_deviation1 < 0.00001)
+    state1 = "SUCCESS";
+  else
+    state1 = "FAIL";
+
+  if(max_deviation2 < 0.00001)
+    state2 = "SUCCESS";
+  else
+    state2 = "FAIL";
+
+  printf("\n%s %s %f %f", state1.c_str(), state2.c_str(), sparseFLOPS/1000000000, denseFLOPS/1000000000);
 
   return 0;
 }

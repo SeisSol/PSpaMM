@@ -8,17 +8,36 @@ LDB_DENSE=56
 LDB_SPARSE=0
 LDC=8
 BETA=0
+BK=1
+MTX="mtx/56x56.mtx"
+NNZ=294
+ITER=4
+
+
 BM=8
 BN=4
-BK=1
-NNZ=294
-ITER=262144
 
-> arm/gemm_sparse.h
-> arm/gemm_dense.h
+while [ $BM -gt 2 ]; do
 
-python3.6 ../sparsemmgen.py $M $N $K $LDA $LDB_SPARSE $LDC $BETA --bm $BM --bn $BN --bk $BK --arch arm --output_funcname gemm_sparse --output_filename arm/gemm_sparse.h --mtx_filename mtx/56x56.mtx
-python3.6 ../sparsemmgen.py $M $N $K $LDA $LDB_DENSE $LDC $BETA --bm $BM --bn $BN --bk $BK --arch arm --output_funcname gemm_sparse --output_filename arm/gemm_dense.h
+	BS=$(./../scripts/blocksize_arm.py $M $N $BM $BN)
 
-srun g++ -std=c++11 -fopenmp testARM.cpp
-srun a.out $M $N $K $BETA $NNZ $ITER mtx/56x56.mtx
+	BM=$(echo $BS | cut -f1 -d-)
+	BN=$(echo $BS | cut -f2 -d-)
+
+	> arm/gemm_sparse.h
+	> arm/gemm_dense.h
+
+	python3.6 ../sparsemmgen.py $M $N $K $LDA $LDB_SPARSE $LDC $BETA --bm $BM --bn $BN --bk $BK --arch arm --output_funcname gemm_sparse --output_filename arm/gemm_sparse.h --mtx_filename $MTX
+	python3.6 ../sparsemmgen.py $M $N $K $LDA $LDB_DENSE $LDC $BETA --bm $BM --bn $BN --bk $BK --arch arm --output_funcname gemm_dense --output_filename arm/gemm_dense.h
+
+	g++ -std=c++11 -fopenmp testARM.cpp
+
+	export OMP_NUM_THREADS=4
+
+	./a.out $M $N $K $BETA $NNZ $ITER $MTX
+
+	printf " "
+	printf $BM
+	printf " "
+	printf $BN
+done
