@@ -8,23 +8,24 @@ n=int(sys.argv[2])
 bm=int(sys.argv[3])
 bn=int(sys.argv[4])
 
-def lowerToNextDiv(m, n, bm, bn):
-	if bm > bn:
-		bm -= 2
-	else:
-		bn -= 1
-
-	return bm, bn
-
-
 
 def condition(bm, bn):
-	return (bn+1) * (bm / 2) + bn <= 32
+    return (bn+1) * (bm / 2) + bn <= 32
 
-bm, bn = lowerToNextDiv(m,n,bm,bn)
+bm -= 2
 
-while not condition(bm, bn):
-	bm, bn = lowerToNextDiv(m, n, bm, bn)
+if bm == 0:
+    bn -=1
+    bm = m
+
+while not condition(bm, bn) and bn > 0:
+
+    while not condition(bm, bn) and bm > 0 and bn > 0:
+        bm -= 2
+
+    if bm == 0:
+        bn -= 1
+        bm = m
 
 print(str(bm) + "-" + str(bn))
 

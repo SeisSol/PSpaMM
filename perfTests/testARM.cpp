@@ -111,9 +111,6 @@ int main(int argc, char** argv) {
   double max_deviation2 = 0;
   double max_deviation3 = 0;
 
-  for(int i = 0; i < M; i++)
-	  for(int j = 0; j < N; j++)
-		  printf("C[%i,%i] = %f    C2[%i,%i] = %f\n", i, j, C[i + j*M], i, j, C2[i + j*M]);
 
   for(int i = 0; i < num_threads * N * M; i++)
   {

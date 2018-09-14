@@ -11,13 +11,13 @@ BETA=0
 BK=1
 MTX="mtx/56x56.mtx"
 NNZ=294
-ITER=4
+ITER=131072
 
 
-BM=8
-BN=4
+BM=$(($M+2))
+BN=$N
 
-while [ $BM -gt 2 ]; do
+while [ $BN -gt 1 ] || [ $BM -gt 1 ]; do
 
 	BS=$(./../scripts/blocksize_arm.py $M $N $BM $BN)
 
