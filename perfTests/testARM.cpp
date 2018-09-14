@@ -1,12 +1,4 @@
-#include <stdlib.h>
-#include <cstdlib>
-#include <stdio.h>
-#include <time.h>
-#include <iostream>
 #include <fstream>
-#include <string>
-#include <vector>
-#include <sstream>
 #include <cstring>
 #include <cmath>
 #include <omp.h>
@@ -37,9 +29,10 @@ int main(int argc, char** argv) {
   int M = atoi(argv[1]);
   int N = atoi(argv[2]);
   int K = atoi(argv[3]);
-  int S = atoi(argv[4]);
-  int ITER = atoi(argv[5]);
-  std::string mtx = argv[6];
+  int BETA = atoi(argv[4]);
+  int S = atoi(argv[5]);
+  int ITER = atoi(argv[6]);
+  std::string mtx = argv[7];
 
   double *A;
   double *B;
@@ -86,7 +79,7 @@ int main(int argc, char** argv) {
   }
 
   for(int i = 0; i < num_threads; i++)
-    gemm_ref(M, N, K, &A[i * M * K], &B[i * K * N], 1, &C[i * M * N]);
+    gemm_ref(M, N, K, &A[i * M * K], &B[i * K * N], BETA, &C[i * M * N]);
 
   double start, end;
 
