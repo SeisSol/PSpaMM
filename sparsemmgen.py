@@ -22,7 +22,7 @@ def main(alg: MatMul) -> None:
 	if alg.output_filename is None:
 		print(text)
 	else:
-		with open(alg.output_filename, "a") as f:
+		with open(alg.output_filename, "w") as f:
 			f.write(text)
 
 
