@@ -29,12 +29,12 @@ while [ $BN -gt 1 ] || [ $BM -gt 1 ]; do
 	> knl/gemm_libxsmm_sparse.h
 	> knl/gemm_libxsmm_dense.h
 
-	python3.6 ../sparsemmgen.py $M $N $K $LDA $LDB_SPARSE $LDC $BETA --bm $BM --bn $BN --bk $BK --arch knl --output_funcname gemm_sparse --output_filename arm/gemm_sparse.h --mtx_filename $MTX
+	python3.6 ../sparsemmgen.py $M $N $K $LDA $LDB_SPARSE $LDC $BETA --bm $BM --bn $BN --bk $BK --arch knl --output_funcname gemm_sparse --output_filename arm/gemm_sparse.h --mtx_filename $MTXCSC
 	python3.6 ../sparsemmgen.py $M $N $K $LDA $LDB_DENSE $LDC $BETA --bm $BM --bn $BN --bk $BK --arch knl --output_funcname gemm_dense --output_filename arm/gemm_dense.h
 	./../../../libxsmm/bin/libxsmm_gemm_generator sparse knl/gemms_libxsmm_sparse.h gemm_libxsmm_sparse $M $N $K $LDA $LDB_SPARSE $LDC 1 $BETA 1 1 knl nopf DP $MTXCSC
 	./../../../libxsmm/bin/libxsmm_gemm_generator dense knl/gemms_libxsmm_dense.h gemm_libxsmm_dense $M $N $K $LDA $LDB_DENSE $LDC 1 $BETA 1 1 knl nopf DP
 
-	g++ -std=c++11 -fopenmp testKNL.cpp
+	g++ -std=c++11 -fopenmp -DNDEBUG 1 testKNL.cpp
 
 	export OMP_NUM_THREADS=124
 	export KMP_AFFINITY=explicit,granularity=thread,proclist=[2-63,66-127]

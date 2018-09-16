@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
   start = omp_get_wtime();
   #pragma omp parallel for
   for(int i = 0; i < ITER; i++)
-    gemm_libxsmm_sparse(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C2[omp_get_thread_num() * M * N]);
+    gemm_libxsmm_sparse(&A[omp_get_thread_num() * M * K],&Bsparse[omp_get_thread_num() * K * N],&C3[omp_get_thread_num() * M * N]);
   end = omp_get_wtime();
   double min_time_libxsmm_sparse = end - start;
 
@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
   start = omp_get_wtime();
   #pragma omp parallel for
   for(int i = 0; i < ITER; i++)
-    gemm_libxsmm_dense(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C2[omp_get_thread_num() * M * N]);
+    gemm_libxsmm_dense(&A[omp_get_thread_num() * M * K],&B[omp_get_thread_num() * K * N],&C4[omp_get_thread_num() * M * N]);
   end = omp_get_wtime();
   double min_time_libxsmm_dense = end - start;
 

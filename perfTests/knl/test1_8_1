@@ -1,0 +1,1475 @@
+
+void test1_8_1 (const double* A, const double* B, double* C) {
+  __asm__ __volatile__(
+    "movq %0, %%rdi\n\t"
+    "movq %1, %%rsi\n\t"
+    "movq %2, %%rdx\n\t"
+      // unrolled_8x56x56
+        // for %%r12 <- 0:1:1)
+        "movq $0, %%r12\r\n"
+        "LOOP_TOP_0_%=:\r\n"
+          // Unrolling over bn and bk
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=12)
+              "vmovapd 768(%%rdi), %%zmm0\r\n"                            // A [0,12] [0,0]
+            "vfmadd231pd 0(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"         // C[0:8,0] += A[0:8,0]*B[12,0][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=15)
+              "vmovapd 960(%%rdi), %%zmm0\r\n"                            // A [0,15] [0,0]
+            "vfmadd231pd 8(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"         // C[0:8,0] += A[0:8,0]*B[15,0][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=28)
+              "vmovapd 1792(%%rdi), %%zmm0\r\n"                           // A [0,28] [0,0]
+            "vfmadd231pd 16(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"        // C[0:8,0] += A[0:8,0]*B[28,0][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=34)
+              "vmovapd 2176(%%rdi), %%zmm0\r\n"                           // A [0,34] [0,0]
+            "vfmadd231pd 24(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"        // C[0:8,0] += A[0:8,0]*B[34,0][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=35)
+              "vmovapd 2240(%%rdi), %%zmm0\r\n"                           // A [0,35] [0,0]
+            "vfmadd231pd 32(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"        // C[0:8,0] += A[0:8,0]*B[35,0][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=44)
+              "vmovapd 2816(%%rdi), %%zmm0\r\n"                           // A [0,44] [0,0]
+            "vfmadd231pd 40(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"        // C[0:8,0] += A[0:8,0]*B[44,0][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=53)
+              "vmovapd 3392(%%rdi), %%zmm0\r\n"                           // A [0,53] [0,0]
+            "vfmadd231pd 48(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"        // C[0:8,0] += A[0:8,0]*B[53,0][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=18)
+              "vmovapd 1152(%%rdi), %%zmm0\r\n"                           // A [0,18] [0,0]
+            "vfmadd231pd 56(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"        // C[0:8,0] += A[0:8,0]*B[18,1][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=25)
+              "vmovapd 1600(%%rdi), %%zmm0\r\n"                           // A [0,25] [0,0]
+            "vfmadd231pd 64(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"        // C[0:8,0] += A[0:8,0]*B[25,1][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=30)
+              "vmovapd 1920(%%rdi), %%zmm0\r\n"                           // A [0,30] [0,0]
+            "vfmadd231pd 72(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"        // C[0:8,0] += A[0:8,0]*B[30,1][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=40)
+              "vmovapd 2560(%%rdi), %%zmm0\r\n"                           // A [0,40] [0,0]
+            "vfmadd231pd 80(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"        // C[0:8,0] += A[0:8,0]*B[40,1][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=44)
+              "vmovapd 2816(%%rdi), %%zmm0\r\n"                           // A [0,44] [0,0]
+            "vfmadd231pd 88(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"        // C[0:8,0] += A[0:8,0]*B[44,1][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=10)
+              "vmovapd 640(%%rdi), %%zmm0\r\n"                            // A [0,10] [0,0]
+            "vfmadd231pd 96(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"        // C[0:8,0] += A[0:8,0]*B[10,2][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=39)
+              "vmovapd 2496(%%rdi), %%zmm0\r\n"                           // A [0,39] [0,0]
+            "vfmadd231pd 104(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[39,2][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=45)
+              "vmovapd 2880(%%rdi), %%zmm0\r\n"                           // A [0,45] [0,0]
+            "vfmadd231pd 112(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[45,2][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=53)
+              "vmovapd 3392(%%rdi), %%zmm0\r\n"                           // A [0,53] [0,0]
+            "vfmadd231pd 120(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[53,2][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=54)
+              "vmovapd 3456(%%rdi), %%zmm0\r\n"                           // A [0,54] [0,0]
+            "vfmadd231pd 128(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[54,2][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=7)
+              "vmovapd 448(%%rdi), %%zmm0\r\n"                            // A [0,7] [0,0]
+            "vfmadd231pd 136(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[7,3][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=17)
+              "vmovapd 1088(%%rdi), %%zmm0\r\n"                           // A [0,17] [0,0]
+            "vfmadd231pd 144(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[17,3][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=19)
+              "vmovapd 1216(%%rdi), %%zmm0\r\n"                           // A [0,19] [0,0]
+            "vfmadd231pd 152(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[19,3][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=32)
+              "vmovapd 2048(%%rdi), %%zmm0\r\n"                           // A [0,32] [0,0]
+            "vfmadd231pd 160(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[32,3][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=34)
+              "vmovapd 2176(%%rdi), %%zmm0\r\n"                           // A [0,34] [0,0]
+            "vfmadd231pd 168(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[34,3][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=42)
+              "vmovapd 2688(%%rdi), %%zmm0\r\n"                           // A [0,42] [0,0]
+            "vfmadd231pd 176(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[42,3][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=10)
+              "vmovapd 640(%%rdi), %%zmm0\r\n"                            // A [0,10] [0,0]
+            "vfmadd231pd 184(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[10,4][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=22)
+              "vmovapd 1408(%%rdi), %%zmm0\r\n"                           // A [0,22] [0,0]
+            "vfmadd231pd 192(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[22,4][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=39)
+              "vmovapd 2496(%%rdi), %%zmm0\r\n"                           // A [0,39] [0,0]
+            "vfmadd231pd 200(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[39,4][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=5)
+              "vmovapd 320(%%rdi), %%zmm0\r\n"                            // A [0,5] [0,0]
+            "vfmadd231pd 208(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[5,5][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=17)
+              "vmovapd 1088(%%rdi), %%zmm0\r\n"                           // A [0,17] [0,0]
+            "vfmadd231pd 216(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[17,5][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=37)
+              "vmovapd 2368(%%rdi), %%zmm0\r\n"                           // A [0,37] [0,0]
+            "vfmadd231pd 224(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[37,5][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=39)
+              "vmovapd 2496(%%rdi), %%zmm0\r\n"                           // A [0,39] [0,0]
+            "vfmadd231pd 232(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[39,5][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=48)
+              "vmovapd 3072(%%rdi), %%zmm0\r\n"                           // A [0,48] [0,0]
+            "vfmadd231pd 240(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[48,5][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=7)
+              "vmovapd 448(%%rdi), %%zmm0\r\n"                            // A [0,7] [0,0]
+            "vfmadd231pd 248(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[7,6][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=22)
+              "vmovapd 1408(%%rdi), %%zmm0\r\n"                           // A [0,22] [0,0]
+            "vfmadd231pd 256(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[22,6][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=31)
+              "vmovapd 1984(%%rdi), %%zmm0\r\n"                           // A [0,31] [0,0]
+            "vfmadd231pd 264(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[31,6][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=33)
+              "vmovapd 2112(%%rdi), %%zmm0\r\n"                           // A [0,33] [0,0]
+            "vfmadd231pd 272(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[33,6][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=45)
+              "vmovapd 2880(%%rdi), %%zmm0\r\n"                           // A [0,45] [0,0]
+            "vfmadd231pd 280(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[45,6][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=2)
+              "vmovapd 128(%%rdi), %%zmm0\r\n"                            // A [0,2] [0,0]
+            "vfmadd231pd 288(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[2,7][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=27)
+              "vmovapd 1728(%%rdi), %%zmm0\r\n"                           // A [0,27] [0,0]
+            "vfmadd231pd 296(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[27,7][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=28)
+              "vmovapd 1792(%%rdi), %%zmm0\r\n"                           // A [0,28] [0,0]
+            "vfmadd231pd 304(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[28,7][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=34)
+              "vmovapd 2176(%%rdi), %%zmm0\r\n"                           // A [0,34] [0,0]
+            "vfmadd231pd 312(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[34,7][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=42)
+              "vmovapd 2688(%%rdi), %%zmm0\r\n"                           // A [0,42] [0,0]
+            "vfmadd231pd 320(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[42,7][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=16)
+              "vmovapd 1024(%%rdi), %%zmm0\r\n"                           // A [0,16] [0,0]
+            "vfmadd231pd 328(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[16,8][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=20)
+              "vmovapd 1280(%%rdi), %%zmm0\r\n"                           // A [0,20] [0,0]
+            "vfmadd231pd 336(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[20,8][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=36)
+              "vmovapd 2304(%%rdi), %%zmm0\r\n"                           // A [0,36] [0,0]
+            "vfmadd231pd 344(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[36,8][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=4)
+              "vmovapd 256(%%rdi), %%zmm0\r\n"                            // A [0,4] [0,0]
+            "vfmadd231pd 352(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[4,9][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=9)
+              "vmovapd 576(%%rdi), %%zmm0\r\n"                            // A [0,9] [0,0]
+            "vfmadd231pd 360(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[9,9][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=13)
+              "vmovapd 832(%%rdi), %%zmm0\r\n"                            // A [0,13] [0,0]
+            "vfmadd231pd 368(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[13,9][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=15)
+              "vmovapd 960(%%rdi), %%zmm0\r\n"                            // A [0,15] [0,0]
+            "vfmadd231pd 376(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[15,9][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=26)
+              "vmovapd 1664(%%rdi), %%zmm0\r\n"                           // A [0,26] [0,0]
+            "vfmadd231pd 384(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[26,9][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=33)
+              "vmovapd 2112(%%rdi), %%zmm0\r\n"                           // A [0,33] [0,0]
+            "vfmadd231pd 392(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[33,9][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=36)
+              "vmovapd 2304(%%rdi), %%zmm0\r\n"                           // A [0,36] [0,0]
+            "vfmadd231pd 400(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[36,9][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=37)
+              "vmovapd 2368(%%rdi), %%zmm0\r\n"                           // A [0,37] [0,0]
+            "vfmadd231pd 408(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[37,9][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=8)
+              "vmovapd 512(%%rdi), %%zmm0\r\n"                            // A [0,8] [0,0]
+            "vfmadd231pd 416(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[8,10][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=37)
+              "vmovapd 2368(%%rdi), %%zmm0\r\n"                           // A [0,37] [0,0]
+            "vfmadd231pd 424(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[37,10][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=46)
+              "vmovapd 2944(%%rdi), %%zmm0\r\n"                           // A [0,46] [0,0]
+            "vfmadd231pd 432(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[46,10][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=49)
+              "vmovapd 3136(%%rdi), %%zmm0\r\n"                           // A [0,49] [0,0]
+            "vfmadd231pd 440(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[49,10][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=53)
+              "vmovapd 3392(%%rdi), %%zmm0\r\n"                           // A [0,53] [0,0]
+            "vfmadd231pd 448(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[53,10][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=19)
+              "vmovapd 1216(%%rdi), %%zmm0\r\n"                           // A [0,19] [0,0]
+            "vfmadd231pd 456(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[19,11][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=25)
+              "vmovapd 1600(%%rdi), %%zmm0\r\n"                           // A [0,25] [0,0]
+            "vfmadd231pd 464(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[25,11][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=30)
+              "vmovapd 1920(%%rdi), %%zmm0\r\n"                           // A [0,30] [0,0]
+            "vfmadd231pd 472(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[30,11][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=42)
+              "vmovapd 2688(%%rdi), %%zmm0\r\n"                           // A [0,42] [0,0]
+            "vfmadd231pd 480(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[42,11][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=44)
+              "vmovapd 2816(%%rdi), %%zmm0\r\n"                           // A [0,44] [0,0]
+            "vfmadd231pd 488(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[44,11][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=1)
+              "vmovapd 64(%%rdi), %%zmm0\r\n"                             // A [0,1] [0,0]
+            "vfmadd231pd 496(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[1,12][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=11)
+              "vmovapd 704(%%rdi), %%zmm0\r\n"                            // A [0,11] [0,0]
+            "vfmadd231pd 504(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[11,12][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=15)
+              "vmovapd 960(%%rdi), %%zmm0\r\n"                            // A [0,15] [0,0]
+            "vfmadd231pd 512(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[15,12][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=18)
+              "vmovapd 1152(%%rdi), %%zmm0\r\n"                           // A [0,18] [0,0]
+            "vfmadd231pd 520(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[18,12][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=24)
+              "vmovapd 1536(%%rdi), %%zmm0\r\n"                           // A [0,24] [0,0]
+            "vfmadd231pd 528(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[24,12][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=27)
+              "vmovapd 1728(%%rdi), %%zmm0\r\n"                           // A [0,27] [0,0]
+            "vfmadd231pd 536(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[27,12][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=35)
+              "vmovapd 2240(%%rdi), %%zmm0\r\n"                           // A [0,35] [0,0]
+            "vfmadd231pd 544(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[35,12][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=14)
+              "vmovapd 896(%%rdi), %%zmm0\r\n"                            // A [0,14] [0,0]
+            "vfmadd231pd 552(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[14,13][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=33)
+              "vmovapd 2112(%%rdi), %%zmm0\r\n"                           // A [0,33] [0,0]
+            "vfmadd231pd 560(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[33,13][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=39)
+              "vmovapd 2496(%%rdi), %%zmm0\r\n"                           // A [0,39] [0,0]
+            "vfmadd231pd 568(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[39,13][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=45)
+              "vmovapd 2880(%%rdi), %%zmm0\r\n"                           // A [0,45] [0,0]
+            "vfmadd231pd 576(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[45,13][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=2)
+              "vmovapd 128(%%rdi), %%zmm0\r\n"                            // A [0,2] [0,0]
+            "vfmadd231pd 584(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[2,14][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=17)
+              "vmovapd 1088(%%rdi), %%zmm0\r\n"                           // A [0,17] [0,0]
+            "vfmadd231pd 592(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[17,14][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=40)
+              "vmovapd 2560(%%rdi), %%zmm0\r\n"                           // A [0,40] [0,0]
+            "vfmadd231pd 600(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[40,14][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=49)
+              "vmovapd 3136(%%rdi), %%zmm0\r\n"                           // A [0,49] [0,0]
+            "vfmadd231pd 608(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[49,14][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=55)
+              "vmovapd 3520(%%rdi), %%zmm0\r\n"                           // A [0,55] [0,0]
+            "vfmadd231pd 616(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[55,14][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=2)
+              "vmovapd 128(%%rdi), %%zmm0\r\n"                            // A [0,2] [0,0]
+            "vfmadd231pd 624(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[2,15][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=14)
+              "vmovapd 896(%%rdi), %%zmm0\r\n"                            // A [0,14] [0,0]
+            "vfmadd231pd 632(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[14,15][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=23)
+              "vmovapd 1472(%%rdi), %%zmm0\r\n"                           // A [0,23] [0,0]
+            "vfmadd231pd 640(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[23,15][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=34)
+              "vmovapd 2176(%%rdi), %%zmm0\r\n"                           // A [0,34] [0,0]
+            "vfmadd231pd 648(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[34,15][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=51)
+              "vmovapd 3264(%%rdi), %%zmm0\r\n"                           // A [0,51] [0,0]
+            "vfmadd231pd 656(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[51,15][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=17)
+              "vmovapd 1088(%%rdi), %%zmm0\r\n"                           // A [0,17] [0,0]
+            "vfmadd231pd 664(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[17,16][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=31)
+              "vmovapd 1984(%%rdi), %%zmm0\r\n"                           // A [0,31] [0,0]
+            "vfmadd231pd 672(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[31,16][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=37)
+              "vmovapd 2368(%%rdi), %%zmm0\r\n"                           // A [0,37] [0,0]
+            "vfmadd231pd 680(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[37,16][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=41)
+              "vmovapd 2624(%%rdi), %%zmm0\r\n"                           // A [0,41] [0,0]
+            "vfmadd231pd 688(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[41,16][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=4)
+              "vmovapd 256(%%rdi), %%zmm0\r\n"                            // A [0,4] [0,0]
+            "vfmadd231pd 696(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[4,17][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=6)
+              "vmovapd 384(%%rdi), %%zmm0\r\n"                            // A [0,6] [0,0]
+            "vfmadd231pd 704(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[6,17][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=16)
+              "vmovapd 1024(%%rdi), %%zmm0\r\n"                           // A [0,16] [0,0]
+            "vfmadd231pd 712(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[16,17][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=17)
+              "vmovapd 1088(%%rdi), %%zmm0\r\n"                           // A [0,17] [0,0]
+            "vfmadd231pd 720(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[17,17][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=19)
+              "vmovapd 1216(%%rdi), %%zmm0\r\n"                           // A [0,19] [0,0]
+            "vfmadd231pd 728(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[19,17][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=33)
+              "vmovapd 2112(%%rdi), %%zmm0\r\n"                           // A [0,33] [0,0]
+            "vfmadd231pd 736(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[33,17][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=35)
+              "vmovapd 2240(%%rdi), %%zmm0\r\n"                           // A [0,35] [0,0]
+            "vfmadd231pd 744(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[35,17][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=42)
+              "vmovapd 2688(%%rdi), %%zmm0\r\n"                           // A [0,42] [0,0]
+            "vfmadd231pd 752(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[42,17][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=6)
+              "vmovapd 384(%%rdi), %%zmm0\r\n"                            // A [0,6] [0,0]
+            "vfmadd231pd 760(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[6,18][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=15)
+              "vmovapd 960(%%rdi), %%zmm0\r\n"                            // A [0,15] [0,0]
+            "vfmadd231pd 768(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[15,18][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=38)
+              "vmovapd 2432(%%rdi), %%zmm0\r\n"                           // A [0,38] [0,0]
+            "vfmadd231pd 776(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[38,18][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=40)
+              "vmovapd 2560(%%rdi), %%zmm0\r\n"                           // A [0,40] [0,0]
+            "vfmadd231pd 784(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[40,18][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=48)
+              "vmovapd 3072(%%rdi), %%zmm0\r\n"                           // A [0,48] [0,0]
+            "vfmadd231pd 792(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[48,18][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=51)
+              "vmovapd 3264(%%rdi), %%zmm0\r\n"                           // A [0,51] [0,0]
+            "vfmadd231pd 800(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[51,18][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=54)
+              "vmovapd 3456(%%rdi), %%zmm0\r\n"                           // A [0,54] [0,0]
+            "vfmadd231pd 808(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[54,18][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=3)
+              "vmovapd 192(%%rdi), %%zmm0\r\n"                            // A [0,3] [0,0]
+            "vfmadd231pd 816(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[3,19][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=5)
+              "vmovapd 320(%%rdi), %%zmm0\r\n"                            // A [0,5] [0,0]
+            "vfmadd231pd 824(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[5,19][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=6)
+              "vmovapd 384(%%rdi), %%zmm0\r\n"                            // A [0,6] [0,0]
+            "vfmadd231pd 832(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[6,19][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=7)
+              "vmovapd 448(%%rdi), %%zmm0\r\n"                            // A [0,7] [0,0]
+            "vfmadd231pd 840(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[7,19][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=8)
+              "vmovapd 512(%%rdi), %%zmm0\r\n"                            // A [0,8] [0,0]
+            "vfmadd231pd 848(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[8,19][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=25)
+              "vmovapd 1600(%%rdi), %%zmm0\r\n"                           // A [0,25] [0,0]
+            "vfmadd231pd 856(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[25,19][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=27)
+              "vmovapd 1728(%%rdi), %%zmm0\r\n"                           // A [0,27] [0,0]
+            "vfmadd231pd 864(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[27,19][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=28)
+              "vmovapd 1792(%%rdi), %%zmm0\r\n"                           // A [0,28] [0,0]
+            "vfmadd231pd 872(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[28,19][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=29)
+              "vmovapd 1856(%%rdi), %%zmm0\r\n"                           // A [0,29] [0,0]
+            "vfmadd231pd 880(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[29,19][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=33)
+              "vmovapd 2112(%%rdi), %%zmm0\r\n"                           // A [0,33] [0,0]
+            "vfmadd231pd 888(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[33,19][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=43)
+              "vmovapd 2752(%%rdi), %%zmm0\r\n"                           // A [0,43] [0,0]
+            "vfmadd231pd 896(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[43,19][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=46)
+              "vmovapd 2944(%%rdi), %%zmm0\r\n"                           // A [0,46] [0,0]
+            "vfmadd231pd 904(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[46,19][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=50)
+              "vmovapd 3200(%%rdi), %%zmm0\r\n"                           // A [0,50] [0,0]
+            "vfmadd231pd 912(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[50,19][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=1)
+              "vmovapd 64(%%rdi), %%zmm0\r\n"                             // A [0,1] [0,0]
+            "vfmadd231pd 920(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[1,20][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=33)
+              "vmovapd 2112(%%rdi), %%zmm0\r\n"                           // A [0,33] [0,0]
+            "vfmadd231pd 928(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[33,20][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=46)
+              "vmovapd 2944(%%rdi), %%zmm0\r\n"                           // A [0,46] [0,0]
+            "vfmadd231pd 936(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[46,20][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=55)
+              "vmovapd 3520(%%rdi), %%zmm0\r\n"                           // A [0,55] [0,0]
+            "vfmadd231pd 944(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[55,20][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=7)
+              "vmovapd 448(%%rdi), %%zmm0\r\n"                            // A [0,7] [0,0]
+            "vfmadd231pd 952(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[7,21][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=10)
+              "vmovapd 640(%%rdi), %%zmm0\r\n"                            // A [0,10] [0,0]
+            "vfmadd231pd 960(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[10,21][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=44)
+              "vmovapd 2816(%%rdi), %%zmm0\r\n"                           // A [0,44] [0,0]
+            "vfmadd231pd 968(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[44,21][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=55)
+              "vmovapd 3520(%%rdi), %%zmm0\r\n"                           // A [0,55] [0,0]
+            "vfmadd231pd 976(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[55,21][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=6)
+              "vmovapd 384(%%rdi), %%zmm0\r\n"                            // A [0,6] [0,0]
+            "vfmadd231pd 984(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[6,22][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=11)
+              "vmovapd 704(%%rdi), %%zmm0\r\n"                            // A [0,11] [0,0]
+            "vfmadd231pd 992(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"       // C[0:8,0] += A[0:8,0]*B[11,22][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=18)
+              "vmovapd 1152(%%rdi), %%zmm0\r\n"                           // A [0,18] [0,0]
+            "vfmadd231pd 1000(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[18,22][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=30)
+              "vmovapd 1920(%%rdi), %%zmm0\r\n"                           // A [0,30] [0,0]
+            "vfmadd231pd 1008(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[30,22][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=3)
+              "vmovapd 192(%%rdi), %%zmm0\r\n"                            // A [0,3] [0,0]
+            "vfmadd231pd 1016(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[3,23][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=11)
+              "vmovapd 704(%%rdi), %%zmm0\r\n"                            // A [0,11] [0,0]
+            "vfmadd231pd 1024(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[11,23][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=28)
+              "vmovapd 1792(%%rdi), %%zmm0\r\n"                           // A [0,28] [0,0]
+            "vfmadd231pd 1032(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[28,23][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=46)
+              "vmovapd 2944(%%rdi), %%zmm0\r\n"                           // A [0,46] [0,0]
+            "vfmadd231pd 1040(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[46,23][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=49)
+              "vmovapd 3136(%%rdi), %%zmm0\r\n"                           // A [0,49] [0,0]
+            "vfmadd231pd 1048(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[49,23][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=25)
+              "vmovapd 1600(%%rdi), %%zmm0\r\n"                           // A [0,25] [0,0]
+            "vfmadd231pd 1056(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[25,24][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=29)
+              "vmovapd 1856(%%rdi), %%zmm0\r\n"                           // A [0,29] [0,0]
+            "vfmadd231pd 1064(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[29,24][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=36)
+              "vmovapd 2304(%%rdi), %%zmm0\r\n"                           // A [0,36] [0,0]
+            "vfmadd231pd 1072(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[36,24][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=46)
+              "vmovapd 2944(%%rdi), %%zmm0\r\n"                           // A [0,46] [0,0]
+            "vfmadd231pd 1080(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[46,24][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=53)
+              "vmovapd 3392(%%rdi), %%zmm0\r\n"                           // A [0,53] [0,0]
+            "vfmadd231pd 1088(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[53,24][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=7)
+              "vmovapd 448(%%rdi), %%zmm0\r\n"                            // A [0,7] [0,0]
+            "vfmadd231pd 1096(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[7,25][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=8)
+              "vmovapd 512(%%rdi), %%zmm0\r\n"                            // A [0,8] [0,0]
+            "vfmadd231pd 1104(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[8,25][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=22)
+              "vmovapd 1408(%%rdi), %%zmm0\r\n"                           // A [0,22] [0,0]
+            "vfmadd231pd 1112(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[22,25][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=24)
+              "vmovapd 1536(%%rdi), %%zmm0\r\n"                           // A [0,24] [0,0]
+            "vfmadd231pd 1120(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[24,25][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=34)
+              "vmovapd 2176(%%rdi), %%zmm0\r\n"                           // A [0,34] [0,0]
+            "vfmadd231pd 1128(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[34,25][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=42)
+              "vmovapd 2688(%%rdi), %%zmm0\r\n"                           // A [0,42] [0,0]
+            "vfmadd231pd 1136(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[42,25][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=11)
+              "vmovapd 704(%%rdi), %%zmm0\r\n"                            // A [0,11] [0,0]
+            "vfmadd231pd 1144(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[11,26][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=37)
+              "vmovapd 2368(%%rdi), %%zmm0\r\n"                           // A [0,37] [0,0]
+            "vfmadd231pd 1152(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[37,26][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=38)
+              "vmovapd 2432(%%rdi), %%zmm0\r\n"                           // A [0,38] [0,0]
+            "vfmadd231pd 1160(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[38,26][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=51)
+              "vmovapd 3264(%%rdi), %%zmm0\r\n"                           // A [0,51] [0,0]
+            "vfmadd231pd 1168(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[51,26][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=10)
+              "vmovapd 640(%%rdi), %%zmm0\r\n"                            // A [0,10] [0,0]
+            "vfmadd231pd 1176(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[10,27][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=46)
+              "vmovapd 2944(%%rdi), %%zmm0\r\n"                           // A [0,46] [0,0]
+            "vfmadd231pd 1184(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[46,27][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=19)
+              "vmovapd 1216(%%rdi), %%zmm0\r\n"                           // A [0,19] [0,0]
+            "vfmadd231pd 1192(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[19,28][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=24)
+              "vmovapd 1536(%%rdi), %%zmm0\r\n"                           // A [0,24] [0,0]
+            "vfmadd231pd 1200(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[24,28][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=44)
+              "vmovapd 2816(%%rdi), %%zmm0\r\n"                           // A [0,44] [0,0]
+            "vfmadd231pd 1208(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[44,28][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=45)
+              "vmovapd 2880(%%rdi), %%zmm0\r\n"                           // A [0,45] [0,0]
+            "vfmadd231pd 1216(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[45,28][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=0)
+              "vmovapd 0(%%rdi), %%zmm0\r\n"                              // A [0,0] [0,0]
+            "vfmadd231pd 1224(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[0,29][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=13)
+              "vmovapd 832(%%rdi), %%zmm0\r\n"                            // A [0,13] [0,0]
+            "vfmadd231pd 1232(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[13,29][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=16)
+              "vmovapd 1024(%%rdi), %%zmm0\r\n"                           // A [0,16] [0,0]
+            "vfmadd231pd 1240(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[16,29][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=22)
+              "vmovapd 1408(%%rdi), %%zmm0\r\n"                           // A [0,22] [0,0]
+            "vfmadd231pd 1248(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[22,29][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=31)
+              "vmovapd 1984(%%rdi), %%zmm0\r\n"                           // A [0,31] [0,0]
+            "vfmadd231pd 1256(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[31,29][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=46)
+              "vmovapd 2944(%%rdi), %%zmm0\r\n"                           // A [0,46] [0,0]
+            "vfmadd231pd 1264(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[46,29][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=51)
+              "vmovapd 3264(%%rdi), %%zmm0\r\n"                           // A [0,51] [0,0]
+            "vfmadd231pd 1272(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[51,29][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=54)
+              "vmovapd 3456(%%rdi), %%zmm0\r\n"                           // A [0,54] [0,0]
+            "vfmadd231pd 1280(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[54,29][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=2)
+              "vmovapd 128(%%rdi), %%zmm0\r\n"                            // A [0,2] [0,0]
+            "vfmadd231pd 1288(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[2,30][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=5)
+              "vmovapd 320(%%rdi), %%zmm0\r\n"                            // A [0,5] [0,0]
+            "vfmadd231pd 1296(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[5,30][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=9)
+              "vmovapd 576(%%rdi), %%zmm0\r\n"                            // A [0,9] [0,0]
+            "vfmadd231pd 1304(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[9,30][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=29)
+              "vmovapd 1856(%%rdi), %%zmm0\r\n"                           // A [0,29] [0,0]
+            "vfmadd231pd 1312(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[29,30][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=33)
+              "vmovapd 2112(%%rdi), %%zmm0\r\n"                           // A [0,33] [0,0]
+            "vfmadd231pd 1320(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[33,30][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=37)
+              "vmovapd 2368(%%rdi), %%zmm0\r\n"                           // A [0,37] [0,0]
+            "vfmadd231pd 1328(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[37,30][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=49)
+              "vmovapd 3136(%%rdi), %%zmm0\r\n"                           // A [0,49] [0,0]
+            "vfmadd231pd 1336(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[49,30][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=26)
+              "vmovapd 1664(%%rdi), %%zmm0\r\n"                           // A [0,26] [0,0]
+            "vfmadd231pd 1344(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[26,31][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=34)
+              "vmovapd 2176(%%rdi), %%zmm0\r\n"                           // A [0,34] [0,0]
+            "vfmadd231pd 1352(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[34,31][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=0)
+              "vmovapd 0(%%rdi), %%zmm0\r\n"                              // A [0,0] [0,0]
+            "vfmadd231pd 1360(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[0,32][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=12)
+              "vmovapd 768(%%rdi), %%zmm0\r\n"                            // A [0,12] [0,0]
+            "vfmadd231pd 1368(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[12,32][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=49)
+              "vmovapd 3136(%%rdi), %%zmm0\r\n"                           // A [0,49] [0,0]
+            "vfmadd231pd 1376(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[49,32][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=50)
+              "vmovapd 3200(%%rdi), %%zmm0\r\n"                           // A [0,50] [0,0]
+            "vfmadd231pd 1384(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[50,32][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=16)
+              "vmovapd 1024(%%rdi), %%zmm0\r\n"                           // A [0,16] [0,0]
+            "vfmadd231pd 1392(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[16,33][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=28)
+              "vmovapd 1792(%%rdi), %%zmm0\r\n"                           // A [0,28] [0,0]
+            "vfmadd231pd 1400(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[28,33][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=29)
+              "vmovapd 1856(%%rdi), %%zmm0\r\n"                           // A [0,29] [0,0]
+            "vfmadd231pd 1408(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[29,33][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=38)
+              "vmovapd 2432(%%rdi), %%zmm0\r\n"                           // A [0,38] [0,0]
+            "vfmadd231pd 1416(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[38,33][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=42)
+              "vmovapd 2688(%%rdi), %%zmm0\r\n"                           // A [0,42] [0,0]
+            "vfmadd231pd 1424(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[42,33][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=2)
+              "vmovapd 128(%%rdi), %%zmm0\r\n"                            // A [0,2] [0,0]
+            "vfmadd231pd 1432(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[2,34][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=6)
+              "vmovapd 384(%%rdi), %%zmm0\r\n"                            // A [0,6] [0,0]
+            "vfmadd231pd 1440(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[6,34][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=25)
+              "vmovapd 1600(%%rdi), %%zmm0\r\n"                           // A [0,25] [0,0]
+            "vfmadd231pd 1448(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[25,34][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=31)
+              "vmovapd 1984(%%rdi), %%zmm0\r\n"                           // A [0,31] [0,0]
+            "vfmadd231pd 1456(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[31,34][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=33)
+              "vmovapd 2112(%%rdi), %%zmm0\r\n"                           // A [0,33] [0,0]
+            "vfmadd231pd 1464(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[33,34][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=38)
+              "vmovapd 2432(%%rdi), %%zmm0\r\n"                           // A [0,38] [0,0]
+            "vfmadd231pd 1472(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[38,34][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=42)
+              "vmovapd 2688(%%rdi), %%zmm0\r\n"                           // A [0,42] [0,0]
+            "vfmadd231pd 1480(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[42,34][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=44)
+              "vmovapd 2816(%%rdi), %%zmm0\r\n"                           // A [0,44] [0,0]
+            "vfmadd231pd 1488(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[44,34][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=48)
+              "vmovapd 3072(%%rdi), %%zmm0\r\n"                           // A [0,48] [0,0]
+            "vfmadd231pd 1496(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[48,34][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=34)
+              "vmovapd 2176(%%rdi), %%zmm0\r\n"                           // A [0,34] [0,0]
+            "vfmadd231pd 1504(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[34,35][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=50)
+              "vmovapd 3200(%%rdi), %%zmm0\r\n"                           // A [0,50] [0,0]
+            "vfmadd231pd 1512(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[50,35][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=52)
+              "vmovapd 3328(%%rdi), %%zmm0\r\n"                           // A [0,52] [0,0]
+            "vfmadd231pd 1520(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[52,35][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=0)
+              "vmovapd 0(%%rdi), %%zmm0\r\n"                              // A [0,0] [0,0]
+            "vfmadd231pd 1528(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[0,36][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=11)
+              "vmovapd 704(%%rdi), %%zmm0\r\n"                            // A [0,11] [0,0]
+            "vfmadd231pd 1536(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[11,36][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=17)
+              "vmovapd 1088(%%rdi), %%zmm0\r\n"                           // A [0,17] [0,0]
+            "vfmadd231pd 1544(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[17,36][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=22)
+              "vmovapd 1408(%%rdi), %%zmm0\r\n"                           // A [0,22] [0,0]
+            "vfmadd231pd 1552(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[22,36][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=27)
+              "vmovapd 1728(%%rdi), %%zmm0\r\n"                           // A [0,27] [0,0]
+            "vfmadd231pd 1560(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[27,36][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=53)
+              "vmovapd 3392(%%rdi), %%zmm0\r\n"                           // A [0,53] [0,0]
+            "vfmadd231pd 1568(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[53,36][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=54)
+              "vmovapd 3456(%%rdi), %%zmm0\r\n"                           // A [0,54] [0,0]
+            "vfmadd231pd 1576(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[54,36][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=4)
+              "vmovapd 256(%%rdi), %%zmm0\r\n"                            // A [0,4] [0,0]
+            "vfmadd231pd 1584(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[4,37][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=6)
+              "vmovapd 384(%%rdi), %%zmm0\r\n"                            // A [0,6] [0,0]
+            "vfmadd231pd 1592(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[6,37][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=12)
+              "vmovapd 768(%%rdi), %%zmm0\r\n"                            // A [0,12] [0,0]
+            "vfmadd231pd 1600(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[12,37][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=50)
+              "vmovapd 3200(%%rdi), %%zmm0\r\n"                           // A [0,50] [0,0]
+            "vfmadd231pd 1608(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[50,37][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=14)
+              "vmovapd 896(%%rdi), %%zmm0\r\n"                            // A [0,14] [0,0]
+            "vfmadd231pd 1616(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[14,38][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=24)
+              "vmovapd 1536(%%rdi), %%zmm0\r\n"                           // A [0,24] [0,0]
+            "vfmadd231pd 1624(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[24,38][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=25)
+              "vmovapd 1600(%%rdi), %%zmm0\r\n"                           // A [0,25] [0,0]
+            "vfmadd231pd 1632(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[25,38][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=29)
+              "vmovapd 1856(%%rdi), %%zmm0\r\n"                           // A [0,29] [0,0]
+            "vfmadd231pd 1640(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[29,38][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=40)
+              "vmovapd 2560(%%rdi), %%zmm0\r\n"                           // A [0,40] [0,0]
+            "vfmadd231pd 1648(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[40,38][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=48)
+              "vmovapd 3072(%%rdi), %%zmm0\r\n"                           // A [0,48] [0,0]
+            "vfmadd231pd 1656(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[48,38][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=39)
+              "vmovapd 2496(%%rdi), %%zmm0\r\n"                           // A [0,39] [0,0]
+            "vfmadd231pd 1664(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[39,39][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=40)
+              "vmovapd 2560(%%rdi), %%zmm0\r\n"                           // A [0,40] [0,0]
+            "vfmadd231pd 1672(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[40,39][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=43)
+              "vmovapd 2752(%%rdi), %%zmm0\r\n"                           // A [0,43] [0,0]
+            "vfmadd231pd 1680(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[43,39][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=51)
+              "vmovapd 3264(%%rdi), %%zmm0\r\n"                           // A [0,51] [0,0]
+            "vfmadd231pd 1688(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[51,39][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=1)
+              "vmovapd 64(%%rdi), %%zmm0\r\n"                             // A [0,1] [0,0]
+            "vfmadd231pd 1696(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[1,40][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=4)
+              "vmovapd 256(%%rdi), %%zmm0\r\n"                            // A [0,4] [0,0]
+            "vfmadd231pd 1704(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[4,40][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=19)
+              "vmovapd 1216(%%rdi), %%zmm0\r\n"                           // A [0,19] [0,0]
+            "vfmadd231pd 1712(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[19,40][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=25)
+              "vmovapd 1600(%%rdi), %%zmm0\r\n"                           // A [0,25] [0,0]
+            "vfmadd231pd 1720(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[25,40][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=35)
+              "vmovapd 2240(%%rdi), %%zmm0\r\n"                           // A [0,35] [0,0]
+            "vfmadd231pd 1728(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[35,40][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=51)
+              "vmovapd 3264(%%rdi), %%zmm0\r\n"                           // A [0,51] [0,0]
+            "vfmadd231pd 1736(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[51,40][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=7)
+              "vmovapd 448(%%rdi), %%zmm0\r\n"                            // A [0,7] [0,0]
+            "vfmadd231pd 1744(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[7,41][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=8)
+              "vmovapd 512(%%rdi), %%zmm0\r\n"                            // A [0,8] [0,0]
+            "vfmadd231pd 1752(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[8,41][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=19)
+              "vmovapd 1216(%%rdi), %%zmm0\r\n"                           // A [0,19] [0,0]
+            "vfmadd231pd 1760(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[19,41][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=42)
+              "vmovapd 2688(%%rdi), %%zmm0\r\n"                           // A [0,42] [0,0]
+            "vfmadd231pd 1768(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[42,41][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=46)
+              "vmovapd 2944(%%rdi), %%zmm0\r\n"                           // A [0,46] [0,0]
+            "vfmadd231pd 1776(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[46,41][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=49)
+              "vmovapd 3136(%%rdi), %%zmm0\r\n"                           // A [0,49] [0,0]
+            "vfmadd231pd 1784(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[49,41][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=53)
+              "vmovapd 3392(%%rdi), %%zmm0\r\n"                           // A [0,53] [0,0]
+            "vfmadd231pd 1792(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[53,41][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=2)
+              "vmovapd 128(%%rdi), %%zmm0\r\n"                            // A [0,2] [0,0]
+            "vfmadd231pd 1800(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[2,42][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=4)
+              "vmovapd 256(%%rdi), %%zmm0\r\n"                            // A [0,4] [0,0]
+            "vfmadd231pd 1808(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[4,42][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=5)
+              "vmovapd 320(%%rdi), %%zmm0\r\n"                            // A [0,5] [0,0]
+            "vfmadd231pd 1816(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[5,42][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=6)
+              "vmovapd 384(%%rdi), %%zmm0\r\n"                            // A [0,6] [0,0]
+            "vfmadd231pd 1824(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[6,42][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=20)
+              "vmovapd 1280(%%rdi), %%zmm0\r\n"                           // A [0,20] [0,0]
+            "vfmadd231pd 1832(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[20,42][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=22)
+              "vmovapd 1408(%%rdi), %%zmm0\r\n"                           // A [0,22] [0,0]
+            "vfmadd231pd 1840(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[22,42][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=28)
+              "vmovapd 1792(%%rdi), %%zmm0\r\n"                           // A [0,28] [0,0]
+            "vfmadd231pd 1848(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[28,42][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=0)
+              "vmovapd 0(%%rdi), %%zmm0\r\n"                              // A [0,0] [0,0]
+            "vfmadd231pd 1856(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[0,43][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=6)
+              "vmovapd 384(%%rdi), %%zmm0\r\n"                            // A [0,6] [0,0]
+            "vfmadd231pd 1864(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[6,43][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=42)
+              "vmovapd 2688(%%rdi), %%zmm0\r\n"                           // A [0,42] [0,0]
+            "vfmadd231pd 1872(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[42,43][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=0)
+              "vmovapd 0(%%rdi), %%zmm0\r\n"                              // A [0,0] [0,0]
+            "vfmadd231pd 1880(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[0,44][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=12)
+              "vmovapd 768(%%rdi), %%zmm0\r\n"                            // A [0,12] [0,0]
+            "vfmadd231pd 1888(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[12,44][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=16)
+              "vmovapd 1024(%%rdi), %%zmm0\r\n"                           // A [0,16] [0,0]
+            "vfmadd231pd 1896(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[16,44][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=29)
+              "vmovapd 1856(%%rdi), %%zmm0\r\n"                           // A [0,29] [0,0]
+            "vfmadd231pd 1904(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[29,44][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=45)
+              "vmovapd 2880(%%rdi), %%zmm0\r\n"                           // A [0,45] [0,0]
+            "vfmadd231pd 1912(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[45,44][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=8)
+              "vmovapd 512(%%rdi), %%zmm0\r\n"                            // A [0,8] [0,0]
+            "vfmadd231pd 1920(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[8,45][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=13)
+              "vmovapd 832(%%rdi), %%zmm0\r\n"                            // A [0,13] [0,0]
+            "vfmadd231pd 1928(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[13,45][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=17)
+              "vmovapd 1088(%%rdi), %%zmm0\r\n"                           // A [0,17] [0,0]
+            "vfmadd231pd 1936(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[17,45][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=20)
+              "vmovapd 1280(%%rdi), %%zmm0\r\n"                           // A [0,20] [0,0]
+            "vfmadd231pd 1944(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[20,45][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=22)
+              "vmovapd 1408(%%rdi), %%zmm0\r\n"                           // A [0,22] [0,0]
+            "vfmadd231pd 1952(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[22,45][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=38)
+              "vmovapd 2432(%%rdi), %%zmm0\r\n"                           // A [0,38] [0,0]
+            "vfmadd231pd 1960(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[38,45][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=11)
+              "vmovapd 704(%%rdi), %%zmm0\r\n"                            // A [0,11] [0,0]
+            "vfmadd231pd 1968(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[11,46][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=24)
+              "vmovapd 1536(%%rdi), %%zmm0\r\n"                           // A [0,24] [0,0]
+            "vfmadd231pd 1976(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[24,46][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=30)
+              "vmovapd 1920(%%rdi), %%zmm0\r\n"                           // A [0,30] [0,0]
+            "vfmadd231pd 1984(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[30,46][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=31)
+              "vmovapd 1984(%%rdi), %%zmm0\r\n"                           // A [0,31] [0,0]
+            "vfmadd231pd 1992(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[31,46][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=33)
+              "vmovapd 2112(%%rdi), %%zmm0\r\n"                           // A [0,33] [0,0]
+            "vfmadd231pd 2000(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[33,46][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=49)
+              "vmovapd 3136(%%rdi), %%zmm0\r\n"                           // A [0,49] [0,0]
+            "vfmadd231pd 2008(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[49,46][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=52)
+              "vmovapd 3328(%%rdi), %%zmm0\r\n"                           // A [0,52] [0,0]
+            "vfmadd231pd 2016(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[52,46][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=53)
+              "vmovapd 3392(%%rdi), %%zmm0\r\n"                           // A [0,53] [0,0]
+            "vfmadd231pd 2024(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[53,46][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=2)
+              "vmovapd 128(%%rdi), %%zmm0\r\n"                            // A [0,2] [0,0]
+            "vfmadd231pd 2032(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[2,47][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=10)
+              "vmovapd 640(%%rdi), %%zmm0\r\n"                            // A [0,10] [0,0]
+            "vfmadd231pd 2040(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[10,47][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=51)
+              "vmovapd 3264(%%rdi), %%zmm0\r\n"                           // A [0,51] [0,0]
+            "vfmadd231pd 2048(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[51,47][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=24)
+              "vmovapd 1536(%%rdi), %%zmm0\r\n"                           // A [0,24] [0,0]
+            "vfmadd231pd 2056(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[24,48][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=37)
+              "vmovapd 2368(%%rdi), %%zmm0\r\n"                           // A [0,37] [0,0]
+            "vfmadd231pd 2064(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[37,48][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=38)
+              "vmovapd 2432(%%rdi), %%zmm0\r\n"                           // A [0,38] [0,0]
+            "vfmadd231pd 2072(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[38,48][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=48)
+              "vmovapd 3072(%%rdi), %%zmm0\r\n"                           // A [0,48] [0,0]
+            "vfmadd231pd 2080(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[48,48][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=52)
+              "vmovapd 3328(%%rdi), %%zmm0\r\n"                           // A [0,52] [0,0]
+            "vfmadd231pd 2088(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[52,48][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=54)
+              "vmovapd 3456(%%rdi), %%zmm0\r\n"                           // A [0,54] [0,0]
+            "vfmadd231pd 2096(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[54,48][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=10)
+              "vmovapd 640(%%rdi), %%zmm0\r\n"                            // A [0,10] [0,0]
+            "vfmadd231pd 2104(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[10,49][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=13)
+              "vmovapd 832(%%rdi), %%zmm0\r\n"                            // A [0,13] [0,0]
+            "vfmadd231pd 2112(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[13,49][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=14)
+              "vmovapd 896(%%rdi), %%zmm0\r\n"                            // A [0,14] [0,0]
+            "vfmadd231pd 2120(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[14,49][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=21)
+              "vmovapd 1344(%%rdi), %%zmm0\r\n"                           // A [0,21] [0,0]
+            "vfmadd231pd 2128(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[21,49][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=29)
+              "vmovapd 1856(%%rdi), %%zmm0\r\n"                           // A [0,29] [0,0]
+            "vfmadd231pd 2136(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[29,49][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=30)
+              "vmovapd 1920(%%rdi), %%zmm0\r\n"                           // A [0,30] [0,0]
+            "vfmadd231pd 2144(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[30,49][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=31)
+              "vmovapd 1984(%%rdi), %%zmm0\r\n"                           // A [0,31] [0,0]
+            "vfmadd231pd 2152(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[31,49][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=42)
+              "vmovapd 2688(%%rdi), %%zmm0\r\n"                           // A [0,42] [0,0]
+            "vfmadd231pd 2160(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[42,49][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=52)
+              "vmovapd 3328(%%rdi), %%zmm0\r\n"                           // A [0,52] [0,0]
+            "vfmadd231pd 2168(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[52,49][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=6)
+              "vmovapd 384(%%rdi), %%zmm0\r\n"                            // A [0,6] [0,0]
+            "vfmadd231pd 2176(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[6,50][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=19)
+              "vmovapd 1216(%%rdi), %%zmm0\r\n"                           // A [0,19] [0,0]
+            "vfmadd231pd 2184(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[19,50][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=39)
+              "vmovapd 2496(%%rdi), %%zmm0\r\n"                           // A [0,39] [0,0]
+            "vfmadd231pd 2192(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[39,50][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=14)
+              "vmovapd 896(%%rdi), %%zmm0\r\n"                            // A [0,14] [0,0]
+            "vfmadd231pd 2200(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[14,51][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=19)
+              "vmovapd 1216(%%rdi), %%zmm0\r\n"                           // A [0,19] [0,0]
+            "vfmadd231pd 2208(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[19,51][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=47)
+              "vmovapd 3008(%%rdi), %%zmm0\r\n"                           // A [0,47] [0,0]
+            "vfmadd231pd 2216(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[47,51][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=50)
+              "vmovapd 3200(%%rdi), %%zmm0\r\n"                           // A [0,50] [0,0]
+            "vfmadd231pd 2224(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[50,51][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=28)
+              "vmovapd 1792(%%rdi), %%zmm0\r\n"                           // A [0,28] [0,0]
+            "vfmadd231pd 2232(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[28,52][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=30)
+              "vmovapd 1920(%%rdi), %%zmm0\r\n"                           // A [0,30] [0,0]
+            "vfmadd231pd 2240(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[30,52][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=40)
+              "vmovapd 2560(%%rdi), %%zmm0\r\n"                           // A [0,40] [0,0]
+            "vfmadd231pd 2248(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[40,52][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=45)
+              "vmovapd 2880(%%rdi), %%zmm0\r\n"                           // A [0,45] [0,0]
+            "vfmadd231pd 2256(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[45,52][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=54)
+              "vmovapd 3456(%%rdi), %%zmm0\r\n"                           // A [0,54] [0,0]
+            "vfmadd231pd 2264(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[54,52][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=0)
+              "vmovapd 0(%%rdi), %%zmm0\r\n"                              // A [0,0] [0,0]
+            "vfmadd231pd 2272(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[0,53][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=1)
+              "vmovapd 64(%%rdi), %%zmm0\r\n"                             // A [0,1] [0,0]
+            "vfmadd231pd 2280(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[1,53][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=2)
+              "vmovapd 128(%%rdi), %%zmm0\r\n"                            // A [0,2] [0,0]
+            "vfmadd231pd 2288(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[2,53][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=17)
+              "vmovapd 1088(%%rdi), %%zmm0\r\n"                           // A [0,17] [0,0]
+            "vfmadd231pd 2296(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[17,53][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=45)
+              "vmovapd 2880(%%rdi), %%zmm0\r\n"                           // A [0,45] [0,0]
+            "vfmadd231pd 2304(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[45,53][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=49)
+              "vmovapd 3136(%%rdi), %%zmm0\r\n"                           // A [0,49] [0,0]
+            "vfmadd231pd 2312(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[49,53][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=11)
+              "vmovapd 704(%%rdi), %%zmm0\r\n"                            // A [0,11] [0,0]
+            "vfmadd231pd 2320(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[11,54][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=33)
+              "vmovapd 2112(%%rdi), %%zmm0\r\n"                           // A [0,33] [0,0]
+            "vfmadd231pd 2328(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[33,54][0,0]
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=51)
+              "vmovapd 3264(%%rdi), %%zmm0\r\n"                           // A [0,51] [0,0]
+            "vfmadd231pd 2336(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[51,54][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+          "addq $64, %%rdx\r\n"                                       // Move C to (d=0,r=1)
+            // zero registers
+            "vpxord %%zmm31, %%zmm31, %%zmm31\r\n"
+            // Block GEMM microkernel
+              // Load A register block @ (d=0,r=51)
+              "vmovapd 3264(%%rdi), %%zmm0\r\n"                           // A [0,51] [0,0]
+            "vfmadd231pd 2344(%%rsi)%{1to8%}, %%zmm0, %%zmm31\r\n"      // C[0:8,0] += A[0:8,0]*B[51,55][0,0]
+            // Store C register block @ (d=0,r=0)
+            "vmovapd %%zmm31, 0(%%rdx)\r\n"                             // C [0,0] [0,0]
+        "addq $64, %%rdi\r\n"                                       // Move A to (d=1,r=0)
+        "addq $-3456, %%rdx\r\n"                                    // Move C to (d=1,r=-55)
+        "addq $1, %%r12\r\n"
+        "cmp $1, %%r12\r\n"
+        "jl LOOP_TOP_0_%=\r\n"
+
+    : : "m"(A), "m"(B), "m"(C) : "r12","rdi","rdx","zmm31");
+
+};
