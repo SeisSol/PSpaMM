@@ -41,7 +41,7 @@ SparseKernel = namedtuple('SparseKernel', 'name m n k lda ldb ldc beta block_siz
 kernels = []
 
 kernels.append(SparseKernel("test1", 8, 56, 56, 8, 0, 8, 0, [(8, 4), (8,1)], generateMTX(56, 56, 294), 0.0000001))
-kernels.append(DenseKernel("test2", 8, 40, 40, 8, 40, 8, 0, [(8, 5), (8,2)], generateMTX(40, 40, 295), 0.0000001))
+kernels.append(DenseKernel("test2", 8, 40, 40, 8, 40, 8, 0, [(8, 5), (8,2)], generateMTX(40, 40, 40*40), 0.0000001))
 kernels.append(DenseKernel("test3", 8, 56, 56, 8, 56, 8, 0, [(8, 3), (8, 5)], generateMTX(56, 56, 56*56), 0.0000001))
 
 knl_kernels = []
@@ -114,16 +114,17 @@ void gemm_ref(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, un
 }
 
 std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, std::string MTX) {
+
+  if(LDB == 0)
+    LDB = K;
+
   double *A;
   double *B;
   double *Bsparse;
   double *Cref;
   double *C;
 
-  if(LDB == 0)
-    LDB = K;
-
-  int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, LDA*K*sizeof(double));
+  int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, LDA*LDB*sizeof(double));
   int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, LDB*N*sizeof(double));
   int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, LDB*N*sizeof(double));  
   int resCref = posix_memalign(reinterpret_cast<void **>(&Cref), 64, LDC*N*sizeof(double));
@@ -134,10 +135,10 @@ std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned
   getline(f, line);
   getline(f, line);
 
-  for(int i = 0; i < LDA*K; i++)
+  for(int i = 0; i < LDA*LDB; i++)
     A[i] = (double)rand() / RAND_MAX;
 
-  for(int i = 0; i < K*N; i++)
+  for(int i = 0; i < LDB*N; i++)
     B[i] = 0;
 
   for(int i = 0; i < LDC*N; i++)
@@ -155,7 +156,7 @@ std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned
     for(std::string s; iss >> s; )
       result.push_back(s);
 
-    B[std::atoi(result[0].c_str() - 1) + K * std::atoi(result[1].c_str()) - 1] = std::stod(result[2]);
+    B[std::atoi(result[0].c_str() - 1) + LDB * std::atoi(result[1].c_str()) - 1] = std::stod(result[2]);
     Bsparse[counter] = std::stod(result[2]);
 
     counter++;
@@ -163,10 +164,13 @@ std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned
 
   f.close();
 
-  return std::make_tuple(A, B, C, Cref, Bsparse);
+  return std::make_tuple(A, B, Bsparse, C, Cref);
 }
 
 int post(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, double BETA, double* A, double* B, double* C, double* Cref, double DELTA) {
+
+  if(LDB == 0)
+    LDB = K;
 
   gemm_ref(M, N, K, LDA, LDB, LDC, BETA, A, B, Cref);
 
@@ -193,11 +197,11 @@ for kern in kernels:
 
 		f.write("""
   pointers = pre({m}, {n}, {k}, {lda}, {ldb}, {ldc}, "mtx/{mtx}");
-//  {name}(std::get<0>(pointers), std::get<1>(pointers), std::get<2>(pointers))
+//  {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers))
   result = post({m}, {n}, {k}, {lda}, {ldb}, {ldc}, {beta}, std::get<0>(pointers), std::get<1>(pointers), std::get<2>(pointers), std::get<3>(pointers), {delta:.7f});
   results.push_back(std::make_tuple("{name}", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
-""".format(m = kern.m, n = kern.n, k = kern.k, lda = kern.lda, ldb = kern.k, ldc = kern.ldc, beta = kern.beta, mtx = kern.mtx, delta = kern.delta, name = name))
+""".format(m = kern.m, n = kern.n, k = kern.k, lda = kern.lda, ldb = kern.ldb, ldc = kern.ldc, beta = kern.beta, mtx = kern.mtx, delta = kern.delta, name = name, sparse = 2 if kern.ldb == 0 else 1))
 
 f.write("""
 
