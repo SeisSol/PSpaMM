@@ -148,8 +148,6 @@ std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned
   }
 
 
-  int counter = 0;
-
   while(getline(f, line)) {
     std::vector<std::string> result;
     std::istringstream iss(line);
@@ -157,9 +155,21 @@ std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned
       result.push_back(s);
 
     B[std::atoi(result[0].c_str() - 1) + LDB * std::atoi(result[1].c_str()) - 1] = std::stod(result[2]);
-    Bsparse[counter] = std::stod(result[2]);
+  }
 
-    counter++;
+
+  int counter = 0;
+
+  for(int i = 0; i < N; i++)
+  {
+    for(int j = 0; j < K; j++)
+    {
+      if(B[j + i * LDB] != 0)
+      {
+        Bsparse[counter] = B[j + i * LDB];
+        counter++;
+      }
+    }
   }
 
   f.close();
@@ -197,8 +207,8 @@ for kern in kernels:
 
 		f.write("""
   pointers = pre({m}, {n}, {k}, {lda}, {ldb}, {ldc}, "mtx/{mtx}");
-//  {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers))
-  result = post({m}, {n}, {k}, {lda}, {ldb}, {ldc}, {beta}, std::get<0>(pointers), std::get<1>(pointers), std::get<2>(pointers), std::get<3>(pointers), {delta:.7f});
+  {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers));
+  result = post({m}, {n}, {k}, {lda}, {ldb}, {ldc}, {beta}, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.7f});
   results.push_back(std::make_tuple("{name}", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 """.format(m = kern.m, n = kern.n, k = kern.k, lda = kern.lda, ldb = kern.ldb, ldc = kern.ldc, beta = kern.beta, mtx = kern.mtx, delta = kern.delta, name = name, sparse = 2 if kern.ldb == 0 else 1))
