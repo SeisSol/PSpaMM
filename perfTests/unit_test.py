@@ -88,7 +88,7 @@ for kern in kernels:
 		name = kern.name + '_' + str(bm) + '_' + str(bn)
 
 		additional_args = ['--output_funcname', name, '--output_filename', arch + '/' + name + '.h']
-		additional_args += ['--bm', str(bm), '--bn', str(bn), '--bk', '1']
+		additional_args += ['--bm', str(bm), '--bn', str(bn), '--bk', '1', '--arch', arch]
 
 		try:
 			subprocess.check_output(arguments + additional_args,stderr=subprocess.STDOUT)
