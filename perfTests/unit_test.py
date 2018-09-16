@@ -50,20 +50,20 @@ knl_kernels.append(SparseKernel("knl_only_test", 24, 56, 56, 24, 0, 24, 0, [(8, 
 
 arm_kernels = []
 
-arm_kernels.append(SparseKernel("arm_only_test1", 2, 3, 4, 2, 0, 2, 0, [(2, 1), (2,3)], generateMTX(3, 4, 5), 0.0000001))
-arm_kernels.append(SparseKernel("arm_only_test2", 2, 3, 4, 20, 0, 14, 1, [(2, 2), (2,3)], generateMTX(3, 4, 5), 0.0000001))
-arm_kernels.append(SparseKernel("arm_only_test3", 120, 80, 50, 120, 0, 120, 0, [(8, 5), (6,7)], generateMTX(80, 50, 294), 0.0000001))
+arm_kernels.append(SparseKernel("arm_only_test1", 2, 3, 4, 2, 0, 2, 0, [(2, 1), (2,3)], generateMTX(4, 3, 5), 0.0000001))
+arm_kernels.append(SparseKernel("arm_only_test2", 2, 3, 4, 20, 0, 14, 1, [(2, 2), (2,3)], generateMTX(4, 3, 5), 0.0000001))
+arm_kernels.append(SparseKernel("arm_only_test3", 120, 80, 50, 120, 0, 120, 0, [(8, 5), (6,7)], generateMTX(50, 80, 294), 0.0000001))
 arm_kernels.append(SparseKernel("arm_only_test4", 32, 32, 32, 33, 0, 32, 0, [(4, 4), (4,3)], generateMTX(32, 32, 24), 0.0000001))
 arm_kernels.append(SparseKernel("arm_only_test5", 2, 1, 1, 2, 0, 8, 1, [(2, 1)], generateMTX(1, 1, 1), 0.0000001))
 arm_kernels.append(SparseKernel("arm_only_test6", 2, 1, 1, 2, 0, 2, 0, [(2, 1)], generateMTX(1, 1, 0), 0.0000001))
-arm_kernels.append(SparseKernel("arm_only_test7", 16, 5, 7, 16, 0, 16, 1, [(8, 1), (8,2)], generateMTX(5, 7, 35), 0.0000001))
-arm_kernels.append(DenseKernel("arm_only_test8", 2, 3, 4, 2, 4, 2, 0, [(2, 1), (2,3)], generateMTX(3, 4, 5), 0.0000001))
-arm_kernels.append(DenseKernel("arm_only_test9", 2, 3, 4, 20, 12, 14, 1, [(2, 2), (2,3)], generateMTX(3, 4, 5), 0.0000001))
-arm_kernels.append(DenseKernel("arm_only_test10", 120, 80, 50, 120, 50, 120, 0, [(8, 5), (6,7)], generateMTX(80, 50, 294), 0.0000001))
+arm_kernels.append(SparseKernel("arm_only_test7", 16, 5, 7, 16, 0, 16, 1, [(8, 1), (8,2)], generateMTX(7, 5, 35), 0.0000001))
+arm_kernels.append(DenseKernel("arm_only_test8", 2, 3, 4, 2, 4, 2, 0, [(2, 1), (2,3)], generateMTX(4, 3, 5), 0.0000001))
+arm_kernels.append(DenseKernel("arm_only_test9", 2, 3, 4, 20, 12, 14, 1, [(2, 2), (2,3)], generateMTX(4, 3, 5), 0.0000001))
+arm_kernels.append(DenseKernel("arm_only_test10", 120, 80, 50, 120, 50, 120, 0, [(8, 5), (6,7)], generateMTX(50, 80, 294), 0.0000001))
 arm_kernels.append(DenseKernel("arm_only_test11", 32, 32, 32, 33, 68, 32, 1, [(4, 4), (4,3)], generateMTX(32, 32, 24), 0.0000001))
 arm_kernels.append(DenseKernel("arm_only_test12", 2, 1, 1, 2, 1, 8, 0, [(2, 1)], generateMTX(1, 1, 1), 0.0000001))
 arm_kernels.append(DenseKernel("arm_only_test13", 2, 1, 1, 2, 2, 2, 0, [(2, 1)], generateMTX(1, 1, 0), 0.0000001))
-arm_kernels.append(DenseKernel("arm_only_test14", 16, 5, 7, 16, 7, 16, 1, [(8, 1), (8,2)], generateMTX(5, 7, 35), 0.0000001))
+arm_kernels.append(DenseKernel("arm_only_test14", 16, 5, 7, 16, 7, 16, 1, [(8, 1), (8,2)], generateMTX(7, 5, 35), 0.0000001))
 
 if arch == "knl":
 	kernels += knl_kernels
