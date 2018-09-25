@@ -10,9 +10,9 @@ def generateMTX(k, n, nnz):
 
 	assert(nnz <= k * n)
 
-	filename = str(k) + 'x' + str(n) + '_' + str(nnz) + '.mtx'
+	filename = 'mtx/' + str(k) + 'x' + str(n) + '_' + str(nnz) + '.mtx'
 
-	f = open('mtx/' + filename, 'w')
+	f = open(filename, 'w')
 
 	f.write('%%MatrixMarket matrix coordinate real general\n%\n' + str(k) + ' ' + str(n) + ' ' + str(nnz))
 
@@ -37,13 +37,13 @@ else:
 	arch = 'knl'
 
 DenseKernel = namedtuple('DenseKernel', 'name m n k lda ldb ldc beta block_sizes mtx delta')
-SparseKernel = namedtuple('SparseKernel', 'name m n k lda ldb ldc beta block_sizes mtx delta')
+SparseKernel = namedtuple('SparseKernel', 'name m n k lda ldb ldc beta block_sizes delta')
 
 kernels = []
 
 kernels.append(SparseKernel("test1", 8, 56, 56, 8, 0, 8, 0, [(8, 4), (8,1)], generateMTX(56, 56, 30), 0.0000001))
 kernels.append(DenseKernel("test2", 8, 40, 40, 8, 40, 8, 1, [(8, 5), (8,2)], generateMTX(40, 40, 40*40), 0.0000001))
-kernels.append(DenseKernel("test3", 8, 56, 56, 8, 56, 8, 0, [(8, 3), (8, 5)], generateMTX(56, 56, 56*56), 0.0000001))
+kernels.append(DenseKernel("test3", 8, 56, 56, 8, 56, 8, 0, [(8, 3), (8, 5)], 0.0000001))
 
 if arch == "knl":
 
@@ -57,13 +57,13 @@ if arch == "knl":
 	knl_kernels.append(SparseKernel("knl_only_test6", 8, 1, 1, 16, 0, 56, 0, [(8, 1)], generateMTX(1, 1, 1), 0.0000001))
 	knl_kernels.append(SparseKernel("knl_only_test7", 8, 24, 40, 8, 0, 8, 1, [(8, 24), (8,1)], generateMTX(40, 24, 1), 0.0000001))
 
-	knl_kernels.append(DenseKernel("knl_only_test8", 8, 2, 1, 8, 1, 8, 0, [(8,1)], generateMTX(1, 2, 1*2), 0.0000001))
-	knl_kernels.append(DenseKernel("knl_only_test9", 24, 40, 40, 32, 60, 32, 1, [(8, 2), (16,7)], generateMTX(40, 40, 40*40), 0.0000001))
-	knl_kernels.append(DenseKernel("knl_only_test10", 56, 56, 56, 64, 59, 64, 0, [(8, 28), (8,27), (40, 5)], generateMTX(56, 56, 56*56), 0.0000001))
-	knl_kernels.append(DenseKernel("knl_only_test11", 8, 20, 10, 40, 10, 8, 0, [(8, 20), (8,3)], generateMTX(10, 20, 10*20), 0.0000001))
-	knl_kernels.append(DenseKernel("knl_only_test12", 64, 5, 10, 64, 12, 64, 1, [(32, 2), (8,14)], generateMTX(10, 5, 10*5), 0.0000001))
-	knl_kernels.append(DenseKernel("knl_only_test13", 8, 1, 1, 16, 1, 56, 0, [(8, 1)], generateMTX(1, 1, 1), 0.0000001))
-	knl_kernels.append(DenseKernel("knl_only_test14", 8, 24, 40, 8, 41, 8, 1, [(8, 24), (8,1)], generateMTX(40, 24, 40*24), 0.0000001))
+	knl_kernels.append(DenseKernel("knl_only_test8", 8, 2, 1, 8, 1, 8, 0, [(8,1)], 0.0000001))
+	knl_kernels.append(DenseKernel("knl_only_test9", 24, 40, 40, 32, 60, 32, 1, [(8, 2), (16,7)], 0.0000001))
+	knl_kernels.append(DenseKernel("knl_only_test10", 56, 56, 56, 64, 59, 64, 0, [(8, 28), (8,27), (40, 5)], 0.0000001))
+	knl_kernels.append(DenseKernel("knl_only_test11", 8, 20, 10, 40, 10, 8, 0, [(8, 20), (8,3)], 0.0000001))
+	knl_kernels.append(DenseKernel("knl_only_test12", 64, 5, 10, 64, 12, 64, 1, [(32, 2), (8,14)], 0.0000001))
+	knl_kernels.append(DenseKernel("knl_only_test13", 8, 1, 1, 16, 1, 56, 0, [(8, 1)], 0.0000001))
+	knl_kernels.append(DenseKernel("knl_only_test14", 8, 24, 40, 8, 41, 8, 1, [(8, 24), (8,1)], 0.0000001))
 
 	kernels += knl_kernels
 
@@ -78,13 +78,14 @@ elif arch == "arm":
 	arm_kernels.append(SparseKernel("arm_only_test5", 2, 1, 1, 2, 0, 8, 1, [(2, 1)], generateMTX(1, 1, 1), 0.0000001))
 	arm_kernels.append(SparseKernel("arm_only_test6", 2, 2, 2, 2, 0, 2, 0, [(2, 1)], generateMTX(2, 2, 1), 0.0000001))
 	arm_kernels.append(SparseKernel("arm_only_test7", 16, 5, 7, 16, 0, 16, 1, [(8, 1), (8,2)], generateMTX(7, 5, 35), 0.0000001))
-	arm_kernels.append(DenseKernel("arm_only_test8", 2, 3, 4, 2, 4, 2, 0, [(2, 1), (2,3)], generateMTX(4, 3, 4*3), 0.0000001))
-	arm_kernels.append(DenseKernel("arm_only_test9", 2, 3, 4, 20, 12, 14, 1, [(2, 2), (2,3)], generateMTX(4, 3, 4*3), 0.0000001))
-	arm_kernels.append(DenseKernel("arm_only_test10", 32, 80, 50, 32, 50, 32, 0, [(8, 5), (6,7)], generateMTX(50, 80, 50*80), 0.0000001))
-	arm_kernels.append(DenseKernel("arm_only_test11", 32, 32, 32, 33, 68, 32, 1, [(4, 4), (4,3)], generateMTX(32, 32, 32*32), 0.0000001))
-	arm_kernels.append(DenseKernel("arm_only_test12", 2, 1, 1, 2, 1, 8, 0, [(2, 1)], generateMTX(1, 1, 1), 0.0000001))
-	arm_kernels.append(DenseKernel("arm_only_test13", 2, 3, 3, 2, 3, 2, 0, [(2, 1)], generateMTX(3, 3, 3*3), 0.0000001))
-	arm_kernels.append(DenseKernel("arm_only_test14", 16, 5, 7, 16, 7, 16, 1, [(8, 1), (8,2)], generateMTX(7, 5, 7*5), 0.0000001))
+
+	arm_kernels.append(DenseKernel("arm_only_test8", 2, 3, 4, 2, 4, 2, 0, [(2, 1), (2,3)], 0.0000001))
+	arm_kernels.append(DenseKernel("arm_only_test9", 2, 3, 4, 20, 12, 14, 1, [(2, 2), (2,3)], 0.0000001))
+	arm_kernels.append(DenseKernel("arm_only_test10", 32, 80, 50, 32, 50, 32, 0, [(8, 5), (6,7)], 0.0000001))
+	arm_kernels.append(DenseKernel("arm_only_test11", 32, 32, 32, 33, 68, 32, 1, [(4, 4), (4,3)], 0.0000001))
+	arm_kernels.append(DenseKernel("arm_only_test12", 2, 1, 1, 2, 1, 8, 0, [(2, 1)], 0.0000001))
+	arm_kernels.append(DenseKernel("arm_only_test13", 2, 3, 3, 2, 3, 2, 0, [(2, 1)], 0.0000001))
+	arm_kernels.append(DenseKernel("arm_only_test14", 16, 5, 7, 16, 7, 16, 1, [(8, 1), (8,2)], 0.0000001))
 
 	kernels += arm_kernels
 
@@ -106,7 +107,7 @@ for kern in kernels:
 	arguments = ['./../sparsemmgen.py', str(kern.m), str(kern.n), str(kern.k), str(kern.lda), str(kern.ldb), str(kern.ldc), str(kern.beta)]
 
 	if isinstance(kern, SparseKernel):
-		arguments += ['--mtx_filename', 'mtx/' + kern.mtx]
+		arguments += ['--mtx_filename', kern.mtx]
 	for bs in kern.block_sizes:
 		bm = bs[0]
 		bn = bs[1]
@@ -171,7 +172,10 @@ std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned
     A[i] = (double)rand() / RAND_MAX;
 
   for(int i = 0; i < LDB*N; i++)
-    B[i] = 0;
+    if(MTX.compare(""))
+      B[i] = 0;
+    else 
+      B[i] = (double)rand() / RAND_MAX;
 
   for(int i = 0; i < LDC*N; i++)
   {
@@ -179,16 +183,17 @@ std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned
     C[i] = Cref[i];
   }
 
+  if(MTX.compare(""))
+  {
+    while(getline(f, line)) {
+      std::vector<std::string> result;
+      std::istringstream iss(line);
+      for(std::string s; iss >> s; )
+        result.push_back(s);
 
-  while(getline(f, line)) {
-    std::vector<std::string> result;
-    std::istringstream iss(line);
-    for(std::string s; iss >> s; )
-      result.push_back(s);
-
-    B[std::atoi(result[0].c_str()) - 1 + LDB * (std::atoi(result[1].c_str()) - 1)] = std::stod(result[2]);
+      B[std::atoi(result[0].c_str()) - 1 + LDB * (std::atoi(result[1].c_str()) - 1)] = std::stod(result[2]);
+    }
   }
-
 
   int counter = 0;
 
@@ -196,7 +201,7 @@ std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned
   {
     for(int j = 0; j < K; j++)
     {
-      if(B[j + i * LDB] != 0)
+      if(B[j + i * LDB] != 0 || !if(MTX.compare("")))
       {
         Bsparse[counter] = B[j + i * LDB];
         counter++;
@@ -237,14 +242,20 @@ for kern in kernels:
 		bm = bs[0]
 		bn = bs[1]
 		name = kern.name + '_' + str(bm) + '_' + str(bn)
+  
+  if isinstance(kern, SparseKernel):
+    mtx = kern.mtx
+  else:
+    mtx = ""
+
 
 		f.write("""
-  pointers = pre({m}, {n}, {k}, {lda}, {ldb}, {ldc}, "mtx/{mtx}");
+  pointers = pre({m}, {n}, {k}, {lda}, {ldb}, {ldc}, "{mtx}");
   {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers));
   result = post({m}, {n}, {k}, {lda}, {ldb}, {ldc}, {beta}, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.7f});
   results.push_back(std::make_tuple("{name}", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
-""".format(m = kern.m, n = kern.n, k = kern.k, lda = kern.lda, ldb = kern.ldb, ldc = kern.ldc, beta = kern.beta, mtx = kern.mtx, delta = kern.delta, name = name, sparse = 2 if kern.ldb == 0 else 1))
+""".format(m = kern.m, n = kern.n, k = kern.k, lda = kern.lda, ldb = kern.ldb, ldc = kern.ldc, beta = kern.beta, mtx = mtx, delta = kern.delta, name = name, sparse = 2 if kern.ldb == 0 else 1))
 
 f.write("""
 
