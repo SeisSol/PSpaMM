@@ -3,6 +3,7 @@ import subprocess
 import numpy as np
 import random
 import sys
+import os.path
 
 
 SparseKernel = namedtuple('SparseKernel', 'name m n k lda ldb ldc beta block_sizes mtx delta')
@@ -14,6 +15,9 @@ def generateMTX(k, n, nnz):
 	assert(nnz <= k * n)
 
 	filename = 'mtx/' + str(k) + 'x' + str(n) + '_' + str(nnz) + '.mtx'
+	
+	if os.path.isfile(filename):
+		return filename 
 
 	f = open(filename, 'w')
 
@@ -54,7 +58,10 @@ def make(kernels, arch):
 
   	if isinstance(kern, SparseKernel):
   		arguments += ['--mtx_filename', kern.mtx]
-  	for bs in kern.block_sizes:
+
+  	block_sizes = list(set(kern.block_sizes))
+
+  	for bs in block_sizes:
   		bm = bs[0]
   		bn = bs[1]
 
@@ -184,7 +191,10 @@ int main()
 """)
 
   for kern in kernels:
-  	for bs in kern.block_sizes:
+  	
+  	block_sizes = list(set(kern.block_sizes))
+  	
+  	for bs in block_sizes:
   		bm = bs[0]
   		bn = bs[1]
   		name = kern.name + '_' + str(bm) + '_' + str(bn)
