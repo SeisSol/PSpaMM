@@ -4,6 +4,9 @@ from codegen.ast import *
 from codegen.sugar import *
 from codegen.forms import *
 
+import scripts.old_arm
+import scripts.max_bn_knl
+
 from cursors import *
 
 import architecture
@@ -57,7 +60,7 @@ class MatMul:
                  output_filename: str = None,
                  bm: int = None, 
                  bn: int = None, 
-                 bk: int = None,
+                 bk: int = 1,
                  arch: str = 'knl',
                  **kwargs  # Accept and ignore args which don't belong
                  ) -> None:
@@ -72,8 +75,15 @@ class MatMul:
 
         self.beta = beta
 
-        self.bm = bm
-        self.bn = bn
+        if bm == None or bn == None:
+            if arch == 'knl':
+                (self.bm, self.bn) = scripts.max_bn_knl.getBlocksize(m, n)
+            elif arch == 'arm':
+                (self.bm, self.bn) = scripts.old_arm.getBlocksize(m, n)
+        else: 
+            self.bm = bm
+            self.bn = bn
+
         self.bk = bk
 
         self.arch = arch
@@ -86,6 +96,7 @@ class MatMul:
 
         if ldb == 0:
             pattern = Matrix.load(mtx_filename)
+            pattern = [[pattern[i][j] for j in range(n) ] for i in range(k)]
         else:
             mtx = numpy.zeros((k, n))
             for i in range(k):

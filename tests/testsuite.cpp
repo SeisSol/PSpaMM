@@ -6,36 +6,51 @@
 #include <stdio.h>
 #include <tuple>
 
-#include "knl/test1_8_4.h"
-#include "knl/test1_8_1.h"
-#include "knl/test2_8_5.h"
-#include "knl/test2_8_2.h"
-#include "knl/test3_8_3.h"
-#include "knl/test3_8_5.h"
-#include "knl/knl_only_test1_8_1.h"
-#include "knl/knl_only_test2_8_2.h"
-#include "knl/knl_only_test2_16_7.h"
-#include "knl/knl_only_test3_8_1.h"
-#include "knl/knl_only_test4_8_20.h"
-#include "knl/knl_only_test4_8_3.h"
-#include "knl/knl_only_test5_32_2.h"
-#include "knl/knl_only_test5_8_14.h"
-#include "knl/knl_only_test6_8_1.h"
-#include "knl/knl_only_test7_8_24.h"
-#include "knl/knl_only_test7_8_1.h"
-#include "knl/knl_only_test8_8_1.h"
-#include "knl/knl_only_test9_8_2.h"
-#include "knl/knl_only_test9_16_7.h"
-#include "knl/knl_only_test10_8_28.h"
-#include "knl/knl_only_test10_8_27.h"
-#include "knl/knl_only_test10_40_5.h"
-#include "knl/knl_only_test11_8_20.h"
-#include "knl/knl_only_test11_8_3.h"
-#include "knl/knl_only_test12_32_2.h"
-#include "knl/knl_only_test12_8_14.h"
-#include "knl/knl_only_test13_8_1.h"
-#include "knl/knl_only_test14_8_24.h"
-#include "knl/knl_only_test14_8_1.h"
+#include "arm/test1_8_1.h"
+#include "arm/test1_4_7.h"
+#include "arm/test1_6_7.h"
+#include "arm/test1_8_4.h"
+#include "arm/test2_8_5.h"
+#include "arm/test2_8_2.h"
+#include "arm/test2_6_7.h"
+#include "arm/test3_8_3.h"
+#include "arm/test3_8_5.h"
+#include "arm/test3_6_7.h"
+#include "arm/test3_4_7.h"
+#include "arm/arm_only_test1_2_3.h"
+#include "arm/arm_only_test1_2_1.h"
+#include "arm/arm_only_test2_2_3.h"
+#include "arm/arm_only_test2_2_2.h"
+#include "arm/arm_only_test3_8_5.h"
+#include "arm/arm_only_test3_6_7.h"
+#include "arm/arm_only_test4_4_4.h"
+#include "arm/arm_only_test4_6_7.h"
+#include "arm/arm_only_test4_4_3.h"
+#include "arm/arm_only_test4_8_4.h"
+#include "arm/arm_only_test5_2_1.h"
+#include "arm/arm_only_test6_2_1.h"
+#include "arm/arm_only_test6_2_2.h"
+#include "arm/arm_only_test7_8_1.h"
+#include "arm/arm_only_test7_14_3.h"
+#include "arm/arm_only_test7_8_5.h"
+#include "arm/arm_only_test7_8_2.h"
+#include "arm/arm_only_test8_2_3.h"
+#include "arm/arm_only_test8_2_1.h"
+#include "arm/arm_only_test9_2_3.h"
+#include "arm/arm_only_test9_2_2.h"
+#include "arm/arm_only_test10_8_5.h"
+#include "arm/arm_only_test10_6_7.h"
+#include "arm/arm_only_test11_4_4.h"
+#include "arm/arm_only_test11_6_7.h"
+#include "arm/arm_only_test11_4_3.h"
+#include "arm/arm_only_test11_8_4.h"
+#include "arm/arm_only_test12_2_1.h"
+#include "arm/arm_only_test13_2_3.h"
+#include "arm/arm_only_test13_2_1.h"
+#include "arm/arm_only_test14_8_1.h"
+#include "arm/arm_only_test14_14_3.h"
+#include "arm/arm_only_test14_8_5.h"
+#include "arm/arm_only_test14_8_2.h"
 
 
 void gemm_ref(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, double BETA, double* A, double* B, double* C) {
@@ -126,7 +141,7 @@ int post(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigne
     LDB = K;
 
   gemm_ref(M, N, K, LDA, LDB, LDC, BETA, A, B, Cref);
-  
+    
   for(int i = 0; i < M; i++)
     for(int j = 0; j < N; j++)
       if(std::abs(C[i + j * LDC] - Cref[i + j * LDC]) > DELTA)
@@ -143,15 +158,27 @@ int main()
 
 
   pointers = pre(8, 56, 56, 8, 0, 8, "mtx/56x56_30.mtx");
-  test1_8_4(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
-  result = post(8, 56, 56, 8, 0, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("test1_8_4", result));
-  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
-
-  pointers = pre(8, 56, 56, 8, 0, 8, "mtx/56x56_30.mtx");
   test1_8_1(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
   result = post(8, 56, 56, 8, 0, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
   results.push_back(std::make_tuple("test1_8_1", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(8, 56, 56, 8, 0, 8, "mtx/56x56_30.mtx");
+  test1_4_7(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(8, 56, 56, 8, 0, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("test1_4_7", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(8, 56, 56, 8, 0, 8, "mtx/56x56_30.mtx");
+  test1_6_7(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(8, 56, 56, 8, 0, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("test1_6_7", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(8, 56, 56, 8, 0, 8, "mtx/56x56_30.mtx");
+  test1_8_4(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(8, 56, 56, 8, 0, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("test1_8_4", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
   pointers = pre(8, 40, 40, 8, 40, 8, "");
@@ -166,6 +193,12 @@ int main()
   results.push_back(std::make_tuple("test2_8_2", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
+  pointers = pre(8, 40, 40, 8, 40, 8, "");
+  test2_6_7(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(8, 40, 40, 8, 40, 8, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("test2_6_7", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
   pointers = pre(8, 56, 56, 8, 56, 8, "");
   test3_8_3(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
   result = post(8, 56, 56, 8, 56, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
@@ -178,148 +211,220 @@ int main()
   results.push_back(std::make_tuple("test3_8_5", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 2, 1, 8, 0, 8, "mtx/1x2_1.mtx");
-  knl_only_test1_8_1(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
-  result = post(8, 2, 1, 8, 0, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test1_8_1", result));
+  pointers = pre(8, 56, 56, 8, 56, 8, "");
+  test3_6_7(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(8, 56, 56, 8, 56, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("test3_6_7", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(24, 40, 40, 32, 0, 24, "mtx/40x40_20.mtx");
-  knl_only_test2_8_2(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
-  result = post(24, 40, 40, 32, 0, 24, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test2_8_2", result));
+  pointers = pre(8, 56, 56, 8, 56, 8, "");
+  test3_4_7(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(8, 56, 56, 8, 56, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("test3_4_7", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(24, 40, 40, 32, 0, 24, "mtx/40x40_20.mtx");
-  knl_only_test2_16_7(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
-  result = post(24, 40, 40, 32, 0, 24, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test2_16_7", result));
+  pointers = pre(2, 3, 4, 2, 0, 2, "mtx/4x3_5.mtx");
+  arm_only_test1_2_3(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(2, 3, 4, 2, 0, 2, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test1_2_3", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 2, 1, 8, 0, 16, "mtx/1x2_2.mtx");
-  knl_only_test3_8_1(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
-  result = post(8, 2, 1, 8, 0, 16, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test3_8_1", result));
+  pointers = pre(2, 3, 4, 2, 0, 2, "mtx/4x3_5.mtx");
+  arm_only_test1_2_1(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(2, 3, 4, 2, 0, 2, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test1_2_1", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 20, 10, 40, 0, 8, "/home/hpc/pr63so/ga96voz2/example_matrix.mtx");
-  knl_only_test4_8_20(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
-  result = post(8, 20, 10, 40, 0, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test4_8_20", result));
+  pointers = pre(2, 3, 4, 20, 0, 14, "mtx/4x3_5.mtx");
+  arm_only_test2_2_3(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(2, 3, 4, 20, 0, 14, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test2_2_3", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 20, 10, 40, 0, 8, "/home/hpc/pr63so/ga96voz2/example_matrix.mtx");
-  knl_only_test4_8_3(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
-  result = post(8, 20, 10, 40, 0, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test4_8_3", result));
+  pointers = pre(2, 3, 4, 20, 0, 14, "mtx/4x3_5.mtx");
+  arm_only_test2_2_2(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(2, 3, 4, 20, 0, 14, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test2_2_2", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(64, 5, 10, 64, 0, 64, "mtx/10x5_1.mtx");
-  knl_only_test5_32_2(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
-  result = post(64, 5, 10, 64, 0, 64, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test5_32_2", result));
+  pointers = pre(32, 80, 50, 32, 0, 32, "mtx/50x80_294.mtx");
+  arm_only_test3_8_5(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(32, 80, 50, 32, 0, 32, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test3_8_5", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(64, 5, 10, 64, 0, 64, "mtx/10x5_1.mtx");
-  knl_only_test5_8_14(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
-  result = post(64, 5, 10, 64, 0, 64, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test5_8_14", result));
+  pointers = pre(32, 80, 50, 32, 0, 32, "mtx/50x80_294.mtx");
+  arm_only_test3_6_7(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(32, 80, 50, 32, 0, 32, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test3_6_7", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 1, 1, 16, 0, 56, "mtx/1x1_1.mtx");
-  knl_only_test6_8_1(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
-  result = post(8, 1, 1, 16, 0, 56, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test6_8_1", result));
+  pointers = pre(32, 32, 32, 34, 0, 32, "mtx/32x32_24.mtx");
+  arm_only_test4_4_4(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(32, 32, 32, 34, 0, 32, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test4_4_4", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 24, 40, 8, 0, 8, "mtx/40x24_1.mtx");
-  knl_only_test7_8_24(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
-  result = post(8, 24, 40, 8, 0, 8, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test7_8_24", result));
+  pointers = pre(32, 32, 32, 34, 0, 32, "mtx/32x32_24.mtx");
+  arm_only_test4_6_7(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(32, 32, 32, 34, 0, 32, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test4_6_7", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 24, 40, 8, 0, 8, "mtx/40x24_1.mtx");
-  knl_only_test7_8_1(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
-  result = post(8, 24, 40, 8, 0, 8, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test7_8_1", result));
+  pointers = pre(32, 32, 32, 34, 0, 32, "mtx/32x32_24.mtx");
+  arm_only_test4_4_3(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(32, 32, 32, 34, 0, 32, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test4_4_3", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 2, 1, 8, 1, 8, "");
-  knl_only_test8_8_1(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(8, 2, 1, 8, 1, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test8_8_1", result));
+  pointers = pre(32, 32, 32, 34, 0, 32, "mtx/32x32_24.mtx");
+  arm_only_test4_8_4(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(32, 32, 32, 34, 0, 32, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test4_8_4", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(24, 40, 40, 32, 60, 32, "");
-  knl_only_test9_8_2(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(24, 40, 40, 32, 60, 32, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test9_8_2", result));
+  pointers = pre(2, 1, 1, 2, 0, 8, "mtx/1x1_1.mtx");
+  arm_only_test5_2_1(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(2, 1, 1, 2, 0, 8, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test5_2_1", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(24, 40, 40, 32, 60, 32, "");
-  knl_only_test9_16_7(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(24, 40, 40, 32, 60, 32, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test9_16_7", result));
+  pointers = pre(2, 2, 2, 2, 0, 2, "mtx/2x2_1.mtx");
+  arm_only_test6_2_1(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(2, 2, 2, 2, 0, 2, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test6_2_1", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(56, 56, 56, 64, 59, 64, "");
-  knl_only_test10_8_28(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(56, 56, 56, 64, 59, 64, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test10_8_28", result));
+  pointers = pre(2, 2, 2, 2, 0, 2, "mtx/2x2_1.mtx");
+  arm_only_test6_2_2(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(2, 2, 2, 2, 0, 2, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test6_2_2", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(56, 56, 56, 64, 59, 64, "");
-  knl_only_test10_8_27(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(56, 56, 56, 64, 59, 64, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test10_8_27", result));
+  pointers = pre(16, 5, 7, 16, 0, 16, "mtx/7x5_35.mtx");
+  arm_only_test7_8_1(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(16, 5, 7, 16, 0, 16, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test7_8_1", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(56, 56, 56, 64, 59, 64, "");
-  knl_only_test10_40_5(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(56, 56, 56, 64, 59, 64, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test10_40_5", result));
+  pointers = pre(16, 5, 7, 16, 0, 16, "mtx/7x5_35.mtx");
+  arm_only_test7_14_3(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(16, 5, 7, 16, 0, 16, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test7_14_3", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 20, 10, 40, 10, 8, "");
-  knl_only_test11_8_20(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(8, 20, 10, 40, 10, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test11_8_20", result));
+  pointers = pre(16, 5, 7, 16, 0, 16, "mtx/7x5_35.mtx");
+  arm_only_test7_8_5(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(16, 5, 7, 16, 0, 16, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test7_8_5", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 20, 10, 40, 10, 8, "");
-  knl_only_test11_8_3(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(8, 20, 10, 40, 10, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test11_8_3", result));
+  pointers = pre(16, 5, 7, 16, 0, 16, "mtx/7x5_35.mtx");
+  arm_only_test7_8_2(std::get<0>(pointers), std::get<2>(pointers), std::get<3>(pointers));
+  result = post(16, 5, 7, 16, 0, 16, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test7_8_2", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(64, 5, 10, 64, 12, 64, "");
-  knl_only_test12_32_2(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(64, 5, 10, 64, 12, 64, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test12_32_2", result));
+  pointers = pre(2, 3, 4, 2, 4, 2, "");
+  arm_only_test8_2_3(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(2, 3, 4, 2, 4, 2, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test8_2_3", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(64, 5, 10, 64, 12, 64, "");
-  knl_only_test12_8_14(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(64, 5, 10, 64, 12, 64, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test12_8_14", result));
+  pointers = pre(2, 3, 4, 2, 4, 2, "");
+  arm_only_test8_2_1(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(2, 3, 4, 2, 4, 2, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test8_2_1", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 1, 1, 16, 1, 56, "");
-  knl_only_test13_8_1(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(8, 1, 1, 16, 1, 56, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test13_8_1", result));
+  pointers = pre(2, 3, 4, 20, 12, 14, "");
+  arm_only_test9_2_3(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(2, 3, 4, 20, 12, 14, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test9_2_3", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 24, 40, 8, 41, 8, "");
-  knl_only_test14_8_24(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(8, 24, 40, 8, 41, 8, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test14_8_24", result));
+  pointers = pre(2, 3, 4, 20, 12, 14, "");
+  arm_only_test9_2_2(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(2, 3, 4, 20, 12, 14, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test9_2_2", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
-  pointers = pre(8, 24, 40, 8, 41, 8, "");
-  knl_only_test14_8_1(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
-  result = post(8, 24, 40, 8, 41, 8, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
-  results.push_back(std::make_tuple("knl_only_test14_8_1", result));
+  pointers = pre(32, 80, 50, 32, 50, 32, "");
+  arm_only_test10_8_5(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(32, 80, 50, 32, 50, 32, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test10_8_5", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(32, 80, 50, 32, 50, 32, "");
+  arm_only_test10_6_7(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(32, 80, 50, 32, 50, 32, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test10_6_7", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(32, 32, 32, 33, 68, 32, "");
+  arm_only_test11_4_4(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(32, 32, 32, 33, 68, 32, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test11_4_4", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(32, 32, 32, 33, 68, 32, "");
+  arm_only_test11_6_7(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(32, 32, 32, 33, 68, 32, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test11_6_7", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(32, 32, 32, 33, 68, 32, "");
+  arm_only_test11_4_3(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(32, 32, 32, 33, 68, 32, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test11_4_3", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(32, 32, 32, 33, 68, 32, "");
+  arm_only_test11_8_4(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(32, 32, 32, 33, 68, 32, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test11_8_4", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(2, 1, 1, 2, 1, 8, "");
+  arm_only_test12_2_1(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(2, 1, 1, 2, 1, 8, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test12_2_1", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(2, 3, 3, 2, 3, 2, "");
+  arm_only_test13_2_3(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(2, 3, 3, 2, 3, 2, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test13_2_3", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(2, 3, 3, 2, 3, 2, "");
+  arm_only_test13_2_1(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(2, 3, 3, 2, 3, 2, 0, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test13_2_1", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(16, 5, 7, 16, 7, 16, "");
+  arm_only_test14_8_1(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(16, 5, 7, 16, 7, 16, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test14_8_1", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(16, 5, 7, 16, 7, 16, "");
+  arm_only_test14_14_3(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(16, 5, 7, 16, 7, 16, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test14_14_3", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(16, 5, 7, 16, 7, 16, "");
+  arm_only_test14_8_5(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(16, 5, 7, 16, 7, 16, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test14_8_5", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+
+  pointers = pre(16, 5, 7, 16, 7, 16, "");
+  arm_only_test14_8_2(std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers));
+  result = post(16, 5, 7, 16, 7, 16, 1, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), 0.0000001);
+  results.push_back(std::make_tuple("arm_only_test14_8_2", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 
 

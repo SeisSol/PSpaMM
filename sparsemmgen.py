@@ -43,7 +43,7 @@ if __name__=="__main__":
 
 	parser.add_argument("--bm", type=int, help="Size of m-blocks")
 	parser.add_argument("--bn", type=int, help="Size of n-blocks")
-	parser.add_argument("--bk", type=int, help="Size of k-blocks")
+	parser.add_argument("--bk", type=int, help="Size of k-blocks", default=1)
 
 	parser.add_argument("--arch", help="Architecture", default="knl")
 
