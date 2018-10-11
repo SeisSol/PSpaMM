@@ -69,7 +69,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
                     if store:
                         asm.add(mov(registers[ir,ic], addr, True, comment))
                         if prefetching != None:
-                            asm.add(prefetch(mem(additional_regs[0], addr.offset)))
+                            asm.add(prefetch(mem(additional_regs[0], addr.disp)))
                     else:
                         asm.add(mov(addr, registers[ir,ic], True, comment))
         return asm
@@ -128,6 +128,6 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
         
         if prefetching == None:
             Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = "")    
-
+            return
         
-        Generator.template = Generator.template.format(prefetching_mov = "movq %3, %%r8\\n\\t", prefetching_decl = ', "m"(prefetch_B)')
+        Generator.template = Generator.template.format(prefetching_mov = '    "movq %3, %%r8\\n\\t"', prefetching_decl = ', "m"(prefetch_B)')
