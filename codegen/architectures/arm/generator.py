@@ -180,5 +180,5 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
         return asm
 
 
-    def init_prefetching(self, prefetching):
-        pass
+    def init_prefetching(self, prefetching):            
+        Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = '')        
