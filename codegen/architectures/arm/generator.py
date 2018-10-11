@@ -181,4 +181,4 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
 
 
     def init_prefetching(self, prefetching):            
-        Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = '')        
+        Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = '', funcName = "{funcName}", body_text ="{body_text}", clobbered = "{clobbered}")        

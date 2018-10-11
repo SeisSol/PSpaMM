@@ -127,6 +127,7 @@ void {funcName} (const double* A, const double* B, double* C, double const* pref
     def init_prefetching(self, prefetching):
         
         if prefetching == None:
-            Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = '')        
+            print(Generator.template)
+            Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = "", funcName = "{funcName}", body_text ="{body_text}", clobbered = "{clobbered}")        
         
-        Generator.template = Generator.template.format(prefetching_mov = "movq %3, %%r8\\n\\t", prefetching_decl = ', "m"(prefetch_B)')
+        Generator.template = Generator.template.format(prefetching_mov = "movq %3, %%r8\\n\\t", prefetching_decl = ', "m"(prefetch_B)', funcName = "{funcName}", body_text ="{body_text}", clobbered = "{clobbered}")
