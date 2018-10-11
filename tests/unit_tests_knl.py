@@ -1,4 +1,4 @@
-#!/usr/bin/python3.6
+#!/home/hpc/pr63so/ga96voz2/bin/python3.6
 
 import testsuite_generator as generator
 
@@ -29,6 +29,8 @@ kernels.append(generator.DenseKernel("knl_only_test11", 8, 20, 10, 40, 10, 8, 0,
 kernels.append(generator.DenseKernel("knl_only_test12", 64, 5, 10, 64, 12, 64, 1, [(32, 2), (8,14)] + [x.getBlocksize(64, 5) for x in blocksize_algs], 0.0000001))
 kernels.append(generator.DenseKernel("knl_only_test13", 8, 1, 1, 16, 1, 56, 0, [(8, 1)] + [x.getBlocksize(8, 1) for x in blocksize_algs], 0.0000001))
 kernels.append(generator.DenseKernel("knl_only_test14", 8, 24, 40, 8, 41, 8, 1, [(8, 24), (8,1)] + [x.getBlocksize(8, 24) for x in blocksize_algs], 0.0000001))
+
+kernels.append(generator.SparseKernel("SeisSolBugTest", 8, 20, 34, 8, 0, 8, 0, [(8,1)] + [x.getBlocksize(8, 20) for x in blocksize_algs], "mtx/bugmatrix.mtx", 0.0000001))
 
 generator.make(kernels, "knl")
 

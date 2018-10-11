@@ -12,8 +12,7 @@ from cursors import *
 import architecture
 import numpy
 
-def decompose_pattern(pattern:Matrix[bool], bk:int, bn:int) -> Tuple[Matrix[int], List[Matrix[bool]]]:
-    k,n = pattern.shape
+def decompose_pattern(k, n, pattern:Matrix[bool], bk:int, bn:int) -> Tuple[Matrix[int], List[Matrix[bool]]]:
     Bk,Bn = k//bk, n//bn
     patterns : List[Matrix[bool]] = []
     x = 0
@@ -43,7 +42,14 @@ def decompose_pattern(pattern:Matrix[bool], bk:int, bn:int) -> Tuple[Matrix[int]
                 x += 1
                 patterns.append(block)
 
-    return blocks, patterns
+    mtx_overhead = numpy.zeros(n)
+
+    for i in range(n):
+        for j in range(k, pattern.rows):
+            if pattern[j, i]:
+                mtx_overhead[i] += 1
+
+    return blocks, patterns, mtx_overhead
 
 class MatMul:
     def __init__(self,
@@ -96,7 +102,6 @@ class MatMul:
 
         if ldb == 0:
             pattern = Matrix.load(mtx_filename)
-            pattern = [[pattern[i][j] for j in range(n) ] for i in range(k)]
         else:
             mtx = numpy.zeros((k, n))
             for i in range(k):
@@ -104,7 +109,7 @@ class MatMul:
                     mtx[i, j] = 1
             pattern = Matrix(mtx)
 
-        blocks,patterns = decompose_pattern(pattern, self.bk, self.bn)
+        blocks,patterns,mtx_overhead = decompose_pattern(self.k, self.n, pattern, self.bk, self.bn)
 
 
         architecture.init()
@@ -116,10 +121,12 @@ class MatMul:
 
         self.v_size = self.generator.get_v_size()
 
+        assert(self.m % self.v_size == 0)
+
         self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.loop_reg, self.additional_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size)
 
         self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk)
-        self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, blocks, patterns)
+        self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, blocks, patterns,mtx_overhead)
         self.C = DenseCursor("C", self.starting_regs[2], self.m, self.n, self.ldc, self.bm, self.bn)
 
 

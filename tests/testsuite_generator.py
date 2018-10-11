@@ -143,8 +143,8 @@ std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned
       std::istringstream iss(line);
       for(std::string s; iss >> s; )
         result.push_back(s);
-
-      B[std::atoi(result[0].c_str()) - 1 + LDB * (std::atoi(result[1].c_str()) - 1)] = std::stod(result[2]);
+      if(std::atoi(result[0].c_str()) <= K && std::atoi(result[1].c_str()) <= N)
+        B[std::atoi(result[0].c_str()) - 1 + LDB * (std::atoi(result[1].c_str()) - 1)] = std::stod(result[2]);
     }
   }
 
@@ -207,7 +207,7 @@ int main()
 
   		f.write("""
   pointers = pre({m}, {n}, {k}, {lda}, {ldb}, {ldc}, "{mtx}");
-  {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers));
+  {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers), nullptr, nullptr, nullptr);
   result = post({m}, {n}, {k}, {lda}, {ldb}, {ldc}, {beta}, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.7f});
   results.push_back(std::make_tuple("{name}", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));

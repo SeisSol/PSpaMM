@@ -1,4 +1,4 @@
-#!/usr/bin/python3.6
+#!/home/hpc/pr63so/ga96voz2/bin/python3.6
 
 import testsuite_generator as generator
 

@@ -20,7 +20,8 @@ class BlockCursor(Cursor):
                  block_rows: int,
                  block_cols: int,
                  blocks: Matrix[int],
-                 patterns: List[Matrix[bool]]) -> None:
+                 patterns: List[Matrix[bool]],
+                 mtx_overhead) -> None:
 
         self.name = name
         self.base_ptr = base_ptr
@@ -46,6 +47,7 @@ class BlockCursor(Cursor):
                     x += 1
             if ld != 0:
                 x += self.ld - self.r
+            x += mtx_overhead[i]
 
     def offset(self,
                src_loc: CursorLocation,
