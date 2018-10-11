@@ -9,17 +9,17 @@ from codegen.generator import *
 class Generator(AbstractGenerator):
 
     template = """
-void {funcName} (const double* A, const double* B, double* C, double const* prefetch_A, double const* prefetch_B, double const* prefetch_C) {{
+void {{funcName}} (const double* A, const double* B, double* C, double const* prefetch_A, double const* prefetch_B, double const* prefetch_C) {{{{
   __asm__ __volatile__(
     "movq %0, %%rdi\\n\\t"
     "movq %1, %%rsi\\n\\t"
     "movq %2, %%rdx\\n\\t"
 {prefetching_mov}
-{body_text}
+{{body_text}}
 
-    : : "m"(A), "m"(B), "m"(C){prefetching_decl} : {clobbered});
+    : : "m"(A), "m"(B), "m"(C){prefetching_decl} : {{clobbered}});
 
-}};
+}}}};
 """
     def get_v_size(self):
         return 8
@@ -127,7 +127,7 @@ void {funcName} (const double* A, const double* B, double* C, double const* pref
     def init_prefetching(self, prefetching):
         
         if prefetching == None:
-            print(Generator.template)
-            Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = "", funcName = "{funcName}", body_text ="{body_text}", clobbered = "{clobbered}")        
+            Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = "")    
+
         
-        Generator.template = Generator.template.format(prefetching_mov = "movq %3, %%r8\\n\\t", prefetching_decl = ', "m"(prefetch_B)', funcName = "{funcName}", body_text ="{body_text}", clobbered = "{clobbered}")
+        Generator.template = Generator.template.format(prefetching_mov = "movq %3, %%r8\\n\\t", prefetching_decl = ', "m"(prefetch_B)')
