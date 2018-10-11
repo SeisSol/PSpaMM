@@ -54,7 +54,8 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
                             v_size: int,
                             additional_regs,
                             mask: Matrix[bool] = None,
-                            store: bool = False
+                            store: bool = False,
+                            prefetching: str = None
                             ) -> Block:
 
         rows, cols = registers.shape
@@ -177,3 +178,7 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
                         comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
                         asm.add(fma(B_regs[bki, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment))
         return asm
+
+
+    def init_prefetching(self, prefetching):
+        pass

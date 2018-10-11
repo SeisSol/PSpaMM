@@ -47,6 +47,8 @@ if __name__=="__main__":
 
 	parser.add_argument("--arch", help="Architecture", default="knl")
 
+	parser.add_argument("--prefetching", help="Prefetching")
+
 	parser.add_argument("--mtx_filename", help="Path to MTX file describing the sparse matrix")
 	parser.add_argument("--mtx_format", help="Constraint on sparsity pattern", choices=mtx_formats, default="Any")
 

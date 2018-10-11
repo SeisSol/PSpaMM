@@ -7,24 +7,25 @@ from codegen.generator import *
 
 
 class Generator(AbstractGenerator):
- 
-    def get_v_size(self):
-        return 8
 
-    def get_template(self):
-        template = """
-void {funcName} (const double* A, const double* B, double* C, double const* e1, double const* e2, double const* e3) {{
+    template = """
+void {funcName} (const double* A, const double* B, double* C, double const* prefetch_A, double const* prefetch_B, double const* prefetch_C) {{
   __asm__ __volatile__(
     "movq %0, %%rdi\\n\\t"
     "movq %1, %%rsi\\n\\t"
     "movq %2, %%rdx\\n\\t"
+{prefetching_mov}
 {body_text}
 
-    : : "m"(A), "m"(B), "m"(C) : {clobbered});
+    : : "m"(A), "m"(B), "m"(C){prefetching_decl} : {clobbered});
 
 }};
 """
-        return template
+    def get_v_size(self):
+        return 8
+
+    def get_template(self):
+        return Generator.template
 
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int):
         assert(bm % v_size == 0)
@@ -38,7 +39,7 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
 
         starting_regs = [rdi, rsi, rdx]
 
-        additional_regs = []
+        additional_regs = [r(8)]
 
         loop_reg = r(12)
 
@@ -52,7 +53,8 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
                             v_size: int,
                             additional_regs,
                             mask: Matrix[bool] = None,
-                            store: bool = False
+                            store: bool = False,
+                            prefetching: str = None
                            ) -> Block:
 
         rows, cols = registers.shape
@@ -66,6 +68,8 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
                     if store:
                         asm.add(mov(registers[ir,ic], addr, True, comment))
+                        if prefetching != None:
+                            asm.add(prefetch(mem(additional_regs[0], addr.offset)))
                     else:
                         asm.add(mov(addr, registers[ir,ic], True, comment))
         return asm
@@ -119,3 +123,10 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
                         comment = f"C[{Vmi*8}:{Vmi*8+8},{bni}] += A[{Vmi*8}:{Vmi*8+8},{bki}]*{B_comment}"
                         asm.add(fma(B_cell_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment))
         return asm
+
+    def init_prefetching(self, prefetching):
+        
+        if prefetching == None:
+            return
+        
+        Generator.template = Generator.template.format(prefetching_mov = "movq %3, %%r8\\n\\t", prefetching_decl = ', "m"(prefetch_B)')

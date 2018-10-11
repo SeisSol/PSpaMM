@@ -79,6 +79,12 @@ def st(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None
         stmt.typ = AsmType.i64
     return stmt
 
+def prefetch(dest: Operand, comment:str = None):
+    stmt = PrefetchStmt()
+    stmt.dest = dest
+    stmt.comment = comment
+    return stmt
+
 def data(value: Union[Operand, int], asmType=AsmType.i64):
     stmt = DataStmt()
     stmt.value = value if isinstance(value, Operand) else architecture.operands.c(value)

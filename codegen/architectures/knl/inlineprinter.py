@@ -82,6 +82,9 @@ class InlinePrinter(Visitor):
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
 
+    def visitPrefetch(self, stmt: PrefetchStmt):
+        s = f"prefetch1 {stmt.dest.ugly}"
+        self.addLine(s, stmt.comment)
 
     def visitBlock(self, block: Block):
         self.stack.append(block)

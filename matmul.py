@@ -68,6 +68,7 @@ class MatMul:
                  bn: int = None, 
                  bk: int = 1,
                  arch: str = 'knl',
+                 prefetching: str = None,
                  **kwargs  # Accept and ignore args which don't belong
                  ) -> None:
 
@@ -94,6 +95,8 @@ class MatMul:
 
         self.arch = arch
 
+        self.prefetching = prefetching
+
         self.mtx_filename = mtx_filename
         self.mtx_format = mtx_format
 
@@ -118,6 +121,8 @@ class MatMul:
         architecture.operands = architecture.get_class("codegen.architectures." + arch + ".operands")
 
         self.generator = architecture.Generator()
+
+        self.generator.init_prefetching(self.prefetching)
 
         self.v_size = self.generator.get_v_size()
 
@@ -164,7 +169,7 @@ class MatMul:
                 if self.B.has_nonzero_block(B_ptr, to_B):
                     asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.v_size, self.additional_regs, to_A, to_B))
 
-            asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, True))
+            asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, True, self.prefetching))
 
             if (Bni != Bn-1):
                 move_C, C_ptr = self.C.move(C_ptr, Coords(right=1))

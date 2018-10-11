@@ -42,3 +42,6 @@ class AbstractGenerator:
                          to_B_block: Coords = Coords()
                          ) -> Block:
         raise NotImplementedError()
+
+    def init_prefetching(self, prefetching):
+        raise NotImplementedError()

@@ -14,6 +14,9 @@ class Visitor:
     def visitStore(self, stmt: StoreStmt) -> None:
         raise NotImplementedError()
 
+    def visitPrefetch(self, stmt: PrefetchStmt) -> None:
+        raise NotImplementedError()
+
     def visitAdd(self, stmt: AddStmt) -> None:
         raise NotImplementedError()
 

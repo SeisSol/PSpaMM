@@ -53,6 +53,12 @@ class StoreStmt(AsmStmt):
     def accept(self, visitor: "Visitor"):
         visitor.visitStore(self)
 
+class PrefetchStmt(AsmStmt):
+    dest: Operand
+
+    def accept(self, visitor: "Visitor"):
+        visitor.visitPrefetch(self)
+
 
 class FmaStmt(AsmStmt):
     bcast_src: Register
