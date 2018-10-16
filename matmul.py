@@ -18,29 +18,29 @@ def decompose_pattern(k, n, pattern:Matrix[bool], bk:int, bn:int) -> Tuple[Matri
     x = 0
 
     n_overhead = n % bn
+    k_overhead = k % bk
 
     if n_overhead > 0:
         Bn += 1
+    if k_overhead > 0:
+        Bk += 1
 
     blocks = Matrix.full(Bk,Bn,-1)
 
     for Bni in range(Bn):
         for Bki in range(Bk):
-            corner_case = True
-            if Bni + 1 == Bn and n_overhead > 0:
+            if Bni + 1 == Bn and n_overhead > 0 and Bki + 1 == Bk and k_overhead > 0:
+                block = pattern[(Bki*bk):((Bki+1)*bk+k_overhead), (Bni*bn):((Bni)*bn+n_overhead)]
+            elif Bni + 1 == Bn and n_overhead > 0:
                 block = pattern[(Bki*bk):((Bki+1)*bk), (Bni*bn):((Bni)*bn+n_overhead)]
+            elif Bki + 1 == Bk and k_overhead > 0:
+                block = pattern[(Bki*bk):((Bki+1)*bk+k_overhead), (Bni*bn):((Bni+1)*bn)]
             else:
                 block = pattern[(Bki*bk):((Bki+1)*bk), (Bni*bn):((Bni+1)*bn)]
-                corner_case = False
-            found = False
-            for pi in range(len(patterns)):
-                if not corner_case and patterns[pi] == block:
-                    blocks[Bki,Bni] = pi
-                    found = True
-            if not found:
-                blocks[Bki,Bni] = x
-                x += 1
-                patterns.append(block)
+            
+            blocks[Bki,Bni] = x
+            x += 1
+            patterns.append(block)
 
     mtx_overhead = numpy.zeros(n)
 
@@ -147,9 +147,12 @@ class MatMul:
         vm = self.bm // self.v_size
 
         n_overhead = self.n % self.bn
+        k_overhead = self.k % self.bk
 
         if n_overhead > 0:
             Bn += 1
+        if k_overhead > 0:
+            Bk += 1
 
         for Bni in range(0,Bn):
             if Bni + 1 == Bn and n_overhead > 0:

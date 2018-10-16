@@ -25,7 +25,8 @@ class Analyzer(Visitor):
         pass
 
     def visitMov(self, stmt: MovStmt):
-        pass
+        if isinstance(stmt.dest, Register):
+            self.clobbered_registers.add(stmt.dest)
 
     def visitStore(self, stmt: MovStmt):
         if isinstance(stmt.dest, Register):
