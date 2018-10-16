@@ -4,7 +4,7 @@ from codegen.analysis import *
 import architecture
 
 
-def make_cfunc(funcName:str, template:str, body:Block) -> str:
+def make_cfunc(funcName:str, template:str, body:Block, flop:int) -> str:
     Printer_class = architecture.get_class("codegen.architectures." + architecture.arch + ".inlineprinter.InlinePrinter")
 
     printer = Printer_class()
@@ -19,5 +19,6 @@ def make_cfunc(funcName:str, template:str, body:Block) -> str:
     clobbered = ",".join(regs)
     return template.format(funcName = funcName,
                            body_text = body_text,
-                           clobbered = clobbered)
+                           clobbered = clobbered,
+                           flop = flop)
 

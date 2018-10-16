@@ -17,7 +17,7 @@ def main(alg: MatMul) -> None:
 
 	block = MatMul.make(alg)
 
-	text = make_cfunc(alg.output_funcname, alg.generator.get_template(), block)
+	text = make_cfunc(alg.output_funcname, alg.generator.get_template(), block, alg.flop)
 
 	if alg.output_filename is None:
 		print(text)

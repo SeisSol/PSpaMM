@@ -14,7 +14,7 @@ class Generator(AbstractGenerator):
 
     def get_template(self):
         template = """
-void {funcName} (const double* A, const double* B, double* C, double const* e1, double const* e2, double const* e3) {{
+void {funcName} (const double* A, const double* B, double* C, double const* e1, double const* e2, double const* e3) {{{{
   __asm__ __volatile__(
     "ldr x0, %0\\n\\t"
     "ldr x1, %1\\n\\t"
@@ -22,8 +22,15 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
     {body_text}
 
     : : "m"(A), "m"(B), "m"(C) : {clobbered});
+    
+    #ifndef NDEBUG
+    #ifdef _OPENMP
+    #pragma omp atomic
+    #endif
+    sparse_total_flops += {{flop}};
+    #endif
 
-}};"""
+}}}};"""
         return template
 
 

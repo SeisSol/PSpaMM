@@ -112,6 +112,15 @@ class MatMul:
                     mtx[i, j] = 1
             pattern = Matrix(mtx)
 
+        self.nnz = 0
+
+        for i in range(n):
+            for j in range(k):
+                if pattern[j,i]:
+                    self.nnz += 1
+
+        self.flop = self.nnz * m
+
         blocks,patterns,mtx_overhead = decompose_pattern(self.k, self.n, pattern, self.bk, self.bn)
 
 

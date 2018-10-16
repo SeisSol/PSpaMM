@@ -19,6 +19,13 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
 
     : : "m"(A), "m"(B), "m"(C){prefetching_decl} : {{clobbered}});
 
+    #ifndef NDEBUG
+    #ifdef _OPENMP
+    #pragma omp atomic
+    #endif
+    sparse_total_flops += {{flop}};
+    #endif
+
 }}}};
 """
     def get_v_size(self):
