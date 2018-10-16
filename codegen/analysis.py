@@ -36,8 +36,7 @@ class Analyzer(Visitor):
             self.clobbered_registers.add(stmt.dest)
 
     def visitPrefetch(self, stmt: PrefetchStmt):
-        if isinstance(stmt.dest, Register):
-            self.clobbered_registers.add(stmt.dest)
+        self.clobbered_registers.add(stmt.dest.base)
 
     def visitCmp(self, stmt: CmpStmt):
         pass

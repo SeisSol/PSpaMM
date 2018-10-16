@@ -66,7 +66,7 @@ class MatMul:
                  output_filename: str = None,
                  bm: int = None, 
                  bn: int = None, 
-                 bk: int = 1,
+                 bk: int = 2,
                  arch: str = 'knl',
                  prefetching: str = None,
                  **kwargs  # Accept and ignore args which don't belong
@@ -84,7 +84,7 @@ class MatMul:
 
         if bm == None or bn == None:
             if arch == 'knl':
-                (self.bm, self.bn) = scripts.max_bn_knl.getBlocksize(m, n)
+                (self.bm, self.bn) = scripts.max_bn_knl.getBlocksize(m, n, self.bk)
             elif arch == 'arm':
                 (self.bm, self.bn) = scripts.old_arm.getBlocksize(m, n)
         else: 

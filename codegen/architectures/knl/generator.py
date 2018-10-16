@@ -68,7 +68,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
                     if store:
                         asm.add(mov(registers[ir,ic], addr, True, comment))
-                        if prefetching != None:
+                        if prefetching == 'BL2viaC':
                             asm.add(prefetch(mem(additional_regs[0], addr.disp)))
                     else:
                         asm.add(mov(addr, registers[ir,ic], True, comment))
@@ -126,7 +126,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
 
     def init_prefetching(self, prefetching):
         
-        if prefetching == None:
+        if prefetching != 'BL2viaC':
             Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = "")    
             return
         
