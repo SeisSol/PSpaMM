@@ -83,7 +83,7 @@ class InlinePrinter(Visitor):
         self.addLine(s, stmt.comment)
 
     def visitPrefetch(self, stmt: PrefetchStmt):
-        s = f"prefetch1 {stmt.dest.ugly}"
+        s = f"prefetcht1 {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitBlock(self, block: Block):
