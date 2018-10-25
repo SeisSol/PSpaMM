@@ -1,4 +1,4 @@
-#!/home/hpc/pr63so/ga96voz2/bin/python3.6
+#!/usr/bin/env python3
 
 import argparse
 

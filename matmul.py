@@ -84,7 +84,7 @@ class MatMul:
 
         if bm == None or bn == None:
             if arch == 'knl':
-                (self.bm, self.bn) = scripts.max_bn_knl.getBlocksize(m, n, self.bk)
+                (self.bm, self.bn) = scripts.max_bn_knl.getBlocksize(m, n, bk)
             elif arch == 'arm':
                 (self.bm, self.bn) = scripts.old_arm.getBlocksize(m, n)
         else: 
@@ -119,7 +119,7 @@ class MatMul:
                 if pattern[j,i]:
                     self.nnz += 1
 
-        self.flop = self.nnz * m
+        self.flop = self.nnz * m * 2
 
         blocks,patterns,mtx_overhead = decompose_pattern(self.k, self.n, pattern, self.bk, self.bn)
 

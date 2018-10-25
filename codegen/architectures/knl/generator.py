@@ -23,7 +23,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
     #ifdef _OPENMP
     #pragma omp atomic
     #endif
-    sparse_total_flops += {{flop}};
+    sparsemmgen_num_total_flops += {{flop}};
     #endif
 
 }}}};
