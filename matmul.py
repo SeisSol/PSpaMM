@@ -137,7 +137,7 @@ class MatMul:
 
         assert(self.m % self.v_size == 0)
 
-        self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.loop_reg, self.additional_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size)
+        self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.loop_reg, self.additional_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.nnz)
 
         self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk)
         self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, blocks, patterns,mtx_overhead)
@@ -162,6 +162,9 @@ class MatMul:
             Bn += 1
         if k_overhead > 0:
             Bk += 1
+
+        if self.arch == "knl":
+            asm.add(self.generator.make_address_opt(self.starting_regs[1], self.additional_regs))
 
         for Bni in range(0,Bn):
             if Bni + 1 == Bn and n_overhead > 0:

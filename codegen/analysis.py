@@ -28,6 +28,9 @@ class Analyzer(Visitor):
         if isinstance(stmt.dest, Register):
             self.clobbered_registers.add(stmt.dest)
 
+    def visitLea(self, stmt: MovStmt):
+            self.clobbered_registers.add(stmt.dest)
+
     def visitStore(self, stmt: MovStmt):
         if isinstance(stmt.dest, Register):
             self.clobbered_registers.add(stmt.dest)

@@ -82,6 +82,10 @@ class InlinePrinter(Visitor):
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
 
+    def visitLea(self, stmt: LeaStmt):
+        s = f"leaq {stmt.offset}({stmt.src.ugly}), {stmt.dest.ugly}"
+        self.addLine(s, stmt.comment)
+
     def visitPrefetch(self, stmt: PrefetchStmt):
         s = f"prefetcht1 {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)

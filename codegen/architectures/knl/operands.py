@@ -39,6 +39,9 @@ class Register_KNL(Register):
         return "%%" + self.value
 
 
+rax = Register_KNL(AsmType.i64, "rax")
+rbx = Register_KNL(AsmType.i64, "rbx")
+rcx = Register_KNL(AsmType.i64, "rcx")
 rdx = Register_KNL(AsmType.i64, "rdx")
 rdi = Register_KNL(AsmType.i64, "rdi")
 rsi = Register_KNL(AsmType.i64, "rsi")

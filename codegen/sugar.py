@@ -51,6 +51,14 @@ def mov(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = Non
         stmt.typ = AsmType.i64
     return stmt
 
+def lea(src: Union[Operand, int], dest: Operand, offset: int, comment:str = None):
+    stmt = LeaStmt()
+    stmt.src = src
+    stmt.dest = dest
+    stmt.offset = offset
+    stmt.comment = comment
+    return stmt
+
 def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, dest2: Operand = None):
     stmt = LoadStmt()
     stmt.src = src if isinstance(src, Operand) else architecture.operands.c(src)

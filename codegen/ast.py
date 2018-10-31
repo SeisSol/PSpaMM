@@ -33,6 +33,16 @@ class MovStmt(AsmStmt):
     def accept(self, visitor: "Visitor"):
         visitor.visitMov(self)
 
+class LeaStmt(AsmStmt):
+    src: Operand
+    dest: Operand
+    offset: int
+    typ: AsmType
+    aligned: bool = False
+
+    def accept(self, visitor: "Visitor"):
+        visitor.visitLea(self)
+
 class LoadStmt(AsmStmt):
     src: Operand
     dest: Operand

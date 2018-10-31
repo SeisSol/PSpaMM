@@ -34,7 +34,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
     def get_template(self):
         return Generator.template
 
-    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int):
+    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int):
         assert(bm % v_size == 0)
         vm = bm//v_size
         assert((bn+bk) * vm <= 32)  # Needs to fit in AVX512 zmm registers
@@ -46,11 +46,31 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
 
         starting_regs = [rdi, rsi, rdx]
 
+        available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax,rbx,rcx]
+
         additional_regs = [r(8)]
+
+        num_of_opt_regs = min(((nnz - 1) // 128), len(available_regs))
+
+        self.max_translated_address = (num_of_opt_regs * 1024) + 1023
+
+        for i in range(num_of_opt_regs):
+            additional_regs.append(available_regs[i])
 
         loop_reg = r(12)
 
         return A_regs, B_regs, C_regs, starting_regs, loop_reg, additional_regs
+
+    def make_address_opt(self,
+                         B_reg: Register,
+                         additional_regs: List[Register],
+                        ) -> Block:
+
+        asm = block(f"Optimize usage of offsets when accessing B Matrix")
+
+        for i in range(1,len(additional_regs)):
+            asm.add(lea(B_reg, additional_regs[i], i * 1024, "save pointer to element " + str(i * 1024) + " of B"))
+        return asm
 
     def move_register_block(self,
                             cursor: Cursor,
@@ -128,6 +148,9 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
                         comment = f"C[{Vmi*8}:{Vmi*8+8},{bni}] += A[{Vmi*8}:{Vmi*8+8},{bki}]*{B_comment}"
+                        if B_cell_addr.disp >= 1024 and B_cell_addr.disp <= self.max_translated_address:
+                            B_cell_addr.base = additional_regs[B_cell_addr.disp // 1024]
+                            B_cell_addr.disp = B_cell_addr.disp % 1024
                         asm.add(fma(B_cell_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment))
         return asm
 

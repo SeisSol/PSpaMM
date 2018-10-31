@@ -8,6 +8,9 @@ class Visitor:
     def visitMov(self, stmt: MovStmt) -> None:
         raise NotImplementedError()
 
+    def visitLea(self, stmt: LeaStmt) -> None:
+        raise NotImplementedError()
+
     def visitLoad(self, stmt: LoadStmt) -> None:
         raise NotImplementedError()
 
