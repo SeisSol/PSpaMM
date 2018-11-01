@@ -14,7 +14,7 @@ import numpy
 
 def decompose_pattern(k, n, pattern:Matrix[bool], bk:int, bn:int) -> Tuple[Matrix[int], List[Matrix[bool]]]:
     Bk,Bn = k//bk, n//bn
-    patterns : List[Matrix[bool]] = []
+    patterns = []
     x = 0
 
     n_overhead = n % bn
@@ -206,7 +206,7 @@ class MatMul:
         if alg.n % alg.bn != 0:
             Bn += 1
 
-        asm = block(f"unrolled_{alg.m}x{alg.n}x{alg.k}",
+        asm = block("unrolled_{}x{}x{}".format(alg.m,alg.n,alg.k),
 
             loop(alg.loop_reg, 0, Bm, 1).body(
                 alg.make_nk_unroll(),

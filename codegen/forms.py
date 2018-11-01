@@ -6,7 +6,7 @@ from codegen.sugar import *
 # in order to do unrolls and other fancy stuff with it
 class Loop(Block):
 
-    _labels : List[str] = []
+    _labels = []
     def __init__(self,
                  iteration_var: Register,
                  initial_val: int,
@@ -24,8 +24,8 @@ class Loop(Block):
         self.label = "loop_top_" + str(len(Loop._labels))
         Loop._labels.append(self.label)
 
-        self.comment = f"for {self.iteration_var.ugly} <- {self.initial_val}:" + \
-                       f"{self.increment}:{self.final_val})"
+        self.comment = "for {} <- {}:".format(self.iteration_var.ugly, self.initial_val) + \
+                       "{}:{})".format(self.increment, self.final_val)
 
     @property
     def contents(self):

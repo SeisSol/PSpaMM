@@ -7,13 +7,13 @@ from codegen.operands import *
 class InlinePrinter(Visitor):
 
     show_comments = True
-    indent: str = "  "
-    depth: int = 0
-    lmargin: int = 0
-    rmargin: int = 60
-    vpadding: bool = False
-    output: List[str] = None
-    stack: List[Block] = None
+    indent = "  "
+    depth = 0
+    lmargin = 0
+    rmargin = 60
+    vpadding = False
+    output = None
+    stack = None
 
 
     def __init__(self):
@@ -46,23 +46,23 @@ class InlinePrinter(Visitor):
         b = stmt.bcast_src.ugly
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
-        s = f"vfmadd231pd {b}%{{1to8%}}, {m}, {a}"
+        s = "vfmadd231pd {}%{{1to8%}}, {}, {}".format(b,m,a)
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):
-        s = f"addq {stmt.src.ugly}, {stmt.dest.ugly}"
+        s = "addq {}, {}".format(stmt.src.ugly,stmt.dest.ugly)
         self.addLine(s, stmt.comment)
 
     def visitLabel(self, stmt: LabelStmt):
-        s = f"{stmt.label.ugly}:"
+        s = "{}:".format(stmt.label.ugly)
         self.addLine(s, stmt.comment)
 
     def visitCmp(self, stmt: CmpStmt):
-        s = f"cmp {stmt.lhs.ugly}, {stmt.rhs.ugly}"
+        s = "cmp {}, {}".format(stmt.lhs.ugly,stmt.rhs.ugly)
         self.addLine(s, stmt.comment)
 
     def visitJump(self, stmt: JumpStmt):
-        s = f"jl {stmt.destination.ugly}"
+        s = "jl {}".format(stmt.destination.ugly)
         self.addLine(s, stmt.comment)
 
     def visitMov(self, stmt: MovStmt):
@@ -72,22 +72,22 @@ class InlinePrinter(Visitor):
             src_str = stmt.src.ugly
 
         if stmt.typ == AsmType.i64:
-            s = f"movq {src_str}, {stmt.dest.ugly}"
+            s = "movq {}, {}".format(src_str,stmt.dest.ugly)
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
-                s = f"vpxord {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly}"
+                s = "vpxord {}, {}, {}".format(stmt.dest.ugly,stmt.dest.ugly,stmt.dest.ugly)
             else:
-                s = f"vmovapd {src_str}, {stmt.dest.ugly}"
+                s = "vmovapd {}, {}".format(src_str,stmt.dest.ugly)
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
 
     def visitLea(self, stmt: LeaStmt):
-        s = f"leaq {stmt.offset}({stmt.src.ugly}), {stmt.dest.ugly}"
+        s = "leaq {}({}), {}".format(stmt.offset,stmt.src.ugly,stmt.dest.ugly)
         self.addLine(s, stmt.comment)
 
     def visitPrefetch(self, stmt: PrefetchStmt):
-        s = f"prefetcht1 {stmt.dest.ugly}"
+        s = "prefetcht1 {}".format(stmt.dest.ugly)
         self.addLine(s, stmt.comment)
 
     def visitBlock(self, block: Block):

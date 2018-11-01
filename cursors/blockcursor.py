@@ -7,9 +7,9 @@ from typing import cast
 
 class BlockCursor(Cursor):
 
-    blocks: Matrix[int]
-    patterns: List[Matrix[bool]]
-    offsets: Matrix[int]
+    blocks = None
+    patterns = None
+    offsets = None
 
     def __init__(self,
                  name: str,
@@ -83,7 +83,7 @@ class BlockCursor(Cursor):
              dest_block: Coords
             ) -> Tuple[AsmStmt, CursorLocation]:
 
-        comment = f"Move {self.name} to {str(dest_block)}"
+        comment = "Move {} to {str(dest_block)}".format(self.name)
 
         if dest_block.absolute:
             dest_loc = self.start_location(dest_block)
@@ -103,7 +103,7 @@ class BlockCursor(Cursor):
 
         dest_loc = CursorLocation(dest_block, dest_cell)
         offset_bytes = self.offset(src_loc, dest_loc) * self.scalar_bytes
-        comment = f"{self.name}[{dest_block.down},{dest_block.right}][{dest_cell.down},{dest_cell.right}]"
+        comment = "{}[{},{}][{},{}]".format(self.name,dest_block.down,dest_block.right,dest_cell.down,dest_cell.right)
 
         addr = architecture.operands.mem(self.base_ptr, offset_bytes)
         
@@ -171,7 +171,7 @@ class BlockCursor(Cursor):
                 if pat[bri,bci]:
                     return CursorLocation(dest_block, Coords(down=bri, right=bci, absolute=False))
 
-        raise Exception(f"Block {dest_block} has no starting location because it is empty!")
+        raise Exception("Block {} has no starting location because it is empty!".format(dest_block))
 
 
     def start(self) -> CursorLocation:

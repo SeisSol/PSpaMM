@@ -1,4 +1,4 @@
-from typing import NamedTuple
+from collections import namedtuple
 
 # The relationship between blocks and cells has become too complicated to
 # safely bake into a coordinate system. The semantics has been moved to the
@@ -6,11 +6,10 @@ from typing import NamedTuple
 # a logical block start, or a physical block start depending on context.
 # We are including a {relative|absolute} flag in order to reduce the number of methods.
 
+C = namedtuple('C', 'down right absolute')
+C.__new__.__defaults__ = (0, 0, False)
 
-class Coords(NamedTuple):
-    down:     int  = 0
-    right:    int  = 0
-    absolute: bool = False
+class Coords(C):
 
     def copy(self):
         return Coords(self.down, self.right, self.absolute)
@@ -36,4 +35,4 @@ class Coords(NamedTuple):
             absolute = ", absolute"
         else:
             absolute = ""
-        return f"(d={self.down},r={self.right}{absolute})"
+        return "(d={},r={}{})".format(self.down, self.right,absolute) 

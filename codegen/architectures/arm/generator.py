@@ -8,12 +8,7 @@ from codegen.generator import *
 
 class Generator(AbstractGenerator):
 
-    def get_v_size(self):
-        return 2
-
-
-    def get_template(self):
-        template = """
+    template = """
 void {funcName} (const double* A, const double* B, double* C, double const* e1, double const* e2, double const* e3) {{{{
   __asm__ __volatile__(
     "ldr x0, %0\\n\\t"
@@ -31,8 +26,12 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
     #endif
 
 }}}};"""
-        return template
 
+    def get_v_size(self):
+        return 2
+
+    def get_template(self):
+        return Generator.template
 
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int):
         assert(bm % v_size == 0)
@@ -67,7 +66,7 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
 
         rows, cols = registers.shape
         action = "Store" if store else "Load"
-        asm = block(f"{action} {cursor.name} register block @ {block_offset}")
+        asm = block("{} {} register block @ {}".format(action, cursor.name, block_offset))
 
         cur11 = -1000
         skipflag = False
@@ -115,7 +114,7 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
     def make_zero_block(self, registers: Matrix[Register], additional_regs) -> Block:
 
         rows, cols = registers.shape
-        asm = block(f"zero registers")
+        asm = block("zero registers")
 
         for ic in range(cols):
           for ir in range(rows):
@@ -182,7 +181,7 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
                     to_cell = Coords(down=bki, right=bni)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
-                        comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
+                        comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*v_size, Vmi*v_size+v_size, bni, Vmi*v_size, Vmi*v_size+v_size, bki, B_comment)
                         asm.add(fma(B_regs[bki, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment))
         return asm
 

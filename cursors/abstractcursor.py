@@ -4,25 +4,19 @@ from cursors.coords import Coords
 from codegen.operands import *
 from codegen.ast import AsmStmt, Command
 
-from typing import NamedTuple, List, Tuple
+from typing import List, Tuple
 
+from collections import namedtuple
 
-
-class BlockInfo(NamedTuple):
-    br: int                 # Cell rows in block
-    bc: int                 # Cell cols in block
-    pattern_index: int      # Pattern location in index
-    pattern: Matrix[bool]   # The pattern itself
-
-
+BlockInfo = namedtuple("Blockinfo", ("br bc pattern_index pattern"))
 
 class CursorLocation:
-    current_block: Coords  # Absolute coords of current block
-    current_cell: Coords   # Relative?
+    current_block = None  # Absolute coords of current block
+    current_cell = None   # Relative?
 
     def __init__(self,
-                 current_block: Coords = Coords(absolute=True),
-                 current_cell: Coords = Coords(absolute=False)
+                 current_block = Coords(absolute=True),
+                 current_cell = Coords(absolute=False)
                 ) -> None:
         assert(current_cell.absolute == False)
         self.current_block = current_block
@@ -30,13 +24,13 @@ class CursorLocation:
 
 
 class Cursor:
-    name: str
-    base_ptr: Register
-    index_ptr: Register
-    r: int
-    c: int
-    br: int
-    bc: int
+    name = None
+    base_ptr = None
+    index_ptr = None
+    r = None
+    c = None
+    br = None
+    bc = None
 
     @property
     def Br(self) -> int:
@@ -75,12 +69,12 @@ class Cursor:
 
 
 class CursorMovement(Command):
-    matrix: Cursor
+    matrix = None
 
 class CursorLookup(MemoryAddress):
-    matrix: Cursor
-    src: CursorLocation
-    dest: CursorLocation
+    matrix = None
+    src = None
+    dest = None
 
 
 

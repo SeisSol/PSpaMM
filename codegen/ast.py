@@ -7,124 +7,124 @@ if TYPE_CHECKING:
 
 
 class AsmStmt:
-    comment: str = None
-    implied_inputs: List[Register] = []
-    implied_outputs: List[Register] = []
+    comment = None
+    implied_inputs = []
+    implied_outputs = []
 
     def accept(self, visitor: "Visitor"):
         raise Exception("AsmStmt is supposed to be abstract!")
 
 
 class GenericStmt(AsmStmt):
-    operation: str
-    inputs: List[Operand]
-    output: Operand
+    operation = None
+    inputs = None
+    output = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitStmt(self)
 
 
 class MovStmt(AsmStmt):
-    src: Operand
-    dest: Operand
-    typ: AsmType
-    aligned: bool = False
+    src = None
+    dest = None
+    typ = None
+    aligned = False
 
     def accept(self, visitor: "Visitor"):
         visitor.visitMov(self)
 
 class LeaStmt(AsmStmt):
-    src: Operand
-    dest: Operand
-    offset: int
-    typ: AsmType
-    aligned: bool = False
+    src = None
+    dest = None
+    offset = None
+    typ = None
+    aligned = False
 
     def accept(self, visitor: "Visitor"):
         visitor.visitLea(self)
 
 class LoadStmt(AsmStmt):
-    src: Operand
-    dest: Operand
-    typ: AsmType
-    aligned: bool = False
-    dest2: Operand = None
+    src = None
+    dest = None
+    typ = None
+    aligned = False
+    dest2 = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitLoad(self)
 
 class StoreStmt(AsmStmt):
-    src: Operand
-    dest: Operand
-    typ: AsmType
-    aligned: bool = False
-    src2: Operand = None
+    src = None
+    dest = None
+    typ = None
+    aligned = False
+    src2 = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitStore(self)
 
 class PrefetchStmt(AsmStmt):
-    dest: Operand
+    dest = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitPrefetch(self)
 
 
 class FmaStmt(AsmStmt):
-    bcast_src: Register
-    mult_src: Register
-    add_dest: Register
+    bcast_src = None
+    mult_src = None
+    add_dest = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitFma(self)
 
 
 class AddStmt(AsmStmt):
-    src: Operand = None
-    dest: Register = None
-    typ: AsmType = None
-    additional: Register = None
+    src = None
+    dest = None
+    typ = None
+    additional = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitAdd(self)
 
 class CmpStmt(AsmStmt):
-    lhs: Operand
-    rhs: Operand
+    lhs = None
+    rhs = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitCmp(self)
 
 class LabelStmt(AsmStmt):
-    label: Label = None
+    label = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitLabel(self)
 
 
 class JumpStmt(AsmStmt):
-    destination: Operand = None
+    destination = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitJump(self)
 
 class DataStmt(AsmStmt):
-    value: Operand
-    asmType: AsmType
+    value = None
+    asmType = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitData(self)
 
 
 class Block(AsmStmt):
-    contents : List[AsmStmt] = []
+    contents = []
 
     def accept(self, visitor: "Visitor"):
         visitor.visitBlock(self)
 
 
 class Command(AsmStmt):
-    name: str
+    name = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitCommand(self)

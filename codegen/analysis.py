@@ -5,8 +5,8 @@ from typing import List, Set
 
 class Analyzer(Visitor):
 
-    clobbered_registers: Set[Register]
-    stack: List[Block]
+    clobbered_registers = None
+    stack = None
 
     def __init__(self):
         self.clobbered_registers = set()

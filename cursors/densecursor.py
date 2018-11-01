@@ -63,7 +63,7 @@ class DenseCursor(Cursor):
         else:
             dest_block_abs = src.current_block + dest_block
 
-        comment = f"Move {self.name} to {str(dest_block)}"
+        comment = "Move {} to {}".format(self.name,str(dest_block))
         src_offset = self.offset(src.current_block, Coords(), src.current_cell)
         dest_offset = self.offset(src.current_block, dest_block, src.current_cell)
         rel_offset = (dest_offset - src_offset) * self.scalar_bytes
@@ -78,7 +78,7 @@ class DenseCursor(Cursor):
 
         assert(dest_cell.absolute == False)
 
-        comment = f"{self.name} [{dest_block.down},{dest_block.right}] [{dest_cell.down},{dest_cell.right}]"
+        comment = "{} [{},{}] [{},{}]".format(self.name,dest_block.down,dest_block.right,dest_cell.down,dest_cell.right)
 
         src_offset_abs = self.offset(src.current_block, Coords(), src.current_cell)
         dest_offset_abs = self.offset(src.current_block, dest_block, dest_cell)
@@ -98,7 +98,7 @@ class DenseCursor(Cursor):
                 if self.offsets[bri, bci] != -1:
                     return CursorLocation(dest_block, Coords(down=bri, right=bci, absolute=False))
 
-        raise Exception(f"Block {dest_block} has no starting location because it is empty!")
+        raise Exception("Block {} has no starting location because it is empty!".format(dest_block))
 
     def get_block(self, src: CursorLocation=None, dest_block: Coords=None) -> BlockInfo:
 

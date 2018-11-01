@@ -66,7 +66,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
                          additional_regs: List[Register],
                         ) -> Block:
 
-        asm = block(f"Optimize usage of offsets when accessing B Matrix")
+        asm = block("Optimize usage of offsets when accessing B Matrix")
 
         for i in range(1,len(additional_regs)):
             asm.add(lea(B_reg, additional_regs[i], i * 1024, "save pointer to element " + str(i * 1024) + " of B"))
@@ -86,7 +86,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
 
         rows, cols = registers.shape
         action = "Store" if store else "Load"
-        asm = block(f"{action} {cursor.name} register block @ {block_offset}")
+        asm = block("{} {} register block @ {}".format(action,cursor.name,block_offset))
 
         for ic in range(cols):
             for ir in range(rows):
@@ -104,7 +104,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
     def make_zero_block(self, registers: Matrix[Register], additional_regs) -> Block:
 
         rows, cols = registers.shape
-        asm = block(f"zero registers")
+        asm = block("zero registers")
 
         for ic in range(cols):
             for ir in range(rows):
@@ -147,7 +147,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
                     to_cell = Coords(down=bki, right=bni)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
-                        comment = f"C[{Vmi*8}:{Vmi*8+8},{bni}] += A[{Vmi*8}:{Vmi*8+8},{bki}]*{B_comment}"
+                        comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*8,Vmi*8+8,bni,Vmi*8,Vmi*8+8,bki,B_comment)
                         if B_cell_addr.disp >= 1024 and B_cell_addr.disp <= self.max_translated_address:
                             B_cell_addr.base = additional_regs[B_cell_addr.disp // 1024]
                             B_cell_addr.disp = B_cell_addr.disp % 1024

@@ -21,9 +21,9 @@ class Constant(Operand):
         raise NotImplementedError()
 
 class Label(Operand):
-    _interns: Dict[str, int] = {}
-    _last: int = -1
-    def __init__(self, value: str) -> None:
+    _interns = {}
+    _last = -1
+    def __init__(self, value) -> None:
         assert(isinstance(value, str))
         self.value = value
         if value in Label._interns:
@@ -39,7 +39,7 @@ class Label(Operand):
 
 class Register(Operand):
 
-    def __init__(self, typeinfo:AsmType, value:str) -> None:
+    def __init__(self, typeinfo, value) -> None:
         self.typeinfo = typeinfo
         self.value = str(value)
 
@@ -54,8 +54,8 @@ class Register(Operand):
 class MemoryAddress(Operand):
 
     def __init__(self,
-                 base: Register,
-                 disp: int) -> None:
+                 base,
+                 disp) -> None:
         self.base = base
         self.disp = disp
 

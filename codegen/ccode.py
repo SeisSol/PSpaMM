@@ -14,7 +14,7 @@ def make_cfunc(funcName:str, template:str, body:Block, flop:int) -> str:
 
     analyzer = Analyzer()
     body.accept(analyzer)
-    regs = [f'"{reg.clobbered}"' for reg in analyzer.clobbered_registers]
+    regs = ['"{}"'.format(reg.clobbered) for reg in analyzer.clobbered_registers]
     regs.sort()
     clobbered = ",".join(regs)
     return template.format(funcName = funcName,

@@ -12,7 +12,7 @@ class Constant_KNL(Constant):
 
     @property
     def ugly(self):
-        return f"${self.value}"
+        return "${}".format(self.value)
 
 
 def c(n):
@@ -57,7 +57,7 @@ class MemoryAddress_KNL(MemoryAddress):
     
     @property
     def ugly(self):
-        return f"{self.disp}({self.base.ugly})"
+        return "{}({})".format(self.disp,self.base.ugly)
 
 def mem(base, offset):
     return MemoryAddress_KNL(base, offset)
