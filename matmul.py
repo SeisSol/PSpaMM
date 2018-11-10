@@ -42,7 +42,7 @@ def decompose_pattern(k, n, pattern:Matrix[bool], bk:int, bn:int) -> Tuple[Matri
             x += 1
             patterns.append(block)
 
-    mtx_overhead = numpy.zeros(n)
+    mtx_overhead = [0] * n
 
     for i in range(n):
         for j in range(k, pattern.rows):

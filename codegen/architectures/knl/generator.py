@@ -74,7 +74,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
         reg_count = 1
 
         for i in range(1024, min(nnz * 8, 8000), 2048):
-            asm.add(mov(additional_regs[reg_count], c(i), False))
+            asm.add(mov(c(i), additional_regs[reg_count], False))
             reg_count += 1
         
         return asm
