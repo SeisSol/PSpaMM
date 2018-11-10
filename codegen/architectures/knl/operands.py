@@ -55,12 +55,24 @@ zmm = lambda n: Register_KNL(AsmType.f64x8, "zmm"+str(n))
 
 class MemoryAddress_KNL(MemoryAddress):
     
+    def __init__(self,
+                 base: Register,
+                 disp: int,
+                 index: Register = None,
+                 scaling: int = None) -> None:
+        self.base = base
+        self.disp = disp
+        self.index = index
+        self.scaling = scaling
+
     @property
     def ugly(self):
-        return "{}({})".format(self.disp,self.base.ugly)
+        if self.index is None:
+            return "{}({})".format(self.disp,self.base.ugly)
+        return "{}({},{},{})".format(self.disp,self.base.ugly,self.index.ugly,self.scaling)
 
-def mem(base, offset):
-    return MemoryAddress_KNL(base, offset)
+def mem(base, offset, index=None, scaling=None):
+    return MemoryAddress_KNL(base, offset, index, scaling)
 
 
 

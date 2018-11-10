@@ -50,26 +50,49 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
 
         additional_regs = [r(8)]
 
-        num_of_opt_regs = min(((nnz - 1) // 128), len(available_regs))
+        reg_count = 0
 
-        self.max_translated_address = (num_of_opt_regs * 1024) + 1023
+        for i in range(1024, min(nnz * 8, 8000), 2048):
+            additional_regs.append(available_regs[reg_count])
+            reg_count += 1
 
-        for i in range(num_of_opt_regs):
-            additional_regs.append(available_regs[i])
+        for i in range(8192, min(nnz * 8, 33000), 8192):
+            additional_regs.append(available_regs[reg_count])
+            reg_count += 1
 
         loop_reg = r(12)
 
         return A_regs, B_regs, C_regs, starting_regs, loop_reg, additional_regs
 
-    def make_address_opt(self,
-                         B_reg: Register,
+    def make_scaling_offsets(self,
                          additional_regs: List[Register],
+                         nnz: int
                         ) -> Block:
 
         asm = block("Optimize usage of offsets when accessing B Matrix")
 
-        for i in range(1,len(additional_regs)):
-            asm.add(lea(B_reg, additional_regs[i], i * 1024, "save pointer to element " + str(i * 1024) + " of B"))
+        reg_count = 1
+
+        for i in range(1024, min(nnz * 8, 8000), 2048):
+            asm.add(mov(additional_regs[reg_count], c(i), False))
+            reg_count += 1
+        
+        return asm
+
+    def make_b_pointers(self,
+                         B_reg: Register,
+                         additional_regs: List[Register],
+                         nnz: int
+                        ) -> Block:
+
+        asm = block("Optimize usage of offsets when accessing B Matrix")
+
+        reg_count = 5
+
+        for i in range(8192, min(nnz * 8, 33000), 8192):
+            asm.add(lea(B_reg, additional_regs[reg_count], i))
+            reg_count += 1
+        
         return asm
 
     def move_register_block(self,
@@ -146,12 +169,41 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
                 for bni in range(bn):   # inside this n-block
                     to_cell = Coords(down=bki, right=bni)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
-                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
+                        B_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
                         comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*8,Vmi*8+8,bni,Vmi*8,Vmi*8+8,bki,B_comment)
-                        if B_cell_addr.disp >= 1024 and B_cell_addr.disp <= self.max_translated_address:
-                            B_cell_addr.base = additional_regs[B_cell_addr.disp // 1024]
-                            B_cell_addr.disp = B_cell_addr.disp % 1024
-                        asm.add(fma(B_cell_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment))
+                        if B_addr.disp >= 1024 and B_addr.disp <= 32768:
+                            old_disp = B_addr.disp
+                            B_addr.disp = B_addr.disp % 1024
+                            if old_disp % 8192 in range(1024, 2048):
+                                B_addr.index = additional_regs[1]
+                                B_addr.scaling = 1
+                            elif old_disp % 8192 in range(2048, 3072):
+                                B_addr.index = additional_regs[1]
+                                B_addr.scaling = 2
+                            elif old_disp % 8192 in range(3072, 4096):
+                                B_addr.index = additional_regs[2]
+                                B_addr.scaling = 1
+                            elif old_disp % 8192 in range(4096, 5120):
+                                B_addr.index = additional_regs[1]
+                                B_addr.scaling = 4
+                            elif old_disp % 8192 in range(5120, 6144):
+                                B_addr.index = additional_regs[3]
+                                B_addr.scaling = 1
+                            elif old_disp % 8192 in range(6144, 7168):
+                                B_addr.index = additional_regs[2]
+                                B_addr.scaling = 2
+                            else:
+                                B_addr.index = additional_regs[4]
+                                B_addr.scaling = 1
+
+                            if old_disp in range(8192, 16384):
+                                B_addr.base = additional_regs[5]
+                            elif old_disp in range(16384, 24576):
+                                B_addr.base = additional_regs[6]
+                            elif old_disp in range(24576, 32768):
+                                B_addr.base = additional_regs[7]
+
+                        asm.add(fma(B_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment))
         return asm
 
     def init_prefetching(self, prefetching):

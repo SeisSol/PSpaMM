@@ -51,7 +51,7 @@ def mov(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = Non
         stmt.typ = AsmType.i64
     return stmt
 
-def lea(src: Union[Operand, int], dest: Operand, offset: int, comment:str = None):
+def lea(src: Register, dest: Operand, offset: int, comment:str = None):
     stmt = LeaStmt()
     stmt.src = src
     stmt.dest = dest

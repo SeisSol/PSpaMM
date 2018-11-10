@@ -51,6 +51,22 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
 
         return A_regs, B_regs, C_regs, starting_regs, loop_reg, additional_regs
 
+    def make_scaling_offsets(self,
+                         additional_regs: List[Register],
+                         nnz: int
+                        ) -> Block:
+
+        asm = block("No register based scaling")
+        return asm
+
+    def make_b_pointers(self,
+                         B_reg: Register,
+                         additional_regs: List[Register],
+                         nnz: int
+                        ) -> Block:
+
+        asm = block("No register based scaling")
+        return asm
 
     def move_register_block(self,
                             cursor: Cursor,

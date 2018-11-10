@@ -10,7 +10,7 @@ class InlinePrinter(Visitor):
     indent = "  "
     depth = 0
     lmargin = 0
-    rmargin = 60
+    rmargin = 70
     vpadding = False
     output = None
     stack = None

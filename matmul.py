@@ -163,8 +163,7 @@ class MatMul:
         if k_overhead > 0:
             Bk += 1
 
-        if self.arch == "knl":
-            asm.add(self.generator.make_address_opt(self.starting_regs[1], self.additional_regs))
+        asm.add(self.generator.make_b_pointers(self.starting_regs[1], self.additional_regs, self.nnz))
 
         for Bni in range(0,Bn):
             if Bni + 1 == Bn and n_overhead > 0:
@@ -194,36 +193,36 @@ class MatMul:
 
 
 
-    def make(alg):
+    def make(self):
         
         A_ptr = CursorLocation()
         C_ptr = CursorLocation()
 
-        Bm = alg.m // alg.bm
-        Bn = alg.n // alg.bn
-        Bk = alg.k // alg.bk
+        Bm = self.m // self.bm
+        Bn = self.n // self.bn
+        Bk = self.k // self.bk
 
-        if alg.n % alg.bn != 0:
+        if self.n % self.bn != 0:
             Bn += 1
 
-        asm = block("unrolled_{}x{}x{}".format(alg.m,alg.n,alg.k),
-
-            loop(alg.loop_reg, 0, Bm, 1).body(
-                alg.make_nk_unroll(),
-                alg.A.move(A_ptr, Coords(down=1))[0],
-                alg.C.move(C_ptr, Coords(down=1, right=1-Bn))[0]
+        asm = block("unrolled_{}x{}x{}".format(self.m,self.n,self.k),
+            self.generator.make_scaling_offsets(self.additional_regs, self.nnz),
+            loop(self.loop_reg, 0, Bm, 1).body(
+                self.make_nk_unroll(),
+                self.A.move(A_ptr, Coords(down=1))[0],
+                self.C.move(C_ptr, Coords(down=1, right=1-Bn))[0]
             )
         )
 
-        vm_overhead = (alg.m % alg.bm) // alg.v_size
+        vm_overhead = (self.m % self.bm) // self.v_size
 
         if vm_overhead > 0:
-            alg.m = alg.m % alg.bm
-            alg.bm = alg.m % alg.bm
-            alg.A_regs = alg.A_regs[0:alg.bm // alg.v_size, 0:alg.bk]
-            alg.C_regs = alg.C_regs[0:alg.bm // alg.v_size, 0:alg.bn]
-            alg.A.r = alg.m
-            asm.add(alg.make_nk_unroll())
+            self.m = self.m % self.bm
+            self.bm = self.m % self.bm
+            self.A_regs = self.A_regs[0:self.bm // self.v_size, 0:self.bk]
+            self.C_regs = self.C_regs[0:self.bm // self.v_size, 0:self.bn]
+            self.A.r = self.m
+            asm.add(self.make_nk_unroll())
 
 
         return asm

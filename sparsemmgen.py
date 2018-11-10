@@ -15,7 +15,7 @@ mtx_formats = ['any','csc','csr','bsc','bsr','bcsc','bcsr']
 
 def main(alg: MatMul) -> None:
 
-	block = MatMul.make(alg)
+	block = alg.make()
 
 	text = make_cfunc(alg.output_funcname, alg.generator.get_template(), block, alg.flop)
 
