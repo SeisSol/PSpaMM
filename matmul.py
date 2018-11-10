@@ -112,12 +112,16 @@ class MatMul:
                     mtx[i, j] = 1
             pattern = Matrix(mtx)
 
+        
         self.nnz = 0
 
-        for i in range(n):
-            for j in range(k):
-                if pattern[j,i]:
-                    self.nnz += 1
+        if ldb == 0:
+            for i in range(n):
+                for j in range(k):
+                    if pattern[j,i]:
+                        self.nnz += 1
+        else:
+            self.nnz = ldb * self.n
 
         self.flop = self.nnz * m * 2
 
