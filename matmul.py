@@ -112,21 +112,21 @@ class MatMul:
                     mtx[i, j] = 1
             pattern = Matrix(mtx)
 
-        
+        blocks,patterns,mtx_overhead = decompose_pattern(self.k, self.n, pattern, self.bk, self.bn)
+
         self.nnz = 0
+        self.flop = 0
 
         if ldb == 0:
             for i in range(n):
                 for j in range(k):
                     if pattern[j,i]:
                         self.nnz += 1
+            self.flop = self.nnz * m * 2
+            self.nnz += sum(mtx_overhead)
         else:
             self.nnz = ldb * self.n
-
-        self.flop = self.nnz * m * 2
-
-        blocks,patterns,mtx_overhead = decompose_pattern(self.k, self.n, pattern, self.bk, self.bn)
-
+            self.flop = m * n * k * 2
 
         architecture.init()
         architecture.arch = arch
