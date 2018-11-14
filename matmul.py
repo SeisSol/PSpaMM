@@ -64,6 +64,7 @@ class MatMul:
                  mtx_format: str = 'any',
                  output_funcname: str = None,
                  output_filename: str = None,
+                 output_overwrite: bool = False,
                  bm: int = None, 
                  bn: int = None, 
                  bk: int = 2,
@@ -102,6 +103,7 @@ class MatMul:
 
         self.output_funcname = output_funcname
         self.output_filename = output_filename
+        self.output_overwrite = output_overwrite
 
         if ldb == 0:
             pattern = Matrix.load(mtx_filename)

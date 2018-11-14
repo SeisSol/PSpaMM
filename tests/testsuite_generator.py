@@ -50,6 +50,8 @@ def make(kernels, arch):
 #include <stdio.h>
 #include <tuple>
 
+
+long long sparsemmgen_num_total_flops = 0;
 """)
 
   for kern in kernels:
@@ -72,7 +74,7 @@ def make(kernels, arch):
 
   		name = kern.name + '_' + str(bm) + '_' + str(bn)
 
-  		additional_args = ['--output_funcname', name, '--output_filename', arch + '/' + name + '.h']
+  		additional_args = ['--output_funcname', name, '--output_filename', arch + '/' + name + '.h', '--output_overwrite', '1']
   		additional_args += ['--bm', str(bm), '--bn', str(bn), '--bk', '1', '--arch', arch]
 
   		try:

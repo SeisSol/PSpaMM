@@ -22,6 +22,9 @@ def main(alg: MatMul) -> None:
 	if alg.output_filename is None:
 		print(text)
 	else:
+		mode = "a"
+		if alg.output_overwrite:
+			mode = "w"
 		with open(alg.output_filename, "a") as f:
 			f.write(text)
 
@@ -54,6 +57,7 @@ if __name__=="__main__":
 
 	parser.add_argument("--output_funcname", help="Name for generated C++ function")
 	parser.add_argument("--output_filename", help="Path to destination C++ file")
+	parser.add_argument("--output_overwrite", help="Overwrite output file" , default="False")
 
 	args = parser.parse_args()
 	alg = MatMul(**args.__dict__)

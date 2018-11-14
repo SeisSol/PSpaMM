@@ -95,6 +95,27 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
         
         return asm
 
+
+    def reg_based_scaling(self, addr: MemoryAddress, additional_regs: List[Register]):
+        if addr.disp >= 1024 and addr.disp < 32768:
+            scaling_and_register = {
+                1: (1, 1),
+                2: (2, 1),
+                3: (1, 2),
+                4: (4, 1),
+                5: (1, 3),
+                6: (2, 2),
+                7: (1, 4)
+            }
+            if addr.disp % 8192 >= 1024:
+                addr.scaling, reg = scaling_and_register[ (addr.disp % 8192) // 1024 ]
+                addr.index = additional_regs[reg]
+
+            if addr.disp >= 8192:
+                addr.base = additional_regs[addr.disp // 8192 + 4]
+
+            addr.disp = addr.disp % 1024
+
     def move_register_block(self,
                             cursor: Cursor,
                             cursor_ptr: CursorLocation,
@@ -164,45 +185,15 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
         mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size)
         asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
 
+
         for Vmi in range(bm//8):
             for bki in range(bk):       # inside this k-block
                 for bni in range(bn):   # inside this n-block
                     to_cell = Coords(down=bki, right=bni)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
+                        self.reg_based_scaling(B_addr, additional_regs)
                         comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*8,Vmi*8+8,bni,Vmi*8,Vmi*8+8,bki,B_comment)
-                        if B_addr.disp >= 1024 and B_addr.disp <= 32768:
-                            old_disp = B_addr.disp
-                            B_addr.disp = B_addr.disp % 1024
-                            if old_disp % 8192 in range(1024, 2048):
-                                B_addr.index = additional_regs[1]
-                                B_addr.scaling = 1
-                            elif old_disp % 8192 in range(2048, 3072):
-                                B_addr.index = additional_regs[1]
-                                B_addr.scaling = 2
-                            elif old_disp % 8192 in range(3072, 4096):
-                                B_addr.index = additional_regs[2]
-                                B_addr.scaling = 1
-                            elif old_disp % 8192 in range(4096, 5120):
-                                B_addr.index = additional_regs[1]
-                                B_addr.scaling = 4
-                            elif old_disp % 8192 in range(5120, 6144):
-                                B_addr.index = additional_regs[3]
-                                B_addr.scaling = 1
-                            elif old_disp % 8192 in range(6144, 7168):
-                                B_addr.index = additional_regs[2]
-                                B_addr.scaling = 2
-                            else:
-                                B_addr.index = additional_regs[4]
-                                B_addr.scaling = 1
-
-                            if old_disp in range(8192, 16384):
-                                B_addr.base = additional_regs[5]
-                            elif old_disp in range(16384, 24576):
-                                B_addr.base = additional_regs[6]
-                            elif old_disp in range(24576, 32768):
-                                B_addr.base = additional_regs[7]
-
                         asm.add(fma(B_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment))
         return asm
 
