@@ -33,7 +33,7 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
     def get_template(self):
         return Generator.template
 
-    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int):
+    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
         vm = bm//v_size
         assert((bn+bk) * vm + bn * bk <= 32)  # Needs to fit in NEON v registers

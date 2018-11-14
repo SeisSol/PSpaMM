@@ -17,7 +17,7 @@ def main(alg: MatMul) -> None:
 
 	block = alg.make()
 
-	text = make_cfunc(alg.output_funcname, alg.generator.get_template(), block, alg.flop)
+	text = make_cfunc(alg.output_funcname, alg.generator.get_template(), block, alg.flop, alg.starting_regs)
 
 	if alg.output_filename is None:
 		print(text)
@@ -25,7 +25,7 @@ def main(alg: MatMul) -> None:
 		mode = "a"
 		if alg.output_overwrite:
 			mode = "w"
-		with open(alg.output_filename, "a") as f:
+		with open(alg.output_filename, mode) as f:
 			f.write(text)
 
 
@@ -57,7 +57,7 @@ if __name__=="__main__":
 
 	parser.add_argument("--output_funcname", help="Name for generated C++ function")
 	parser.add_argument("--output_filename", help="Path to destination C++ file")
-	parser.add_argument("--output_overwrite", help="Overwrite output file" , default="False")
+	parser.add_argument("--output_overwrite", action="store_true", help="Overwrite output file")
 
 	args = parser.parse_args()
 	alg = MatMul(**args.__dict__)

@@ -5,11 +5,8 @@ from typing import List, Set
 
 class Analyzer(Visitor):
 
-    clobbered_registers = None
-    stack = None
-
-    def __init__(self):
-        self.clobbered_registers = set()
+    def __init__(self, starting_regs: List[Register] = None):
+        self.clobbered_registers = set(starting_regs)
         self.stack = []
 
     def visitFma(self, stmt: FmaStmt):

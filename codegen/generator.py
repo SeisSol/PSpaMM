@@ -9,7 +9,7 @@ class AbstractGenerator:
     def get_template(self):
         raise NotImplementedError()
 
-    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int):
+    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         raise NotImplementedError()
 
     def move_register_block(self,

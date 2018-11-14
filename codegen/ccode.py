@@ -4,7 +4,7 @@ from codegen.analysis import *
 import architecture
 
 
-def make_cfunc(funcName:str, template:str, body:Block, flop:int) -> str:
+def make_cfunc(funcName:str, template:str, body:Block, flop:int, starting_regs:List[Register]) -> str:
     Printer_class = architecture.get_class("codegen.architectures." + architecture.arch + ".inlineprinter.InlinePrinter")
 
     printer = Printer_class()
@@ -12,7 +12,7 @@ def make_cfunc(funcName:str, template:str, body:Block, flop:int) -> str:
     body.accept(printer)
     body_text = "\n".join(printer.output)
 
-    analyzer = Analyzer()
+    analyzer = Analyzer(starting_regs)
     body.accept(analyzer)
     regs = ['"{}"'.format(reg.clobbered) for reg in analyzer.clobbered_registers]
     regs.sort()

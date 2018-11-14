@@ -34,7 +34,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
     def get_template(self):
         return Generator.template
 
-    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int):
+    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
         vm = bm//v_size
         assert((bn+bk) * vm <= 32)  # Needs to fit in AVX512 zmm registers
@@ -52,7 +52,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
 
         reg_count = 0
 
-        for i in range(1024, min(nnz * 8, 8000), 2048):
+        for i in range(1024, min(max(nnz * 8, m*k*8, m*n*8),8000), 2048):
             additional_regs.append(available_regs[reg_count])
             reg_count += 1
 
@@ -71,11 +71,8 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
 
         asm = block("Optimize usage of offsets when accessing B Matrix")
 
-        reg_count = 1
-
-        for i in range(1024, min(nnz * 8, 8000), 2048):
-            asm.add(mov(c(i), additional_regs[reg_count], False))
-            reg_count += 1
+        for i in range(1, min(len(additional_regs), 5)):
+            asm.add(mov(c(1024 + (i-1) * 2048), additional_regs[i], False))
         
         return asm
 
@@ -96,8 +93,8 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
         return asm
 
 
-    def reg_based_scaling(self, addr: MemoryAddress, additional_regs: List[Register]):
-        if addr.disp >= 1024 and addr.disp < 32768:
+    def reg_based_scaling(self, addr: MemoryAddress, additional_regs: List[Register], with_index: bool):
+        if addr.disp >= 1024 and ((addr.disp < 32768 and with_index) or addr.disp < 8192):
             scaling_and_register = {
                 1: (1, 1),
                 2: (2, 1),
@@ -192,7 +189,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
                     to_cell = Coords(down=bki, right=bni)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
-                        self.reg_based_scaling(B_addr, additional_regs)
+                        self.reg_based_scaling(B_addr, additional_regs, True)
                         comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*8,Vmi*8+8,bni,Vmi*8,Vmi*8+8,bki,B_comment)
                         asm.add(fma(B_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment))
         return asm
