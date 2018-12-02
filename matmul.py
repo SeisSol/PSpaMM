@@ -59,7 +59,8 @@ class MatMul:
                  lda: int, 
                  ldb: int, 
                  ldc: int,
-                 beta: int,
+                 alpha: float,
+                 beta: float,
                  mtx_filename: str,
                  mtx_format: str = 'any',
                  output_funcname: str = None,
@@ -81,6 +82,7 @@ class MatMul:
         self.ldb = ldb
         self.ldc = ldc
 
+        self.alpha = alpha
         self.beta = beta
 
         if bm == None or bn == None:
@@ -143,7 +145,7 @@ class MatMul:
 
         assert(self.m % self.v_size == 0)
 
-        self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.loop_reg, self.additional_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.nnz, self.m, self.n, self.k)
+        self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.alpha_reg, self.beta_reg, self.loop_reg, self.additional_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.nnz, self.m, self.n, self.k)
 
         self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk)
         self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, blocks, patterns,mtx_overhead)
@@ -187,7 +189,7 @@ class MatMul:
                 to_B = Coords(right=Bni, down=Bki, absolute=True)
 
                 if self.B.has_nonzero_block(B_ptr, to_B):
-                    asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.v_size, self.additional_regs, to_A, to_B))
+                    asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.alpha_reg, self.v_size, self.additional_regs, to_A, to_B))
 
             asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, True, self.prefetching))
 
@@ -212,6 +214,7 @@ class MatMul:
             Bn += 1
 
         asm = block("unrolled_{}x{}x{}".format(self.m,self.n,self.k),
+            self.generator.bcst_alpha_beta(self.alpha_reg, self.beta_reg),
             self.generator.make_scaling_offsets(self.additional_regs, self.nnz),
             loop(self.loop_reg, 0, Bm, 1).body(
                 self.make_nk_unroll(),

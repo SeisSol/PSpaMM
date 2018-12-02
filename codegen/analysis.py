@@ -12,6 +12,12 @@ class Analyzer(Visitor):
     def visitFma(self, stmt: FmaStmt):
         self.clobbered_registers.add(stmt.add_dest)
 
+    def visitMul(self, stmt: FmaStmt):
+        self.clobbered_registers.add(stmt.dest)
+
+    def visitBcst(self, stmt: FmaStmt):
+        self.clobbered_registers.add(stmt.dest)
+
     def visitAdd(self, stmt: AddStmt):
         self.clobbered_registers.add(stmt.dest)
 

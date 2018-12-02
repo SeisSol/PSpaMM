@@ -47,6 +47,7 @@ rdi = Register_KNL(AsmType.i64, "rdi")
 rsi = Register_KNL(AsmType.i64, "rsi")
 
 r   = lambda n: Register_KNL(AsmType.i64, "r"+str(n))
+xmm = lambda n: Register_KNL(AsmType.f64x2, "xmm"+str(n))
 ymm = lambda n: Register_KNL(AsmType.f64x4, "ymm"+str(n))
 zmm = lambda n: Register_KNL(AsmType.f64x8, "zmm"+str(n))
 

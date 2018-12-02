@@ -6,8 +6,8 @@ import sys
 import os.path
 
 
-SparseKernel = namedtuple('SparseKernel', 'name m n k lda ldb ldc beta block_sizes mtx delta')
-DenseKernel = namedtuple('DenseKernel', 'name m n k lda ldb ldc beta block_sizes delta')
+SparseKernel = namedtuple('SparseKernel', 'name m n k lda ldb ldc alpha beta block_sizes mtx delta')
+DenseKernel = namedtuple('DenseKernel', 'name m n k lda ldb ldc alpha beta block_sizes delta')
 
 
 def generateMTX(k, n, nnz):
@@ -56,7 +56,7 @@ long long sparsemmgen_num_total_flops = 0;
 
   for kern in kernels:
 
-  	arguments = ['./../sparsemmgen.py', str(kern.m), str(kern.n), str(kern.k), str(kern.lda), str(kern.ldb), str(kern.ldc), str(kern.beta)]
+  	arguments = ['./../sparsemmgen.py', str(kern.m), str(kern.n), str(kern.k), str(kern.lda), str(kern.ldb), str(kern.ldc), str(kern.alpha), str(kern.beta)]
 
   	if isinstance(kern, SparseKernel):
   		arguments += ['--mtx_filename', kern.mtx]
@@ -87,14 +87,16 @@ long long sparsemmgen_num_total_flops = 0;
   f.write('\n')
 
   f.write("""
-void gemm_ref(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, double BETA, double* A, double* B, double* C) {
-  if (BETA == 0.0) {
-    memset(C, 0, LDC * N * sizeof(double));
+void gemm_ref(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, double ALPHA, double BETA, double* A, double* B, double* C) {
+  for (unsigned col = 0; col < N; ++col) {
+    for (unsigned row = 0; row < M; ++row) {
+      C[row + col * LDC] = BETA * C[row + col * LDC];
+    }
   }
   for (unsigned col = 0; col < N; ++col) {
     for (unsigned row = 0; row < M; ++row) {
       for (unsigned s = 0; s < K; ++s) {
-        C[row + col * LDC] += A[row + s * LDA] * B[s + col * LDB];
+        C[row + col * LDC] += ALPHA * A[row + s * LDA] * B[s + col * LDB];
       }
     }
   }
@@ -169,12 +171,12 @@ std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned
   return std::make_tuple(A, B, Bsparse, C, Cref);
 }
 
-int post(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, double BETA, double* A, double* B, double* C, double* Cref, double DELTA) {
+int post(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, double ALPHA, double BETA, double* A, double* B, double* C, double* Cref, double DELTA) {
 
   if(LDB == 0)
     LDB = K;
 
-  gemm_ref(M, N, K, LDA, LDB, LDC, BETA, A, B, Cref);
+  gemm_ref(M, N, K, LDA, LDB, LDC, ALPHA, BETA, A, B, Cref);
     
   for(int i = 0; i < M; i++)
     for(int j = 0; j < N; j++)
@@ -209,11 +211,11 @@ int main()
 
   		f.write("""
   pointers = pre({m}, {n}, {k}, {lda}, {ldb}, {ldc}, "{mtx}");
-  {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers), nullptr, nullptr, nullptr);
-  result = post({m}, {n}, {k}, {lda}, {ldb}, {ldc}, {beta}, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.7f});
+  {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers), {alpha}, {beta}, nullptr);
+  result = post({m}, {n}, {k}, {lda}, {ldb}, {ldc}, {alpha}, {beta}, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.7f});
   results.push_back(std::make_tuple("{name}", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
-""".format(m = kern.m, n = kern.n, k = kern.k, lda = kern.lda, ldb = kern.ldb, ldc = kern.ldc, beta = kern.beta, mtx = mtx, delta = kern.delta, name = name, sparse = 2 if kern.ldb == 0 else 1))
+""".format(m = kern.m, n = kern.n, k = kern.k, lda = kern.lda, ldb = kern.ldb, ldc = kern.ldc, alpha = kern.alpha, beta = kern.beta, mtx = mtx, delta = kern.delta, name = name, sparse = 2 if kern.ldb == 0 else 1))
 
   f.write("""
 

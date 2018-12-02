@@ -78,6 +78,20 @@ class FmaStmt(AsmStmt):
     def accept(self, visitor: "Visitor"):
         visitor.visitFma(self)
 
+class MulStmt(AsmStmt):
+    src = None
+    mult_src = None
+    dest = None
+
+    def accept(self, visitor: "Visitor"):
+        visitor.visitMul(self)
+
+class BcstStmt(AsmStmt):
+    bcast_src = None
+    dest = None
+
+    def accept(self, visitor: "Visitor"):
+        visitor.visitBcst(self)
 
 class AddStmt(AsmStmt):
     src = None

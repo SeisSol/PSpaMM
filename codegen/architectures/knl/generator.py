@@ -9,15 +9,17 @@ from codegen.generator import *
 class Generator(AbstractGenerator):
 
     template = """
-void {{funcName}} (const double* A, const double* B, double* C, double const* prefetch_A, double const* prefetch_B, double const* prefetch_C) {{{{
+void {{funcName}} (const double* A, const double* B, double* C, double alpha, double beta, double const* prefetch) {{{{
   __asm__ __volatile__(
     "movq %0, %%rdi\\n\\t"
     "movq %1, %%rsi\\n\\t"
     "movq %2, %%rdx\\n\\t"
+    "vmovq %3, %%xmm0\\n\\t"
+    "vmovq %4, %%xmm1\\n\\t"
 {prefetching_mov}
 {{body_text}}
 
-    : : "m"(A), "m"(B), "m"(C){prefetching_decl} : {{clobbered}});
+    : : "m"(A), "m"(B), "m"(C), "r"(alpha){prefetching_decl} : {{clobbered}});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -39,14 +41,18 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
         vm = bm//v_size
         assert((bn+bk) * vm <= 32)  # Needs to fit in AVX512 zmm registers
 
-        A_regs = Matrix([[zmm(vm*c + r) for c in range(bk)] for r in range(vm)])
+        A_regs = Matrix([[zmm(vm*c + r + 2) for c in range(bk)] for r in range(vm)])
         B_regs = []
         C_regs = Matrix([[zmm(32 - vm*bn + vm*c + r) for c in range(bn)]
                                                      for r in range(vm)])
 
         starting_regs = [rdi, rsi, rdx]
 
-        available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax,rbx,rcx]
+        alpha_reg = [xmm(0), zmm(0)]
+
+        beta_reg = [xmm(1), zmm(1)]
+
+        available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax, rbx, rcx]
 
         additional_regs = [r(8)]
 
@@ -62,7 +68,20 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
 
         loop_reg = r(12)
 
-        return A_regs, B_regs, C_regs, starting_regs, loop_reg, additional_regs
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs
+
+
+    def bcst_alpha_beta(self,
+                        alpha_reg: Register,
+                        beta_reg: Register,
+                        ) -> Block:
+
+        asm = block("Broadcast alpha and beta so that efficient multiplication is possible")
+
+        asm.add(bcst(alpha_reg[0], alpha_reg[1]))
+        asm.add(bcst(beta_reg[0], beta_reg[1]))
+        
+        return asm
 
     def make_scaling_offsets(self,
                          additional_regs: List[Register],
@@ -162,6 +181,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
                          A_regs: Matrix[Register],
                          B_regs,
                          C_regs: Matrix[Register],
+                         alpha_reg: Register,
                          v_size:int,
                          additional_regs,
                          to_A_block: Coords = Coords(),
@@ -181,7 +201,9 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
 
         mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size)
         asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
-
+        for Vmi in range(bm//8):
+            for bki in range(bk):   
+                asm.add(mul(A_regs[Vmi, bki], alpha_reg[1], A_regs[Vmi, bki]))
 
         for Vmi in range(bm//8):
             for bki in range(bk):       # inside this k-block
@@ -200,4 +222,4 @@ void {{funcName}} (const double* A, const double* B, double* C, double const* pr
             Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = "")    
             return
         
-        Generator.template = Generator.template.format(prefetching_mov = '    "movq %3, %%r8\\n\\t"', prefetching_decl = ', "m"(prefetch_B)')
+        Generator.template = Generator.template.format(prefetching_mov = '    "movq %5, %%r8\\n\\t"', prefetching_decl = ', "m"(prefetch)')

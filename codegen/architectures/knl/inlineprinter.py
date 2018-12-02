@@ -49,6 +49,19 @@ class InlinePrinter(Visitor):
         s = "vfmadd231pd {}%{{1to8%}}, {}, {}".format(b,m,a)
         self.addLine(s, stmt.comment)
 
+    def visitMul(self, stmt: MulStmt):
+        b = stmt.src.ugly
+        m = stmt.mult_src.ugly
+        a = stmt.dest.ugly
+        s = "vmulpd {}, {}, {}".format(b,m,a)
+        self.addLine(s, stmt.comment)
+
+    def visitBcst(self, stmt: BcstStmt):
+        b = stmt.bcast_src.ugly
+        a = stmt.dest.ugly
+        s = "vbroadcastsd {}, {}".format(b,a)
+        self.addLine(s, stmt.comment)
+
     def visitAdd(self, stmt: AddStmt):
         s = "addq {}, {}".format(stmt.src.ugly,stmt.dest.ugly)
         self.addLine(s, stmt.comment)

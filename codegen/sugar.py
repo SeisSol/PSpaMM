@@ -27,6 +27,21 @@ def fma(bcast_src: Register, mult_src: Register, add_dest: Register, comment: st
     stmt.comment = comment
     return stmt
 
+def mul(src: Register, mult_src: Register, dest: Register, comment: str = None):
+    stmt = MulStmt()
+    stmt.src = src
+    stmt.mult_src = mult_src
+    stmt.dest = dest
+    stmt.comment = comment
+    return stmt
+
+def bcst(bcast_src: Register, dest: Register, comment: str = None):
+    stmt = BcstStmt()
+    stmt.bcast_src = bcast_src
+    stmt.dest = dest
+    stmt.comment = comment
+    return stmt
+
 def cmp(lhs: Union[Operand, int], rhs: Union[Operand, int]):
     stmt = CmpStmt()
     stmt.lhs = lhs if isinstance(lhs, Operand) else architecture.operands.c(lhs)
