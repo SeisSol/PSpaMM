@@ -1,4 +1,4 @@
-def getBlocksize(m , n):
+def getBlocksize(m , n, bk):
 
 	bm = 8
 	bn = 1
@@ -6,7 +6,7 @@ def getBlocksize(m , n):
 
 	for i in range(8, m+1, 8):
 		for j in range(1, n+1):
-			if KNL_condition(i, j):
+			if KNL_condition(i, j, bk):
 				if i*j > maxval:
 					maxval = i*j
 					bm = i
@@ -15,5 +15,5 @@ def getBlocksize(m , n):
 	return (bm, bn)
 
 
-def KNL_condition(bm, bn):
-    return (bn+1) * (bm / 8) <= 32
+def KNL_condition(bm, bn, bk):
+    return (bn+bk) * (bm / 8) + 2 <= 32

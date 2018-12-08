@@ -1,12 +1,12 @@
-def getBlocksize(m , n):
+def getBlocksize(m , n, bk):
 
 	bm = m
 	bn = n
 	
-	if KNL_condition(bm, bn):
+	if KNL_condition(bm, bn, bk):
 		return (bm, bn)
 
-	while not KNL_condition(bm, bn):
+	while not KNL_condition(bm, bn, bk):
 		bm, bn = lowerToNextDiv(m, n, bm, bn)
 
 	return (bm, bn)
@@ -25,5 +25,5 @@ def lowerToNextDiv(m, n, bm, bn):
 	return bm, bn
 
 
-def KNL_condition(bm, bn):
-	return (bn+1) * (bm / 8) <= 32
+def KNL_condition(bm, bn, bk):
+	return (bn+bk) * (bm / 8) + 2 <= 32

@@ -19,7 +19,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double alpha, do
 {prefetching_mov}
 {{body_text}}
 
-    : : "m"(A), "m"(B), "m"(C), "r"(alpha){prefetching_decl} : {{clobbered}});
+    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta){prefetching_decl} : {{clobbered}});
 
     #ifndef NDEBUG
     #ifdef _OPENMP

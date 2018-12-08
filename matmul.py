@@ -178,8 +178,11 @@ class MatMul:
                 regs = self.C_regs[0:vm, 0:n_overhead]
             else:
                 regs = self.C_regs
-            if self.beta == 1:
+            if self.beta != 0:
                 asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, False))
+                for ic in range(regs.shape[1]):
+                    for ir in range(regs.shape[0]):
+                        asm.add(mul(regs[ir,ic], self.beta_reg[1], regs[ir,ic]))
             else:
                 asm.add(self.generator.make_zero_block(regs, self.additional_regs))
 
