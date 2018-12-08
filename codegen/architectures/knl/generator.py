@@ -183,7 +183,6 @@ void {{funcName}} (const double* A, const double* B, double* C, double alpha, do
                          A_regs: Matrix[Register],
                          B_regs,
                          C_regs: Matrix[Register],
-                         alpha_reg: Register,
                          v_size:int,
                          additional_regs,
                          to_A_block: Coords = Coords(),

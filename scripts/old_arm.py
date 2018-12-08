@@ -1,12 +1,12 @@
-def getBlocksize(m , n):
+def getBlocksize(m , n, bk):
 
 	bm = m
 	bn = n
-
-	if ARM_condition(bm, bn):
+	
+	if ARM_condition(bm, bn, bk):
 		return (bm, bn)
 
-	while not ARM_condition(bm, bn):
+	while not ARM_condition(bm, bn, bk):
 		bm, bn = lowerToNextDiv(m, n, bm, bn)
 
 	return (bm, bn)
@@ -24,5 +24,6 @@ def lowerToNextDiv(m, n, bm, bn):
 
 	return bm, bn
 
-def ARM_condition(bm, bn):
-	return (bn+1) * (bm / 2) + bn <= 32
+
+def ARM_condition(bm, bn, bk):
+	return (bn+bk) * (bm / 2) + bn + 2 <= 32

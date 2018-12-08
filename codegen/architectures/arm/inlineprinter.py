@@ -49,6 +49,13 @@ class InlinePrinter(Visitor):
         s = "fmla {}, {}, {}[0]".format(a,m,b)
         self.addLine(s, stmt.comment)
 
+    def visitMul(self, stmt: MulStmt):
+        b = stmt.src.ugly
+        m = stmt.mult_src.ugly
+        a = stmt.dest.ugly
+        s = "fmul {}, {}, {}".format(a,m,b)
+        self.addLine(s, stmt.comment)
+
     def visitAdd(self, stmt: AddStmt):
         if isinstance(stmt.src, Constant) and (stmt.src.value > 4095 or stmt.src.value < -4095):
             s = "mov x11, {}".format(stmt.src.ugly)

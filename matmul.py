@@ -68,7 +68,7 @@ class MatMul:
                  output_overwrite: bool = False,
                  bm: int = None, 
                  bn: int = None, 
-                 bk: int = 2,
+                 bk: int = None,
                  arch: str = 'knl',
                  prefetching: str = None,
                  **kwargs  # Accept and ignore args which don't belong
@@ -85,11 +85,14 @@ class MatMul:
         self.alpha = alpha
         self.beta = beta
 
+        if bk == None:
+            bk = 2 if arch == 'knl' else 1
+
         if bm == None or bn == None:
             if arch == 'knl':
                 (self.bm, self.bn) = scripts.max_bn_knl.getBlocksize(m, n, bk)
             elif arch == 'arm':
-                (self.bm, self.bn) = scripts.old_arm.getBlocksize(m, n)
+                (self.bm, self.bn) = scripts.old_arm.getBlocksize(m, n, bk)
         else: 
             self.bm = bm
             self.bn = bn
@@ -195,7 +198,7 @@ class MatMul:
                 to_B = Coords(right=Bni, down=Bki, absolute=True)
 
                 if self.B.has_nonzero_block(B_ptr, to_B):
-                    asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.alpha_reg, self.v_size, self.additional_regs, to_A, to_B))
+                    asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.v_size, self.additional_regs, to_A, to_B))
 
             if self.alpha != 1.0:
                 store_block = block("")

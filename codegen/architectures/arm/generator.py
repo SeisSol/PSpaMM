@@ -14,6 +14,8 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
     "ldr x0, %0\\n\\t"
     "ldr x1, %1\\n\\t"
     "ldr x2, %2\\n\\t"
+    "dup v0.2d, %3\\n\\t"
+    "dup v1.2d, %4\\n\\t"
     {body_text}
 
     : : "m"(A), "m"(B), "m"(C) : {clobbered});
@@ -36,12 +38,15 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
         vm = bm//v_size
-        assert((bn+bk) * vm + bn * bk <= 32)  # Needs to fit in NEON v registers
+        assert((bn+bk) * vm + bn * bk  + 2<= 32)  # Needs to fit in NEON v registers
 
-        A_regs = Matrix([[v(vm*c + r) for c in range(bk)] for r in range(vm)])
-        B_regs = Matrix([[v(vm*bk + bn * r + c) for c in range(bn)] for r in range(bk)])
-        C_regs = Matrix([[v(32 - vm*bn + vm*c + r) for c in range(bn)]
+        A_regs = Matrix([[v(vm*c + r + 2) for c in range(bk)] for r in range(vm)])
+        B_regs = Matrix([[v(vm*bk + 2 + bn * r + c) for c in range(bn)] for r in range(bk)])
+        C_regs = Matrix([[v(32 - vm*bn + vm*c + r + 2) for c in range(bn)]
                                                    for r in range(vm)])
+        alpha_reg = [v(0), v(0)]
+
+        beta_reg = [v(1), v(1)]
 
         starting_regs = [r(0), r(1), r(2)]
 
@@ -49,7 +54,18 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
 
         loop_reg = r(12)
 
-        return A_regs, B_regs, C_regs, starting_regs, loop_reg, additional_regs
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs
+
+
+    def bcst_alpha_beta(self,
+                        alpha_reg: Register,
+                        beta_reg: Register,
+                        ) -> Block:
+
+        asm = block("Broadcast alpha and beta so that efficient multiplication is possible")
+
+        
+        return asm
 
     def make_scaling_offsets(self,
                          additional_regs: List[Register],
@@ -77,7 +93,8 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
                             additional_regs,
                             mask: Matrix[bool] = None,
                             store: bool = False,
-                            prefetching: str = None
+                            prefetching: str = None,
+                            load_offset: int = 0
                             ) -> Block:
 
         rows, cols = registers.shape
@@ -94,7 +111,7 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
                 if (mask is None) or (mask[ir,ic]):
                     cell_offset = Coords(down=ir*v_size, right=ic)
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
-
+                    addr.disp += 8 * load_offset
                     next_offset = [0, 0]
                     if ir+1 < rows:
                         next_offset = [1, 0]
@@ -102,6 +119,7 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
                         next_offset = [0, 1]
 
                     addr_next, comment_next = cursor.look(cursor_ptr, block_offset, Coords(down=(ir+next_offset[0])*v_size, right=ic+next_offset[1]))
+                    addr_next.disp += 8 * load_offset
                     if addr_next.disp == addr.disp + 8 * v_size:
                         skipflag = True
                     if addr.disp > 255:
