@@ -19,12 +19,13 @@ def label(name: str):
     stmt.label = architecture.operands.l(name)
     return stmt
 
-def fma(bcast_src: Register, mult_src: Register, add_dest: Register, comment: str = None):
+def fma(bcast_src: Register, mult_src: Register, add_dest: Register, comment: str = None, bcast: bool = True):
     stmt = FmaStmt()
     stmt.bcast_src = bcast_src
     stmt.mult_src = mult_src
     stmt.add_dest = add_dest
     stmt.comment = comment
+    stmt.bcast = bcast
     return stmt
 
 def mul(src: Register, mult_src: Register, dest: Register, comment: str = None):

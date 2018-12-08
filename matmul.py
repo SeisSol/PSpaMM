@@ -205,7 +205,7 @@ class MatMul:
 
                     mul_asm = block("multiply with alpha before writing to memory")
                     for i in range(A_regs_cut.shape[1]):   
-                        mul_asm.add(mul(A_regs_cut[0, i], self.alpha_reg[1], A_regs_cut[0, i]))
+                        mul_asm.add(fma(regs[y, x + i], self.alpha_reg[1], A_regs_cut[0, i], "C = C + alpha * AB", False))
 
                     asm.add(mul_asm)
 

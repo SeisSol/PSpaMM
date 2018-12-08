@@ -74,6 +74,7 @@ class FmaStmt(AsmStmt):
     bcast_src = None
     mult_src = None
     add_dest = None
+    bcast = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitFma(self)

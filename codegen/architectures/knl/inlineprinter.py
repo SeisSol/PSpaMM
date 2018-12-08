@@ -46,7 +46,10 @@ class InlinePrinter(Visitor):
         b = stmt.bcast_src.ugly
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
-        s = "vfmadd231pd {}%{{1to8%}}, {}, {}".format(b,m,a)
+        if stmt.bcast:
+            s = "vfmadd231pd {}%{{1to8%}}, {}, {}".format(b,m,a)
+        else:
+            s = "vfmadd231pd {}, {}, {}".format(b,m,a)
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
