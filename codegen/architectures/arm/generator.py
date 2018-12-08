@@ -9,22 +9,24 @@ from codegen.generator import *
 class Generator(AbstractGenerator):
 
     template = """
-void {funcName} (const double* A, const double* B, double* C, double const* e1, double const* e2, double const* e3) {{{{
+void {funcName} (const double* A, const double* B, double* C, double alpha, double beta, const double* prefetch) {{{{
   __asm__ __volatile__(
     "ldr x0, %0\\n\\t"
     "ldr x1, %1\\n\\t"
     "ldr x2, %2\\n\\t"
-    "dup v0.2d, %3\\n\\t"
-    "dup v1.2d, %4\\n\\t"
+    "ldr x3, %3\\n\\t"
+    "ldr x4, %4\\n\\t"
+    "dup v0.2d, x3\\n\\t"
+    "dup v1.2d, x4\\n\\t"
     {body_text}
 
-    : : "m"(A), "m"(B), "m"(C) : {clobbered});
+    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta) : {clobbered});
     
     #ifndef NDEBUG
     #ifdef _OPENMP
     #pragma omp atomic
     #endif
-    sparse_total_flops += {{flop}};
+    sparsemmgen_num_total_flops += {{flop}};
     #endif
 
 }}}};"""
@@ -38,11 +40,11 @@ void {funcName} (const double* A, const double* B, double* C, double const* e1, 
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
         vm = bm//v_size
-        assert((bn+bk) * vm + bn * bk  + 2<= 32)  # Needs to fit in NEON v registers
+        assert((bn+bk) * vm + bn * bk + 2<= 32)  # Needs to fit in NEON v registers
 
         A_regs = Matrix([[v(vm*c + r + 2) for c in range(bk)] for r in range(vm)])
         B_regs = Matrix([[v(vm*bk + 2 + bn * r + c) for c in range(bn)] for r in range(bk)])
-        C_regs = Matrix([[v(32 - vm*bn + vm*c + r + 2) for c in range(bn)]
+        C_regs = Matrix([[v(32 - vm*bn + vm*c + r) for c in range(bn)]
                                                    for r in range(vm)])
         alpha_reg = [v(0), v(0)]
 

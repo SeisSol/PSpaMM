@@ -205,13 +205,18 @@ class MatMul:
                 
                 for x in range(0, regs.shape[1], self.A_regs.shape[1]):
                     A_regs_cut = self.A_regs[0:min(self.A_regs.shape[0], regs.shape[0]), 0:regs.shape[1]-x]
-                    store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, False, None, self.ldc * x))
+                    if self.beta != 0.0:
+                        store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, False, None, self.ldc * x))
 
 
                     for ir in range(A_regs_cut.shape[0]):
                         for ic in range(A_regs_cut.shape[1]):
-                            store_block.add(mul(A_regs_cut[ir,ic], self.beta_reg[1], A_regs_cut[ir,ic]))
-                            store_block.add(fma(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = C + alpha * AB", False))
+                            if self.beta != 0.0 and self.beta != 1.0:
+                                store_block.add(mul(A_regs_cut[ir,ic], self.beta_reg[1], A_regs_cut[ir,ic]))
+                            if self.beta == 0.0:
+                                store_block.add(mul(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = C + alpha * AB"))
+                            else:
+                                store_block.add(fma(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = C + alpha * AB", False))
 
                     store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, True, self.prefetching, self.ldc * x))
                 asm.add(store_block)

@@ -43,10 +43,13 @@ class InlinePrinter(Visitor):
 
 
     def visitFma(self, stmt: FmaStmt):
-        b = stmt.bcast_src.ugly_1d
+        b = stmt.bcast_src.ugly
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
-        s = "fmla {}, {}, {}[0]".format(a,m,b)
+        if stmt.bcast:
+            s = "fmla {}, {}, {}[0]".format(a,m,b)
+        else:
+            s = "fmla {}, {}, {}".format(a,m,b)
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
