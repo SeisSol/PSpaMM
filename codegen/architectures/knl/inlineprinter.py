@@ -6,7 +6,7 @@ from codegen.operands import *
 
 class InlinePrinter(Visitor):
 
-    show_comments = True
+    show_comments = False
     indent = "  "
     depth = 0
     lmargin = 0
@@ -109,7 +109,7 @@ class InlinePrinter(Visitor):
     def visitBlock(self, block: Block):
         self.stack.append(block)
         self.depth += 1
-        if self.show_comments:
+        if self.show_comments and block.comment != '':
             self.addLine(None, block.comment)
         for stmt in block.contents:
             stmt.accept(self)
