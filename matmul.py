@@ -180,9 +180,9 @@ class MatMul:
             if Bni + 1 == Bn and n_overhead > 0:
                 regs = self.C_regs[0:vm, 0:n_overhead]
 
-            if (self.alpha == 0.0 or self.alpha == 1.0) and self.beta != 0.0:
+            if self.alpha == 1.0 and self.beta != 0.0:
                 asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, False))
-                if beta != 1.0:
+                if self.beta != 1.0:
                     for ic in range(regs.shape[1]):
                         for ir in range(regs.shape[0]):
                             asm.add(mul(regs[ir,ic], self.beta_reg[1], regs[ir,ic]))
@@ -197,22 +197,20 @@ class MatMul:
                 if self.B.has_nonzero_block(B_ptr, to_B):
                     asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.alpha_reg, self.v_size, self.additional_regs, to_A, to_B))
 
-            if self.alpha != 0.0 and self.alpha != 1.0:
+            if self.alpha != 1.0:
                 store_block = block("")
                 
-                for y in range(0, regs.shape[0]):
-                    for x in range(0, regs.shape[1], self.A_regs.shape[1]):
-                        A_regs_cut = self.A_regs[0, 0:regs.shape[1]-x]
-                        store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, False, None, y + self.m * x))
+                for x in range(0, regs.shape[1], self.A_regs.shape[1]):
+                    A_regs_cut = self.A_regs[0:min(self.A_regs.shape[0], regs.shape[0]), 0:regs.shape[1]-x]
+                    store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, False, None, self.ldc * x))
 
 
+                    for ir in range(A_regs_cut.shape[0]):
                         for ic in range(A_regs_cut.shape[1]):
-                            store_block.add(mul(A_regs_cut[0,ic], self.beta_reg[1], A_regs_cut[0,ic]))
+                            store_block.add(mul(A_regs_cut[ir,ic], self.beta_reg[1], A_regs_cut[ir,ic]))
+                            store_block.add(fma(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = C + alpha * AB", False))
 
-                        for i in range(A_regs_cut.shape[1]):   
-                            store_block.add(fma(regs[y, x + i], self.alpha_reg[1], A_regs_cut[0, i], "C = C + alpha * AB", False))
-
-                        store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, True, self.prefetching, y + self.m * x))
+                    store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, True, self.prefetching, self.ldc * x))
                 asm.add(store_block)
 
             else:
