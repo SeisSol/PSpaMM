@@ -141,7 +141,8 @@ void {{funcName}} (const double* A, const double* B, double* C, double alpha, do
                             additional_regs,
                             mask: Matrix[bool] = None,
                             store: bool = False,
-                            prefetching: str = None
+                            prefetching: str = None,
+                            load_offset: int = 0
                            ) -> Block:
 
         rows, cols = registers.shape
@@ -153,6 +154,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double alpha, do
                 if (mask is None) or (mask[ir,ic]):
                     cell_offset = Coords(down=ir*8, right=ic)
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
+                    addr.disp += 8 * load_offset
                     if store:
                         asm.add(mov(registers[ir,ic], addr, True, comment))
                         if prefetching == 'BL2viaC':
@@ -201,9 +203,6 @@ void {{funcName}} (const double* A, const double* B, double* C, double alpha, do
 
         mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size)
         asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
-        for Vmi in range(bm//8):
-            for bki in range(bk):   
-                asm.add(mul(A_regs[Vmi, bki], alpha_reg[1], A_regs[Vmi, bki]))
 
         for Vmi in range(bm//8):
             for bki in range(bk):       # inside this k-block

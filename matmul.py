@@ -174,10 +174,12 @@ class MatMul:
         asm.add(self.generator.make_b_pointers(self.starting_regs[1], self.additional_regs, self.nnz))
 
         for Bni in range(0,Bn):
+            
+            regs = self.C_regs
+            
             if Bni + 1 == Bn and n_overhead > 0:
                 regs = self.C_regs[0:vm, 0:n_overhead]
-            else:
-                regs = self.C_regs
+
             if self.beta != 0:
                 asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, False))
                 for ic in range(regs.shape[1]):
@@ -194,7 +196,22 @@ class MatMul:
                 if self.B.has_nonzero_block(B_ptr, to_B):
                     asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.alpha_reg, self.v_size, self.additional_regs, to_A, to_B))
 
-            asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, True, self.prefetching))
+#            if self.alpha != 0 && self.alpha != 1.0:
+
+            for y in range(0, regs.shape[0]):
+                for x in range(0, regs.shape[1], self.A_regs.shape[1]):
+                    A_regs_cut = self.A_regs[0, 0:regs.shape[1]-x]
+                    asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, False, None, y + self.m * x))
+
+                    mul_asm = block("multiply with alpha before writing to memory")
+                    for i in range(A_regs_cut.shape[1]):   
+                        mul_asm.add(mul(A_regs_cut[0, i], self.alpha_reg[1], A_regs_cut[0, i]))
+
+                    asm.add(mul_asm)
+
+                    asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, True, self.prefetching, y + self.m * x))
+
+#            asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, True, self.prefetching))
 
             if (Bni != Bn-1):
                 move_C, C_ptr = self.C.move(C_ptr, Coords(right=1))
