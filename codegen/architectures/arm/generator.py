@@ -26,7 +26,7 @@ void {funcName} (const double* A, const double* B, double* C, double alpha, doub
     #ifdef _OPENMP
     #pragma omp atomic
     #endif
-    sparsemmgen_num_total_flops += {{flop}};
+    pspamm_num_total_flops += {{flop}};
     #endif
 
 }}}};"""

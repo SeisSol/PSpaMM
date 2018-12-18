@@ -51,12 +51,12 @@ def make(kernels, arch):
 #include <tuple>
 
 
-long long sparsemmgen_num_total_flops = 0;
+long long pspamm_num_total_flops = 0;
 """)
 
   for kern in kernels:
 
-  	arguments = ['./../sparsemmgen.py', str(kern.m), str(kern.n), str(kern.k), str(kern.lda), str(kern.ldb), str(kern.ldc), str(kern.alpha), str(kern.beta)]
+  	arguments = ['./../pspamm.py', str(kern.m), str(kern.n), str(kern.k), str(kern.lda), str(kern.ldb), str(kern.ldc), str(kern.alpha), str(kern.beta)]
 
   	if isinstance(kern, SparseKernel):
   		arguments += ['--mtx_filename', kern.mtx]
