@@ -7,6 +7,6 @@ Usage:
 
 ./pspamm M N K LDA LDB LDC ALPHA BETA 
 
---arch arm/knl --mtx_filename FILE 
+--arch arm/knl --mtx_filename MTX_FILE_PATH
 
---output_funcname FUNCTION_NAME --output_filename FILE_NAME
+--output_funcname FUNCTION_NAME --output_filename OUTPUT_NAME
