@@ -218,6 +218,8 @@ void {{funcName}} (const double* A, const double* B, double* C, double alpha, do
         
         if prefetching != 'BL2viaC':
             Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = "")    
-            return
+            return None
         
-        Generator.template = Generator.template.format(prefetching_mov = '    "movq %5, %%r8\\n\\t"', prefetching_decl = ', "m"(prefetch)')
+        prefetchReg = r(8)
+        Generator.template = Generator.template.format(prefetching_mov = '    "movq %5, {}\\n\\t"'.format(prefetchReg.ugly), prefetching_decl = ', "m"(prefetch)')
+        return prefetchReg

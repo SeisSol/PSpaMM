@@ -142,7 +142,7 @@ class MatMul:
 
         self.generator = architecture.Generator()
 
-        self.generator.init_prefetching(self.prefetching)
+        prefetchReg = self.generator.init_prefetching(self.prefetching)
 
         self.v_size = self.generator.get_v_size()
 
@@ -153,6 +153,7 @@ class MatMul:
         self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk)
         self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, blocks, patterns,mtx_overhead)
         self.C = DenseCursor("C", self.starting_regs[2], self.m, self.n, self.ldc, self.bm, self.bn)
+        self.C_pf = DenseCursor("C_pf", prefetchReg, self.m, self.n, self.ldc, self.bm, self.bn) if prefetchReg else None
 
 
     def make_nk_unroll(self):
@@ -161,6 +162,7 @@ class MatMul:
         A_ptr = CursorLocation()
         B_ptr = self.B.start()
         C_ptr = CursorLocation()
+        C_pf_ptr = CursorLocation()
 
         Bn = self.n // self.bn
         Bk = self.k // self.bk
@@ -227,6 +229,10 @@ class MatMul:
             if (Bni != Bn-1):
                 move_C, C_ptr = self.C.move(C_ptr, Coords(right=1))
                 asm.add(move_C)
+                if self.C_pf:
+                  move_C_pf, C_pf_ptr = self.C.move(C_pf_ptr, Coords(right=1))
+                  asm.add(move_C_pf)
+
 
         return asm
 
@@ -236,6 +242,7 @@ class MatMul:
         
         A_ptr = CursorLocation()
         C_ptr = CursorLocation()
+        C_pf_ptr = CursorLocation()
 
         Bm = self.m // self.bm
         Bn = self.n // self.bn
@@ -244,14 +251,18 @@ class MatMul:
         if self.n % self.bn != 0:
             Bn += 1
 
+        loopBody = [
+          self.make_nk_unroll(),
+          self.A.move(A_ptr, Coords(down=1))[0],
+          self.C.move(C_ptr, Coords(down=1, right=1-Bn))[0]
+        ]
+        if self.C_pf:
+          loopBody.append(self.C_pf.move(C_pf_ptr, Coords(down=1, right=1-Bn))[0])
+
         asm = block("unrolled_{}x{}x{}".format(self.m,self.n,self.k),
             self.generator.bcst_alpha_beta(self.alpha_reg, self.beta_reg),
             self.generator.make_scaling_offsets(self.additional_regs, self.nnz),
-            loop(self.loop_reg, 0, Bm, 1).body(
-                self.make_nk_unroll(),
-                self.A.move(A_ptr, Coords(down=1))[0],
-                self.C.move(C_ptr, Coords(down=1, right=1-Bn))[0]
-            )
+            loop(self.loop_reg, 0, Bm, 1).body(*loopBody)
         )
 
         vm_overhead = (self.m % self.bm) // self.v_size
