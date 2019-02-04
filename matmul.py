@@ -234,7 +234,7 @@ class MatMul:
                 move_C, C_ptr = self.C.move(C_ptr, Coords(right=1))
                 asm.add(move_C)
                 if self.C_pf:
-                  move_C_pf, C_pf_ptr = self.C.move(C_pf_ptr, Coords(right=1))
+                  move_C_pf, C_pf_ptr = self.C_pf.move(C_pf_ptr, Coords(right=1))
                   asm.add(move_C_pf)
 
 
