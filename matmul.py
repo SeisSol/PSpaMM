@@ -3,6 +3,7 @@ from typing import Tuple
 from codegen.ast import *
 from codegen.sugar import *
 from codegen.forms import *
+from codegen.precision import *
 
 import scripts.old_arm
 import scripts.max_bn_knl
@@ -70,6 +71,7 @@ class MatMul:
                  bn: int = None, 
                  bk: int = None,
                  arch: str = 'knl',
+                 precision: str = 'd',
                  prefetching: str = None,
                  **kwargs  # Accept and ignore args which don't belong
                  ) -> None:
@@ -85,21 +87,32 @@ class MatMul:
         self.alpha = alpha
         self.beta = beta
 
+        self.arch = arch
+        assert precision.lower() in ['s', 'd']
+        self.precision = Precision.DOUBLE if precision.lower() == 'd' else Precision.SINGLE
+
+        architecture.init()
+        architecture.arch = arch
+        architecture.Generator = architecture.get_class("codegen.architectures." + arch + ".generator.Generator")
+        architecture.operands = architecture.get_class("codegen.architectures." + arch + ".operands")
+
+        self.generator = architecture.Generator(self.precision)
+
+        self.v_size = self.generator.get_v_size()
+
         if bk == None:
             bk = 2 if arch == 'knl' else 1
 
         if bm == None or bn == None:
             if arch == 'knl':
-                (self.bm, self.bn) = scripts.max_bn_knl.getBlocksize(m, n, bk)
+                (self.bm, self.bn) = scripts.max_bn_knl.getBlocksize(m, n, bk, self.v_size)
             elif arch == 'arm':
-                (self.bm, self.bn) = scripts.old_arm.getBlocksize(m, n, bk)
+                (self.bm, self.bn) = scripts.old_arm.getBlocksize(m, n, bk, self.v_size)
         else: 
             self.bm = bm
             self.bn = bn
 
         self.bk = bk
-
-        self.arch = arch
 
         self.prefetching = prefetching
 
@@ -135,25 +148,16 @@ class MatMul:
             self.nnz = ldb * self.n
             self.flop = m * n * k * 2
 
-        architecture.init()
-        architecture.arch = arch
-        architecture.Generator = architecture.get_class("codegen.architectures." + arch + ".generator.Generator")
-        architecture.operands = architecture.get_class("codegen.architectures." + arch + ".operands")
-
-        self.generator = architecture.Generator()
-
         prefetchReg = self.generator.init_prefetching(self.prefetching)
-
-        self.v_size = self.generator.get_v_size()
 
         assert(self.m % self.v_size == 0)
 
         self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.alpha_reg, self.beta_reg, self.loop_reg, self.additional_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.nnz, self.m, self.n, self.k)
 
-        self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk)
-        self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, blocks, patterns,mtx_overhead)
-        self.C = DenseCursor("C", self.starting_regs[2], self.m, self.n, self.ldc, self.bm, self.bn)
-        self.C_pf = DenseCursor("C_pf", prefetchReg, self.m, self.n, self.ldc, self.bm, self.bn) if prefetchReg else None
+        self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk, self.precision.value)
+        self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.value, blocks, patterns,mtx_overhead)
+        self.C = DenseCursor("C", self.starting_regs[2], self.m, self.n, self.ldc, self.bm, self.bn, self.precision.value)
+        self.C_pf = DenseCursor("C_pf", prefetchReg, self.m, self.n, self.ldc, self.bm, self.bn, self.precision.value) if prefetchReg else None
 
 
     def make_nk_unroll(self):

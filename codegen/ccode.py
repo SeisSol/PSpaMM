@@ -1,13 +1,14 @@
 from codegen.ast import *
 from codegen.analysis import *
+from codegen.precision import *
 
 import architecture
 
 
-def make_cfunc(funcName:str, template:str, body:Block, flop:int, starting_regs:List[Register]) -> str:
+def make_cfunc(funcName:str, template:str, body:Block, flop:int, starting_regs:List[Register], precision: Precision) -> str:
     Printer_class = architecture.get_class("codegen.architectures." + architecture.arch + ".inlineprinter.InlinePrinter")
 
-    printer = Printer_class()
+    printer = Printer_class(precision)
     printer.lmargin = 4
     body.accept(printer)
     body_text = "\n".join(printer.output)

@@ -1,17 +1,28 @@
 from cursors import *
 from codegen.ast import *
+from codegen.precision import *
+from abc import ABC, abstractmethod
 
-class AbstractGenerator:
-  
+class AbstractGenerator(ABC):
+    def __init__(self, precision: Precision):
+      self.precision = precision
+
+    def get_precision(self):
+      return self.precision
+
+    @abstractmethod
     def get_v_size(self):
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def get_template(self):
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def move_register_block(self,
                             cursor: Cursor,
                             cursor_ptr: CursorLocation,
@@ -22,12 +33,13 @@ class AbstractGenerator:
                             mask: Matrix[bool] = None,
                             store: bool = False
                             ) -> Block:
+        pass
 
-        raise NotImplementedError()
-
+    @abstractmethod
     def make_zero_block(self, registers: Matrix[Register], additional_regs) -> Block:
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def make_microkernel(self,
                          A: Cursor,
                          B: Cursor,
@@ -41,7 +53,8 @@ class AbstractGenerator:
                          to_A_block: Coords = Coords(),
                          to_B_block: Coords = Coords()
                          ) -> Block:
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def init_prefetching(self, prefetching):
-        raise NotImplementedError()
+        pass

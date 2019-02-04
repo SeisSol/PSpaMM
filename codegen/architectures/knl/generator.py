@@ -4,10 +4,10 @@ from codegen.architectures.knl.operands import *
 from codegen.ast import *
 from codegen.sugar import *
 from codegen.generator import *
+from codegen.precision import *
 
 
 class Generator(AbstractGenerator):
-
     template = """
 void {{funcName}} (const double* A, const double* B, double* C, double alpha, double beta, double const* prefetch) {{{{
   __asm__ __volatile__(
@@ -31,7 +31,11 @@ void {{funcName}} (const double* A, const double* B, double* C, double alpha, do
 }}}};
 """
     def get_v_size(self):
-        return 8
+        if self.precision == Precision.DOUBLE:
+          return 8
+        elif self.precision == Precision.SINGLE:
+          return 16
+        raise NotImplementedError
 
     def get_template(self):
         return Generator.template
@@ -58,11 +62,11 @@ void {{funcName}} (const double* A, const double* B, double* C, double alpha, do
 
         reg_count = 0
 
-        for i in range(1024, min(max(nnz * 8, m*k*8, m*n*8),8000), 2048):
+        for i in range(1024, min(max(nnz * self.precision.value, m*k*self.precision.value, m*n*self.precision.value),8000), 2048):
             additional_regs.append(available_regs[reg_count])
             reg_count += 1
 
-        for i in range(8192, min(nnz * 8, 33000), 8192):
+        for i in range(8192, min(nnz * self.precision.value, 33000), 8192):
             additional_regs.append(available_regs[reg_count])
             reg_count += 1
 
@@ -105,7 +109,7 @@ void {{funcName}} (const double* A, const double* B, double* C, double alpha, do
 
         reg_count = 5
 
-        for i in range(8192, min(nnz * 8, 33000), 8192):
+        for i in range(8192, min(nnz * self.precision.value, 33000), 8192):
             asm.add(lea(B_reg, additional_regs[reg_count], i))
             reg_count += 1
         
@@ -152,9 +156,9 @@ void {{funcName}} (const double* A, const double* B, double* C, double alpha, do
         for ic in range(cols):
             for ir in range(rows):
                 if (mask is None) or (mask[ir,ic]):
-                    cell_offset = Coords(down=ir*8, right=ic)
+                    cell_offset = Coords(down=ir*v_size, right=ic)
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
-                    addr.disp += 8 * load_offset
+                    addr.disp += self.precision.value * load_offset
                     if store:
                         asm.add(mov(registers[ir,ic], addr, True, comment))
                         if prefetching == 'BL2viaC':
@@ -198,19 +202,19 @@ void {{funcName}} (const double* A, const double* B, double* C, double alpha, do
         asm = block("Block GEMM microkernel")
         bm,bk,aidx,apattern = A.get_block(A_ptr, to_A_block)
         bk,bn,bidx,bpattern = B.get_block(B_ptr, to_B_block)
-        assert(bm % 8 == 0)
+        assert(bm % v_size == 0)
 
         mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size)
         asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
 
-        for Vmi in range(bm//8):
+        for Vmi in range(bm//v_size):
             for bki in range(bk):       # inside this k-block
                 for bni in range(bn):   # inside this n-block
                     to_cell = Coords(down=bki, right=bni)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
                         self.reg_based_scaling(B_addr, additional_regs, True)
-                        comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*8,Vmi*8+8,bni,Vmi*8,Vmi*8+8,bki,B_comment)
+                        comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*v_size,Vmi*v_size+v_size,bni,Vmi*v_size,Vmi*v_size+v_size,bki,B_comment)
                         asm.add(fma(B_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment))
         return asm
 

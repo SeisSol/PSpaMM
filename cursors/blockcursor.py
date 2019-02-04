@@ -19,13 +19,14 @@ class BlockCursor(Cursor):
                  ld: int,
                  block_rows: int,
                  block_cols: int,
+                 scalar_bytes:int,
                  blocks: Matrix[int],
                  patterns: List[Matrix[bool]],
                  mtx_overhead) -> None:
 
         self.name = name
         self.base_ptr = base_ptr
-        self.scalar_bytes = 8
+        self.scalar_bytes = scalar_bytes
         self.r = rows
         self.c = cols
         self.ld = ld

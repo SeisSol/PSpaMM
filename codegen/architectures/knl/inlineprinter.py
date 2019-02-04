@@ -2,6 +2,7 @@ from typing import List
 from codegen.ast import *
 from codegen.visitor import Visitor
 from codegen.operands import *
+from codegen.precision import *
 
 
 class InlinePrinter(Visitor):
@@ -16,9 +17,11 @@ class InlinePrinter(Visitor):
     stack = None
 
 
-    def __init__(self):
+    def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
+        assert precision in [Precision.SINGLE, Precision.DOUBLE]
+        self.precision = 'd' if precision == Precision.DOUBLE else 's'
 
     def show(self):
         print("\n".join(self.output))
@@ -47,22 +50,22 @@ class InlinePrinter(Visitor):
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
         if stmt.bcast:
-            s = "vfmadd231pd {}%{{1to8%}}, {}, {}".format(b,m,a)
+            s = "vfmadd231p{} {}%{{1to8%}}, {}, {}".format(self.precision, b,m,a)
         else:
-            s = "vfmadd231pd {}, {}, {}".format(b,m,a)
+            s = "vfmadd231p{} {}, {}, {}".format(self.precision, b,m,a)
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
         b = stmt.src.ugly
         m = stmt.mult_src.ugly
         a = stmt.dest.ugly
-        s = "vmulpd {}, {}, {}".format(b,m,a)
+        s = "vmulp{} {}, {}, {}".format(self.precision, b,m,a)
         self.addLine(s, stmt.comment)
 
     def visitBcst(self, stmt: BcstStmt):
         b = stmt.bcast_src.ugly
         a = stmt.dest.ugly
-        s = "vbroadcastsd {}, {}".format(b,a)
+        s = "vbroadcasts{} {}, {}".format(self.precision, b,a)
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):
@@ -93,7 +96,7 @@ class InlinePrinter(Visitor):
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
                 s = "vpxord {}, {}, {}".format(stmt.dest.ugly,stmt.dest.ugly,stmt.dest.ugly)
             else:
-                s = "vmovapd {}, {}".format(src_str,stmt.dest.ugly)
+                s = "vmovap{} {}, {}".format(self.precision, src_str,stmt.dest.ugly)
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)

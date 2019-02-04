@@ -15,8 +15,7 @@ class DenseCursor(Cursor):
                  ld: int,
                  block_rows: int,
                  block_cols: int,
-                 scalar_bytes:int = 8,
-                 vector_width:int = 8) -> None:
+                 scalar_bytes:int) -> None:
 
         self.name = name
         self.r, self.c = rows, cols
@@ -26,7 +25,6 @@ class DenseCursor(Cursor):
         self.base_ptr = base_ptr
         self.ld = ld
         self.scalar_bytes = scalar_bytes
-        self.vector_width = vector_width
 
         self.offsets = Matrix.full(self.br, self.bc, -1)
         x = 0

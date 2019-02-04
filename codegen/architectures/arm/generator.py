@@ -4,6 +4,7 @@ from codegen.architectures.arm.operands import *
 from codegen.ast import *
 from codegen.sugar import *
 from codegen.generator import *
+from codegen.precision import *
 
 
 class Generator(AbstractGenerator):
@@ -32,7 +33,9 @@ void {funcName} (const double* A, const double* B, double* C, double alpha, doub
 }}}};"""
 
     def get_v_size(self):
-        return 2
+        if self.precision == Precision.DOUBLE:
+          return 2
+        raise NotImplementedError
 
     def get_template(self):
         return Generator.template

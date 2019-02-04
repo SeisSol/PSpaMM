@@ -2,6 +2,7 @@ from typing import List
 from codegen.ast import *
 from codegen.visitor import Visitor
 from codegen.operands import *
+from codegen.precision import *
 
 
 class InlinePrinter(Visitor):
@@ -16,9 +17,10 @@ class InlinePrinter(Visitor):
     stack = None
 
 
-    def __init__(self):
+    def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
+        assert precision == Precision.DOUBLE
 
     def show(self):
         print("\n".join(self.output))
