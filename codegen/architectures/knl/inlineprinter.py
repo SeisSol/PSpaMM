@@ -50,7 +50,7 @@ class InlinePrinter(Visitor):
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
         if stmt.bcast:
-            s = "vfmadd231p{} {}%{{1to8%}}, {}, {}".format(self.precision, b,m,a)
+            s = "vfmadd231p{} {}%{{1to{}%}}, {}, {}".format(self.precision, b, 8 if self.precision == 'd' else 16, m, a)
         else:
             s = "vfmadd231p{} {}, {}, {}".format(self.precision, b,m,a)
         self.addLine(s, stmt.comment)

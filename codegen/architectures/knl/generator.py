@@ -9,7 +9,7 @@ from codegen.precision import *
 
 class Generator(AbstractGenerator):
     template = """
-void {{funcName}} (const double* A, const double* B, double* C, double alpha, double beta, double const* prefetch) {{{{
+void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}* C, {{real_type}} alpha, {{real_type}} beta, {{real_type}} const* prefetch) {{{{
   __asm__ __volatile__(
     "movq %0, %%rdi\\n\\t"
     "movq %1, %%rsi\\n\\t"

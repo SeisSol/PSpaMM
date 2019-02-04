@@ -21,5 +21,6 @@ def make_cfunc(funcName:str, template:str, body:Block, flop:int, starting_regs:L
     return template.format(funcName = funcName,
                            body_text = body_text,
                            clobbered = clobbered,
-                           flop = flop)
+                           flop = flop,
+                           real_type = Precision.getCType(precision))
 
