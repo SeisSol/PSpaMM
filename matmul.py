@@ -87,6 +87,9 @@ class MatMul:
         self.alpha = alpha
         self.beta = beta
 
+        if arch == 'skx':
+          arch = 'knl'
+
         self.arch = arch
         assert precision.lower() in ['s', 'd']
         self.precision = Precision.DOUBLE if precision.lower() == 'd' else Precision.SINGLE
