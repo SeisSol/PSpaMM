@@ -60,8 +60,8 @@ class MatMul:
                  lda: int, 
                  ldb: int, 
                  ldc: int,
-                 alpha: float,
-                 beta: float,
+                 alpha: str,
+                 beta: str,
                  mtx_filename: str,
                  mtx_format: str = 'any',
                  output_funcname: str = None,
@@ -84,8 +84,14 @@ class MatMul:
         self.ldb = ldb
         self.ldc = ldc
 
-        self.alpha = alpha
-        self.beta = beta
+        try:
+          self.alpha = float(alpha)
+        except:
+          self.alpha = 'generic'
+        try:
+          self.beta = float(beta)
+        except:
+          self.beta = 'generic'
 
         if arch == 'skx':
           arch = 'knl'

@@ -32,7 +32,7 @@ def main(alg: MatMul) -> None:
 
 if __name__=="__main__":
 
-	parser = argparse.ArgumentParser(description='Generate a sparse matrix multiplication algorithm.')
+	parser = argparse.ArgumentParser(description='Generate a sparse matrix multiplication algorithm for C = alpha * A * B + beta * C.')
 
 	parser.add_argument("m", type=int, help="Number of rows of A and C")
 	parser.add_argument("n", type=int, help="Number of cols of B and C")
@@ -42,9 +42,9 @@ if __name__=="__main__":
 	parser.add_argument("ldb", type=int, help="Leading dimension of B (zero if B is sparse)")
 	parser.add_argument("ldc", type=int, help="Leading dimension of C")
 
-	parser.add_argument("alpha", type=float, help="alpha, floating point value that A*B is multiplied with")
+	parser.add_argument("alpha", type=str, help="alpha, 1.0 or generic")
 
-	parser.add_argument("beta", type=float, help="beta, if zero then C is set to 0 otherwise new result is added to old C")
+	parser.add_argument("beta", type=str, help="beta, 1.0, 0.0, or generic")
 
 	parser.add_argument("--bm", type=int, help="Size of m-blocks")
 	parser.add_argument("--bn", type=int, help="Size of n-blocks")
