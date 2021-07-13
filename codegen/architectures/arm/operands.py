@@ -14,6 +14,18 @@ class Constant_ARM(Constant):
     def ugly(self):
         return "#{}".format(self.value)
 
+    @property
+    def ugly_large(self):
+        return "={}".format(self.value)
+
+    @property
+    def ugly_lower16(self):
+        return "#:lower16:{}".format(self.value)
+
+    @property
+    def ugly_upper16(self):
+        return "#:upper16:{}".format(self.value)
+
 
 def c(n):
     """Sugar for conveniently defining integer constants"""

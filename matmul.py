@@ -157,7 +157,10 @@ class MatMul:
             self.nnz = ldb * self.n
             self.flop = m * n * k * 2
 
-        prefetchReg = self.generator.init_prefetching(self.prefetching)
+        if prefetching is not None:
+            prefetchReg = self.generator.init_prefetching(self.prefetching)
+        else:
+            prefetchReg = None
 
         assert(self.m % self.v_size == 0)
 
