@@ -49,6 +49,11 @@ class LoadStmt(AsmStmt):
     typ = None
     aligned = False
     dest2 = None
+    # used in arm_sve:
+    pred = None
+    is_B = None
+    scalar_offs = False
+    add_reg = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitLoad(self)
@@ -59,6 +64,10 @@ class StoreStmt(AsmStmt):
     typ = None
     aligned = False
     src2 = None
+    # used in arm_sve:
+    pred = None
+    scalar_offs = False
+    add_reg = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitStore(self)
@@ -75,6 +84,7 @@ class FmaStmt(AsmStmt):
     mult_src = None
     add_dest = None
     bcast = None
+    pred = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitFma(self)
@@ -83,6 +93,7 @@ class MulStmt(AsmStmt):
     src = None
     mult_src = None
     dest = None
+    pred = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitMul(self)
