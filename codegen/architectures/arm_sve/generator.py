@@ -179,6 +179,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         init_prev_base = True
 
         prev_disp = 0
+        prev_overhead = True
 
         for ic in range(cols):
             for ir in range(rows):
@@ -202,8 +203,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     cont_counter = ((addr.disp - prev_disp) // mul_vl)
                     larger_max_offset = cont_counter > max_mem_ins_mult
 
-                    if larger_max_offset:
-                        asm.add(add(addr.disp, additional_regs[0], "disp > {}".format(max_offset), addr.base))
+                    if larger_max_offset or (prev_overhead and addr.disp > 0):
+                        offset_comment = "disp > {}".format(max_offset) if larger_max_offset else "previous mem. instr. used p0"
+                        asm.add(add(addr.disp, additional_regs[0], offset_comment, addr.base))
                         prev_disp = addr.disp
                         addr.base = additional_regs[0]
                         prev_base = addr.base
@@ -218,6 +220,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 else:
                     asm.add(ld(addr, registers[ir, ic], True, comment, pred=p_zeroing, is_B=is_B, scalar_offs=False,
                                add_reg=additional_regs[2]))
+
+                prev_overhead = int(p.ugly[1]) == 0  # determine if we previously used p0 (overhead predicate)
 
         return asm
 
