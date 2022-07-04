@@ -1,7 +1,7 @@
 CXX=g++
 
-CXXFLAGS=-std=c++17 -Ofast -march=armv8.2-a+sve -msve-vector-bits=512 -fopenmp -Wall -g
-CXXFLAGSNEON=-std=c++17 -Ofast -march=armv8.2-a -fopenmp -Wall -g
+CXXFLAGS=-std=c++17 -O3 -mcpu=native -msve-vector-bits=512 -fopenmp -Wall -g
+CXXFLAGSNEON=-std=c++17 -O3 -mcpu=native -fopenmp -Wall -g
 
 all: sve_testsuite neon_testsuite
 

@@ -7,9 +7,7 @@ class Operand_ARM:
         raise NotImplementedError()
 
 
-# TODO: Rename this 'Immediate'
 class Constant_ARM(Constant):
-
     @property
     def ugly(self):
         return "#{}".format(self.value)
@@ -33,7 +31,6 @@ def c(n):
 
 
 class Label_ARM(Label):
-
     @property
     def ugly(self):
         # return self.ordinal
@@ -78,22 +75,6 @@ class Register_ARM(Register):
 r = lambda n: Register_ARM(AsmType.i64, "x" + str(n))
 xzr = Register_ARM(AsmType.i64, "xzr")
 z = lambda n, prec: Register_ARM(AsmType.f64x8, "z" + str(n) + "." + prec)
-
-def pred_n_trues(n:int, v_size:int, k:str=None) -> Register_ARM:
-    """pred takes n=num of predicate and k=type of predicate and v_size=max num of true elements per vector reg,
-         i.e. type = m or z for merging or zeroing
-         use p7 as all-true predicate and p0 as overhead predicate"""
-    if n >= v_size:
-        n = 8   # only p0 to p7 are usable in arithmetic instructions
-    else:
-        n = 1
-    assert(n > 0)
-
-    if k is None:
-        s = "p{}".format(n - 1)
-    else:
-        s = "p{}/{}".format(n - 1, k)
-    return Register_ARM(AsmType.p64x8, s)
 
 
 class MemoryAddress_ARM(MemoryAddress):

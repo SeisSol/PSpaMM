@@ -32,13 +32,13 @@ def c(n):
     return Constant_ARM(value=int(n))
 
 
-
 class Label_ARM(Label):
 
     @property
     def ugly(self):
-        #return self.ordinal
+        # return self.ordinal
         return self.value.upper() + "_%="
+
 
 def l(label: str):
     return Label_ARM(label)
@@ -60,29 +60,23 @@ class Register_ARM(Register):
     @property
     def ugly_scalar_1d(self):
         return (self.value.split(".")[0]).replace("v", "d")
-    @property
 
+    @property
     def ugly_1d(self):
         return self.value.replace("2d", "1d")
 
-r   = lambda n: Register_ARM(AsmType.i64, "x"+str(n))
+
+r = lambda n: Register_ARM(AsmType.i64, "x" + str(n))
 xzr = Register_ARM(AsmType.i64, "xzr")
-v = lambda n: Register_ARM(AsmType.f64x8, "v"+str(n) + ".2d")
-
-
+v = lambda n: Register_ARM(AsmType.f64x8, "v" + str(n) + ".2d")
 
 
 class MemoryAddress_ARM(MemoryAddress):
 
     @property
     def ugly(self):
-        return "[{}, {}]".format(self.base.ugly,self.disp)
+        return "[{}, {}]".format(self.base.ugly, self.disp)
+
 
 def mem(base, offset):
     return MemoryAddress_ARM(base, offset)
-
-
-
-
-
-

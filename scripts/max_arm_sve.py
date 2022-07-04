@@ -6,11 +6,10 @@ def getBlocksize(m, n, bk, v_size=2):
 
     for i in range(2, m + 1, 1):
         next_multiple = i
-        # TODO: why introduce next_multiple if maxval is going to be i*j anyway?
         while next_multiple % v_size != 0:
             next_multiple += 1
         for j in range(1, n + 1):
-            if ARM_condition(next_multiple, j, bk, v_size) and tileable(m, n, i, j, v_size):
+            if ARM_condition(next_multiple, j, bk, v_size) and tileable(m, i):
                 if i * j >= maxval:
                     maxval = i * j
                     bm = i
@@ -26,6 +25,5 @@ def ARM_condition(bm, bn, bk, v_size):
     return (bn + bk) * (bm / v_size) + bn + 2 <= 32
 
 
-# TODO: remove since we only return a simple modulo calculation
-def tileable(m, n, bm, bn, v_size):
+def tileable(m, bm):
     return m % bm == 0

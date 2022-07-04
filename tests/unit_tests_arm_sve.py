@@ -9,9 +9,6 @@ v_size = 8
 v_size_s = 16
 kernels = []
 
-
-#TODO: when adding the gcc flag "-mcpu=a64fx", some test cases fail. This needs to be investigated. -> compiler doesnt know that flag?
-
 kernels.append(generator.DenseKernel("sve_mixed_test1", 9, 9, 9, 9, 9, 9, 1.0, 0.0, [(3, 3)] + [x.getBlocksize(9, 9, 1, v_size) for x in blocksize_algs], 0.0000001))
 kernels.append(generator.SparseKernel("sve_mixed_test2", 9, 9, 9, 9, 0, 9, 4.0, 2.5, [(3, 3)] + [x.getBlocksize(9, 9, 1, v_size) for x in blocksize_algs], generator.generateMTX(9, 9, 20), 0.0000001))
 kernels.append(generator.SparseKernel("sve_mixed_test3", 18, 18, 18, 18, 0, 18, 3.4, -2.5, [(1, 1), (3, 3), (6, 6), (9, 9)] + [x.getBlocksize(18, 18, 1, v_size) for x in blocksize_algs], generator.generateMTX(18, 18, 59), 0.0000001))

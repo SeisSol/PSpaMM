@@ -10,7 +10,7 @@ from codegen.precision import *
 class Generator(AbstractGenerator):
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, const {real_type}* prefetch) {{{{
-  __asm__ __inline__ __volatile__(
+  __asm__ __volatile__(
     "ldr x0, %0\\n\\t"
     "ldr x1, %1\\n\\t"
     "ldr x2, %2\\n\\t"
@@ -33,8 +33,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     def get_v_size(self):
         if self.precision == Precision.DOUBLE:
             return 8
-        elif self.precision == Precision.SINGLE:
-            return 16
+        # elif self.precision == Precision.SINGLE:
+        #    return 16
         raise NotImplementedError
 
     def get_precision(self):
@@ -43,18 +43,20 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     def get_template(self):
         return self.template
 
-    def pred_n_trues(self, n: int, v_size: int, k: str = None) -> Register_ARM:
-        """pred takes n=num of predicate and k=type of predicate,
-         i.e. m or z for merging or zeroing use p7 as all-true predicate and p0 as overhead predicate"""
-        # https://arxiv.org/pdf/1803.06185.pdf -> arithmetic and control of general memory is restricted to p0-p7
-        assert (n > 0)
+    def pred_n_trues(self, num_trues: int, v_size: int, suffix: str = None) -> Register_ARM:
+        """pred takes num_trues=num of true elements and suffix=type of predicate (m or z) for merging or zeroing
+         we only use p7 as all-true predicate and p0 as overhead predicate
+         e.g. pred_n_trues(n=4, v_size=8, suffix="m") returns the predicate p0/m with the first 4 elements
+         set to true"""
+        assert (num_trues > 0)
+        assert (suffix == "m" or suffix == "z" or suffix is None)
         # we only use p7 or p0 as predicates
-        n = 8 if n >= v_size else 1
+        num_trues = 8 if num_trues >= v_size else 1
 
-        if k is None:
-            s = "p{}".format(n - 1)
+        if suffix is None:
+            s = "p{}".format(num_trues - 1)
         else:
-            s = "p{}/{}".format(n - 1, k)
+            s = "p{}/{}".format(num_trues - 1, suffix)
         return Register_ARM(AsmType.p64x8, s)
 
     # taken from https://stackoverflow.com/questions/14822184/is-there-a-ceiling-equivalent-of-operator-in-python
@@ -115,9 +117,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                        v_size: int
                        ) -> None:
 
-        # TODO: why not just modulo operator? bm = bm % v_size should do the trick
-        # while bm > v_size:
-        #    bm -= v_size  # calc bm overhead
         bm %= v_size
 
         eol = "\\n\\t"                          # define the "end of line" sequence for easy assembly
@@ -128,7 +127,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         # Wn adresses the lower 32 bits of Xn
         # generally: Xn/Wn "[...] are two separate ways of looking at the same register"
         # this means we can load alpha/beta into x3/x4 even if they are floats (32 bits)
-        dup_alpha = "\"dup z0.{suffix}, {gen_reg}3{eol}\"\n\t"  # define broadcasting of alpha
+        dup_alpha = "\t\"dup z0.{suffix}, {gen_reg}3{eol}\"\n\t"  # define broadcasting of alpha
         dup_beta = "\"dup z1.{suffix}, {gen_reg}4{eol}\"\n\t"   # define broadcasting of beta
 
         comment = "//p7 denotes the 'all-true' predicate and, if given, p0 denotes the 'bm % v_size' predicate\n\t"
@@ -173,32 +172,27 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         # TODO: if another CPU implements SVE at VL != 64 bytes, rewrite mul_vl (maybe do this dynamically)
         mul_vl = 64     # A64FX has VL of 64 bytes in memory
-        max_mem_ins_mult = 7
-        max_offset = mul_vl * max_mem_ins_mult  # ld1d/st1d instruction encodes the immediate offset within 4 bits, multiplies it with MUL VL
-
-        init_prev_base = True
+        max_mem_ins_mult = 7  # A64FX allows a maximum positive offset of 7 in memory instructions, e.g. ld1d z1.d, p0/z, [x0, 7, MUL VL]
+        max_offset = mul_vl * max_mem_ins_mult  # ld1d/st1d instruction encodes the immediate offset using 4 bits, multiplies it with MUL VL
 
         prev_disp = 0
         prev_overhead = True
+        # this gives us the base register of 'cursor' irrespective of the dummy offset we use
+        prev_base = cursor.look(cursor_ptr, block_offset, Coords(down=0, right=0))[0].base
 
         for ic in range(cols):
             for ir in range(rows):
                 if (mask is None) or (mask[ir, ic]):
                     processed = ir * v_size
-                    p = pred_n_trues(b_row - processed, v_size) if not is_B else pred_n_trues(v_size, v_size)
-                    p_zeroing = pred_n_trues(b_row - processed, v_size, "z") if not is_B else pred_n_trues(v_size,
-                                                                                                           v_size, "z")
+                    p = self.pred_n_trues(b_row - processed, v_size) if not is_B else self.pred_n_trues(v_size, v_size)
+                    p_zeroing = self.pred_n_trues(b_row - processed, v_size, "z") if not is_B else self.pred_n_trues(v_size,
+                                                                                                                     v_size, "z")
                     cell_offset = Coords(down=ir * v_size, right=ic)
 
                     # addr = base "pointer" + relative offset in bytes
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
-                    # need to initialise prev_base once to a valid addr.base (especially for sparse kernels)
-                    if init_prev_base:
-                        # TODO: move initialization outside of loop with dummy address
-                        #  cursor.look(cursor_ptr, block_offset, Coords(0,0)), test if this works with sparse kernels
-                        prev_base = addr.base
-                        init_prev_base = False
                     addr.disp += self.precision.value * load_offset
+
                     # count how many elements we have processed between last step and this step
                     cont_counter = ((addr.disp - prev_disp) // mul_vl)
                     larger_max_offset = cont_counter > max_mem_ins_mult
@@ -214,14 +208,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     addr.base = prev_base
                     addr.disp = (addr.disp - prev_disp) // mul_vl
 
-                if store:
-                    asm.add(st(registers[ir, ic], addr, True, comment, pred=p, scalar_offs=False,
-                               add_reg=additional_regs[2]))
-                else:
-                    asm.add(ld(addr, registers[ir, ic], True, comment, pred=p_zeroing, is_B=is_B, scalar_offs=False,
-                               add_reg=additional_regs[2]))
+                    if store:
+                        asm.add(st(registers[ir, ic], addr, True, comment, pred=p, scalar_offs=False,
+                                   add_reg=additional_regs[2]))
+                    else:
+                        asm.add(ld(addr, registers[ir, ic], True, comment, pred=p_zeroing, is_B=is_B, scalar_offs=False,
+                                   add_reg=additional_regs[2]))
 
-                prev_overhead = int(p.ugly[1]) == 0  # determine if we previously used p0 (overhead predicate)
+                    prev_overhead = int(p.ugly[1]) == 0  # determine if we previously used p0 (overhead predicate)
 
         return asm
 
@@ -273,20 +267,20 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         Vm = max(self.ceil_div(bm, v_size), 1)
 
         multiple = self.precision.value
-        # for ld1rw: imm offset is multiple of 4 in range of 0 to 252
-        # for ld1rd: imm offset is multiple of 8 in range of 0 to 504
+        # for ld1rw (single prec): immediate offset is multiple of 4 in range of 0 to 252
+        # for ld1rd (double prec): immediate offset is multiple of 8 in range of 0 to 504
         # in both cases: instruction encodes the immediate offset within 6 bits
         max_offs = (2 ** 6 - 1) * multiple
         for Vmi in range(Vm):
             # set to all v_size predicates to true, we want to replicate a B element into a whole vector
-            p_zeroing = pred_n_trues(v_size, v_size, "z")
+            p_zeroing = self.pred_n_trues(v_size, v_size, "z")
             for bki in range(bk):  # inside this k-block
                 for bni in range(bn):  # inside this n-block
                     to_cell = Coords(down=bki, right=bni)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
                         if B_regs[bki, bni] not in bs:
-                            # 504 is the maximum allowed immediate offset when using ld1rd to broadcast scalar elements
+                            # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
                             if B_cell_addr.disp > max_offs:
                                 if B_cell_addr.disp - cur11 > 0 and B_cell_addr.disp - cur11 <= max_offs:
                                     B_cell_addr.disp = B_cell_addr.disp - cur11
@@ -300,7 +294,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             bs.append(B_regs[bki, bni])
 
         for Vmi in range(Vm):
-            p_merging = pred_n_trues(bm - Vmi * v_size, v_size, "m")
+            p_merging = self.pred_n_trues(bm - Vmi * v_size, v_size, "m")
             end_index = bm if Vmi + 1 == Vm else Vmi * v_size + v_size  # end_index helps us print the right index ranges
             for bki in range(bk):  # inside this k-block
                 for bni in range(bn):  # inside this n-block

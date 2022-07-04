@@ -20,13 +20,12 @@ class InlinePrinter(Visitor):
         self.stack = []
         self.precision = precision
         # TODO: delete assertion when including single precision
-        #assert precision == Precision.DOUBLE
+        assert precision == Precision.DOUBLE
 
     def show(self):
         print("\n".join(self.output))
 
     def addLine(self, stmt: str, comment: str):
-
         line = " " * self.lmargin + self.indent * self.depth
 
         if stmt is not None and comment is not None and self.show_comments:
@@ -66,8 +65,10 @@ class InlinePrinter(Visitor):
 
     def visitAdd(self, stmt: AddStmt):
         if isinstance(stmt.src, Constant) and (stmt.src.value > 4095 or stmt.src.value < -4095):
+            # This condition is probably related to immediate values being restricted to 12 bits for add instructions
+            # https://developer.arm.com/documentation/dui0802/a/A64-General-Instructions/ADD--immediate-
+            # https://developer.arm.com/documentation/ddi0596/2020-12/Base-Instructions/ADD--immediate---Add--immediate--
             if (stmt.src.value >> 16) & 0xFFFF > 0 and stmt.src.value < 0:
-                print(stmt.src.value & 0xFFFF)
                 s = "mov x11, #-1"
                 s1 = "movk x11, #{}".format((stmt.src.value) & 0xFFFF)
                 val = ((stmt.src.value >> 16) & 0xFFFF)
@@ -76,8 +77,7 @@ class InlinePrinter(Visitor):
                 self.addLine(s, "")
                 self.addLine(s1, "load lower 16 bit of immediate that requires more than 16 bit")
                 self.addLine(s2, "load upper 16 bit of immediate that requires more than 16 bit")
-
-            elif (stmt.src.value >> 16) & 0xFFFF:
+            elif (stmt.src.value >> 16) != 0:
                 s1 = "mov x11, #{}".format((stmt.src.value) & 0xFFFF)
                 val = ((stmt.src.value >> 16) & 0xFFFF)
                 s2 = "movk x11, #{}, lsl #16".format(val)
@@ -94,6 +94,8 @@ class InlinePrinter(Visitor):
                 s = "add {}, {}, {}".format(stmt.dest.ugly, stmt.dest.ugly, stmt.additional.ugly)
                 self.addLine(s, stmt.comment)
         else:
+            # if stmt.src is a Constant but outside of the above range of value < -4095 or value > 4095
+            # we can simply add the Constant to a register
             if stmt.additional is not None:
                 s = "add {}, {}, {}".format(stmt.dest.ugly, stmt.additional.ugly, stmt.src.ugly)
             else:
@@ -128,7 +130,7 @@ class InlinePrinter(Visitor):
             src_str = "#" + stmt.src.ugly
         elif stmt.src.ugly_offset != "0" and stmt.scalar_offs:
             self.addLine("mov {}, #{}".format(stmt.add_reg.ugly, stmt.src.ugly_offset), "move immediate offset into {}".format(stmt.add_reg.ugly))
-            # TODO: does ugly_lsl_shift already differentiate between double and single precision
+            # TODO: adapt ugly_lsl_shift to account for possible single precision instead of double precision
             src_str = "[{}, {}, LSL #{}]".format(stmt.src.ugly_base, stmt.add_reg.ugly, stmt.dest.ugly_lsl_shift)
         else:
             src_str = stmt.src.ugly if not stmt.is_B else stmt.src.ugly_no_vl_scaling
@@ -153,7 +155,7 @@ class InlinePrinter(Visitor):
         elif stmt.dest.ugly_offset != "0" and stmt.scalar_offs:
             self.addLine("mov {}, #{}".format(stmt.add_reg.ugly, stmt.dest.ugly_offset),
                          "move immediate offset into {}".format(stmt.add_reg.ugly))
-            # TODO: does ugly_lsl_shift already differentiate between double and single precision
+            # TODO: adapt ugly_lsl_shift to account for possible single precision instead of double precision
             dest_str = "[{}, {}, LSL #{}]".format(stmt.dest.ugly_base, stmt.add_reg.ugly, stmt.src.ugly_lsl_shift)
         else:
             dest_str = stmt.dest.ugly
@@ -170,7 +172,6 @@ class InlinePrinter(Visitor):
         self.addLine(s, stmt.comment)
 
     def visitBlock(self, block: Block):
-        #   no need to rewrite
         self.stack.append(block)
         self.depth += 1
         if self.show_comments:
@@ -181,9 +182,8 @@ class InlinePrinter(Visitor):
         self.stack.pop()
 
     def p_string(self, predicate: Register):
-        # returns "pk{/z or /m}, " or empty string ""
-        # with contents in {} being optional
-        # contents are already generated -> no need to test for them
+        # returns "pk{/z or /m}, " or an empty string "" with contents in {} being optional
+        # at this point the contents are already generated, we simply turn them into a string
         return predicate.value + ", " if predicate is not None else ""
 
 
