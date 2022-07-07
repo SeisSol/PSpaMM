@@ -64,7 +64,6 @@ class InlinePrinter(Visitor):
     def visitAdd(self, stmt: AddStmt):
         if isinstance(stmt.src, Constant) and (stmt.src.value > 4095 or stmt.src.value < -4095):
             if (stmt.src.value >> 16) & 0xFFFF > 0 and stmt.src.value < 0:
-                print(stmt.src.value & 0xFFFF)
                 s = "mov x11, #-1"
                 s1 = "movk x11, #{}".format((stmt.src.value) & 0xFFFF)
                 val = ((stmt.src.value >> 16) & 0xFFFF)
