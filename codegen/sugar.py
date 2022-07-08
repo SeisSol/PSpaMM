@@ -19,21 +19,25 @@ def label(name: str):
     stmt.label = architecture.operands.l(name)
     return stmt
 
-def fma(bcast_src: Register, mult_src: Register, add_dest: Register, comment: str = None, bcast: bool = True):
+def fma(bcast_src: Register, mult_src: Register, add_dest: Register, comment: str = None, bcast: bool = True, pred: Register = None):
     stmt = FmaStmt()
     stmt.bcast_src = bcast_src
     stmt.mult_src = mult_src
     stmt.add_dest = add_dest
     stmt.comment = comment
     stmt.bcast = bcast
+    # used in arm_sve:
+    stmt.pred = pred
     return stmt
 
-def mul(src: Register, mult_src: Register, dest: Register, comment: str = None):
+def mul(src: Register, mult_src: Register, dest: Register, comment: str = None, pred: Register = None):
     stmt = MulStmt()
     stmt.src = src
     stmt.mult_src = mult_src
     stmt.dest = dest
     stmt.comment = comment
+    # used in arm_sve:
+    stmt.pred = pred
     return stmt
 
 def bcst(bcast_src: Register, dest: Register, comment: str = None):
@@ -75,12 +79,18 @@ def lea(src: Register, dest: Operand, offset: int, comment:str = None):
     stmt.comment = comment
     return stmt
 
-def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, dest2: Operand = None):
+def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, dest2: Operand = None, pred: Register = None, is_B: bool = False, scalar_offs: bool = False, add_reg: AsmType.i64 = None):
     stmt = LoadStmt()
     stmt.src = src if isinstance(src, Operand) else architecture.operands.c(src)
     stmt.dest = dest
     stmt.dest2 = dest2
     stmt.comment = comment
+    # used in arm_sve:
+    stmt.pred = pred
+    stmt.is_B = is_B
+    stmt.scalar_offs = scalar_offs
+    stmt.add_reg = add_reg
+
     if vector:
         stmt.aligned = True
         stmt.typ = AsmType.f64x8
@@ -89,12 +99,17 @@ def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None
         stmt.typ = AsmType.i64
     return stmt
 
-def st(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, src2: Operand = None):
+def st(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, src2: Operand = None, pred: Register = None, scalar_offs: bool = False, add_reg: AsmType.i64 = None):
     stmt = StoreStmt()
     stmt.src = src if isinstance(src, Operand) else architecture.operands.c(src)
     stmt.src2 = src2
     stmt.dest = dest
     stmt.comment = comment
+    # used in arm_sve:
+    stmt.pred = pred
+    stmt.scalar_offs = scalar_offs
+    stmt.add_reg = add_reg
+
     if vector:
         stmt.aligned = True
         stmt.typ = AsmType.f64x8

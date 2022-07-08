@@ -13,6 +13,7 @@ from cursors import *
 import architecture
 import numpy
 
+
 def decompose_pattern(k, n, pattern:Matrix[bool], bk:int, bn:int) -> Tuple[Matrix[int], List[Matrix[bool]]]:
     Bk,Bn = k//bk, n//bn
     patterns = []
@@ -108,6 +109,8 @@ class MatMul:
         self.generator = architecture.Generator(self.precision)
 
         self.v_size = self.generator.get_v_size()
+        # flag that determines if a matmul kernel uses sve instructions -> needed for sve predicates
+        self.is_sve = arch == "arm_sve"
 
         if bk == None:
             bk = 2 if arch == 'knl' else 1
@@ -117,6 +120,8 @@ class MatMul:
                 (self.bm, self.bn) = scripts.max_bn_knl.getBlocksize(m, n, bk, self.v_size)
             elif arch == 'arm':
                 (self.bm, self.bn) = scripts.old_arm.getBlocksize(m, n, bk, self.v_size)
+            elif arch == 'arm_sve':
+                (self.b, self.bn) = scripts.max_arm(m, n, bk, self.v_size)
         else: 
             self.bm = bm
             self.bn = bn
@@ -157,9 +162,14 @@ class MatMul:
             self.nnz = ldb * self.n
             self.flop = m * n * k * 2
 
-        prefetchReg = self.generator.init_prefetching(self.prefetching)
+        if prefetching is not None:
+            prefetchReg = self.generator.init_prefetching(self.prefetching)
+        else:
+            prefetchReg = None
 
-        assert(self.m % self.v_size == 0)
+        # if matrices are always padded to multiple of v_size, we can remove the if-part and execute the assert for SVE too
+        if not self.is_sve:
+            assert(self.m % self.v_size == 0)
 
         self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.alpha_reg, self.beta_reg, self.loop_reg, self.additional_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.nnz, self.m, self.n, self.k)
 
@@ -179,7 +189,8 @@ class MatMul:
 
         Bn = self.n // self.bn
         Bk = self.k // self.bk
-        vm = self.bm // self.v_size
+        # handle fringe case of SVE -> allow bm < v_size
+        vm = self.bm // self.v_size if not self.is_sve else self.generator.ceil_div(self.bm, self.v_size)
 
         n_overhead = self.n % self.bn
         k_overhead = self.k % self.bk
@@ -191,10 +202,10 @@ class MatMul:
 
         asm.add(self.generator.make_b_pointers(self.starting_regs[1], self.additional_regs, self.nnz))
 
-        for Bni in range(0,Bn):
+        for Bni in range(0, Bn):
             
             regs = self.C_regs
-            
+
             if Bni + 1 == Bn and n_overhead > 0:
                 regs = self.C_regs[0:vm, 0:n_overhead]
 
@@ -203,7 +214,8 @@ class MatMul:
                 if self.beta != 1.0:
                     for ic in range(regs.shape[1]):
                         for ir in range(regs.shape[0]):
-                            asm.add(mul(regs[ir,ic], self.beta_reg[1], regs[ir,ic]))
+                            pred_m = None if not self.is_sve else self.generator.pred_n_trues(self.bm - ir * self.v_size, self.v_size, "m")
+                            asm.add(mul(regs[ir,ic], self.beta_reg[1], regs[ir,ic], pred=pred_m))
             else:
                 asm.add(self.generator.make_zero_block(regs, self.additional_regs))
 
@@ -226,13 +238,13 @@ class MatMul:
 
                     for ir in range(A_regs_cut.shape[0]):
                         for ic in range(A_regs_cut.shape[1]):
+                            pred_m = None if not self.is_sve else self.generator.pred_n_trues(self.bm - ir*self.v_size, self.v_size, "m")
                             if self.beta != 0.0 and self.beta != 1.0:
-                                store_block.add(mul(A_regs_cut[ir,ic], self.beta_reg[1], A_regs_cut[ir,ic]))
+                                store_block.add(mul(A_regs_cut[ir,ic], self.beta_reg[1], A_regs_cut[ir,ic], pred=pred_m))
                             if self.beta == 0.0:
-                                store_block.add(mul(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = C + alpha * AB"))
+                                store_block.add(mul(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = C + alpha * AB", pred=pred_m))
                             else:
-                                store_block.add(fma(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = C + alpha * AB", False))
-
+                                store_block.add(fma(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = C + alpha * AB", False, pred=pred_m))
                     store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, True, self.prefetching, self.ldc * x))
                 asm.add(store_block)
 

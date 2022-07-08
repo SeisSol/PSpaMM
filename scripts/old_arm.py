@@ -1,4 +1,4 @@
-def getBlocksize(m , n, bk, v_size):
+def getBlocksize(m , n, bk, v_size=2):
 
 	bm = m
 	bn = n

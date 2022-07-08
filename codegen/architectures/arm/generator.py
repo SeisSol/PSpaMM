@@ -27,7 +27,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     #ifdef _OPENMP
     #pragma omp atomic
     #endif
-    pspamm_num_total_flops += {{flop}};
+    pspamm_num_total_flops += {flop};
     #endif
 
 }}}};"""

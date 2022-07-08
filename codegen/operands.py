@@ -3,7 +3,8 @@ from typing import List, Dict
 
 
 AsmType = Enum('AsmType', ['unknown','i8','i16','i32','i64','f32','f64',
-                           'f32x4','f32x8','f32x16','f64x2','f64x4','f64x8'])
+                           'f32x4','f32x8','f32x16','f64x2','f64x4','f64x8',
+                           'p64x8'])
 
 class Operand:
     @property

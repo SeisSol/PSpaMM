@@ -1,3 +1,7 @@
+from codegen.architectures.arm_sve.generator import *
+from codegen.architectures.arm_sve.inlineprinter import *
+from codegen.architectures.arm_sve.operands import *
+
 from codegen.architectures.arm.generator import *
 from codegen.architectures.arm.inlineprinter import *
 from codegen.architectures.arm.operands import *

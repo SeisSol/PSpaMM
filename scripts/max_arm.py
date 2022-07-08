@@ -10,7 +10,7 @@ def getBlocksize(m , n, bk):
 				if i*j > maxval:
 					maxval = i*j
 					bm = i
-					bn = j 
+					bn = j
 
 	return (bm, bn)
 
