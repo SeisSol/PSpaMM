@@ -33,8 +33,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     def get_v_size(self):
         if self.precision == Precision.DOUBLE:
             return 8
-        # elif self.precision == Precision.SINGLE:
-        #    return 16
+        elif self.precision == Precision.SINGLE:
+            return 16
         raise NotImplementedError
 
     def get_precision(self):
@@ -79,7 +79,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         starting_regs = [r(0), r(1), r(2)]
 
-        additional_regs = [r(11), l("0.0"), r(10)]  # r10 used for scaling offsets
+        additional_regs = [r(11), l("0.0"), r(10), r(3)]  # r10 used for scaling offsets
 
         loop_reg = r(12)
 
@@ -131,7 +131,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         dup_beta = "\"dup z1.{suffix}, {gen_reg}4{eol}\"\n\t"   # define broadcasting of beta
 
         comment = "//p7 denotes the 'all-true' predicate and, if given, p0 denotes the 'bm % v_size' predicate\n\t"
-        overhead = "\"ptrue p0.{suffix}, #{overhead}{eol}\"\n\t" if bm != 0 else ""    # define overhead predicate
+        # specification for ptrue: https://developer.arm.com/documentation/ddi0596/2021-12/SVE-Instructions/PTRUE--Initialise-predicate-from-named-constraint-
+        # search for 'DecodePredCount' for the explanation of how the pattern in 'ptrue p{d}.{suffix}, #pattern' is decoded:
+        # https://developer.arm.com/documentation/ddi0596/2020-12/Shared-Pseudocode/AArch64-Functions?lang=en#impl-aarch64.DecodePredCount.2
+        # 'ptrue' doesnt work for initialising overhead predicate when using single precision -> see valid patterns from above
+        # overhead = "\"ptrue p0.{suffix}, #{overhead}{eol}\"\n\t" if bm != 0 else ""    # define overhead predicate
+        overhead = "\"mov {gen_reg}3, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}3{eol}\"\n\t" if bm != 0 else ""
         all_true = "\"ptrue p7.{suffix}, #{v_size}{eol}\""                             # define all true predicate
         init_registers = (dup_alpha + dup_beta + comment + overhead + all_true).format(suffix=p_suffix,
                                                                                        gen_reg=gen_reg,
