@@ -12,108 +12,6 @@ DenseKernel = namedtuple('DenseKernel', 'name m n k lda ldb ldc alpha beta block
 SparseKernelS = namedtuple('SparseKernelS', 'name m n k lda ldb ldc alpha beta block_sizes mtx delta')
 DenseKernelS = namedtuple('DenseKernelS', 'name m n k lda ldb ldc alpha beta block_sizes delta')
 
-# include function definitions for single precision case
-single_precision_function_definitions = """
-void fgemm_ref(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, float ALPHA, float BETA, float* A, float* B, float* C) {
-  for (unsigned col = 0; col < N; ++col) {
-    for (unsigned row = 0; row < M; ++row) {
-      C[row + col * LDC] = BETA * C[row + col * LDC];
-    }
-  }
-  for (unsigned col = 0; col < N; ++col) {
-    for (unsigned row = 0; row < M; ++row) {
-      for (unsigned s = 0; s < K; ++s) {
-        C[row + col * LDC] += ALPHA * A[row + s * LDA] * B[s + col * LDB];
-      }
-    }
-  }
-}
-
-std::tuple<float*, float*, float*, float*, float*> fpre(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, std::string MTX) {
-
-  if(LDB == 0)
-    LDB = K;
-
-  float *A;
-  float *B;
-  float *Bsparse;
-  float *Cref;
-  float *C;
-
-  int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, LDA*LDB*sizeof(float));
-  int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, LDB*N*sizeof(float));
-  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, LDB*N*sizeof(float));  
-  int resCref = posix_memalign(reinterpret_cast<void **>(&Cref), 64, LDC*N*sizeof(float));
-  int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, LDC*N*sizeof(float));
-
-  std::string line;
-  std::ifstream f(MTX);
-  getline(f, line);
-  getline(f, line);
-  getline(f, line);
-
-  for(int i = 0; i < LDA*LDB; i++)
-    A[i] = (float)rand() / RAND_MAX;
-
-  for(int i = 0; i < LDB*N; i++)
-    if(MTX.compare(""))
-      B[i] = 0;
-    else 
-      B[i] = (float)rand() / RAND_MAX;
-
-  for(int i = 0; i < LDC*N; i++)
-  {
-    Cref[i] = (float)rand() / RAND_MAX;
-    C[i] = Cref[i];
-  }
-
-  if(MTX.compare(""))
-  {
-    while(getline(f, line)) {
-      std::vector<std::string> result;
-      std::istringstream iss(line);
-      for(std::string s; iss >> s; )
-        result.push_back(s);
-      if(std::atoi(result[0].c_str()) <= K && std::atoi(result[1].c_str()) <= N)
-        B[std::atoi(result[0].c_str()) - 1 + LDB * (std::atoi(result[1].c_str()) - 1)] = std::stod(result[2]);
-    }
-  }
-
-  int counter = 0;
-
-  for(int i = 0; i < N; i++)
-  {
-    for(int j = 0; j < K; j++)
-    {
-      if(B[j + i * LDB] != 0 || !MTX.compare(""))
-      {
-        Bsparse[counter] = B[j + i * LDB];
-        counter++;
-      }
-    }
-  }
-
-  f.close();
-
-  return std::make_tuple(A, B, Bsparse, C, Cref);
-}
-
-int fpost(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, float ALPHA, float BETA, float* A, float* B, float* C, float* Cref, float DELTA) {
-
-  if(LDB == 0)
-    LDB = K;
-
-  fgemm_ref(M, N, K, LDA, LDB, LDC, ALPHA, BETA, A, B, Cref);
-        
-  for(int i = 0; i < M; i++)
-    for(int j = 0; j < N; j++)
-      if(std::abs(C[i + j * LDC] - Cref[i + j * LDC]) > DELTA)
-        return 0;
-
-  return 1;
-}
-
-"""
 def generateMTX(k, n, nnz):
     return test_generator.generateMTX(k, n, nnz)
 
@@ -121,6 +19,8 @@ def make(kernels, arch):
     f = open('sve_testsuite.cpp', 'w')
 
     f.write(test_generator.head_of_testsuite)
+
+    include_single_prec = False
 
     for kern in kernels:
         arguments = [sys.executable, './../pspamm.py', str(kern.m), str(kern.n), str(kern.k), str(kern.lda),
@@ -131,6 +31,8 @@ def make(kernels, arch):
 
         prec = 's' if isinstance(kern, SparseKernelS) or isinstance(kern, DenseKernelS) else 'd'
         arguments += ['--precision', prec]
+        if prec == 's':
+            include_single_prec = True
 
         block_sizes = list(set(kern.block_sizes))
 
@@ -144,7 +46,9 @@ def make(kernels, arch):
                 assert (bm % 2 == 0 and (bn + 1) * (bm / 2) + bn <= 32)
             elif arch == "arm_sve":
                 # this is for A64fx only, with SVE_vector_bits = 512
-                assert ((bn + 1) * (bm / 8) + bn <= 32)
+                v_len = 8 if prec == 'd' else 16
+                # this should be the same assertion as in ../scripts/max_arm_sve.py
+                assert ((bn + 1) * (bm / v_len) + bn <= 32)
 
             name = kern.name + '_' + str(bm) + '_' + str(bn)
 
@@ -160,10 +64,14 @@ def make(kernels, arch):
             f.write('#include "' + arch + '/' + kern.name + '_' + str(bm) + '_' + str(bn) + '.h"\n')
 
     f.write('\n')
-
-    f.write(single_precision_function_definitions)
-
+    # necessary functions are defined in testsuite_generator.py
     f.write(test_generator.function_definitions)
+    # add variable declarations for single precision test cases
+    if include_single_prec:
+        f.write("""
+    std::tuple<float*, float*, float*, float*, float*> fpointers;
+    float falpha; float fbeta;
+    """)
 
     for kern in kernels:
 
@@ -182,13 +90,13 @@ def make(kernels, arch):
             prec = 'f' if isinstance(kern, SparseKernelS) or isinstance(kern, DenseKernelS) else ''
 
             f.write("""
-  ldb = {ldb}; alpha = {alpha}; beta = {beta};
-  {p}pointers = {p}pre({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
+  ldb = {ldb}; {p}alpha = {alpha}; {p}beta = {beta};
+  {p}pointers = pre<{T}>({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
   {name}(std::get<0>({p}pointers), std::get<{sparse}>({p}pointers), std::get<3>({p}pointers), alpha, beta, nullptr);
-  result = {p}post({m}, {n}, {k}, {lda}, &ldb, {ldc}, &alpha, &beta, std::get<0>({p}pointers), std::get<1>({p}pointers), std::get<3>({p}pointers), std::get<4>({p}pointers), {delta:.7f});
+  result = post<{T}>({m}, {n}, {k}, {lda}, &ldb, {ldc}, &alpha, &beta, std::get<0>({p}pointers), std::get<1>({p}pointers), std::get<3>({p}pointers), std::get<4>({p}pointers), {delta:.7f});
   results.push_back(std::make_tuple("{name}", result));
   free(std::get<0>({p}pointers)); free(std::get<1>({p}pointers)); free(std::get<2>({p}pointers)); free(std::get<3>({p}pointers)); free(std::get<4>({p}pointers));
 """.format(m=kern.m, n=kern.n, k=kern.k, lda=kern.lda, ldb=kern.ldb, ldc=kern.ldc, alpha=kern.alpha, beta=kern.beta,
-           mtx=mtx, delta=kern.delta, name=name, sparse=2 if kern.ldb == 0 else 1, p=prec))
+           mtx=mtx, delta=kern.delta, name=name, sparse=2 if kern.ldb == 0 else 1, p=prec, T="float" if prec == 'f' else "double"))
 
     f.write(test_generator.end_of_testsuite)
