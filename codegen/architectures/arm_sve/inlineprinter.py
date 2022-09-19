@@ -19,8 +19,6 @@ class InlinePrinter(Visitor):
         self.output = []
         self.stack = []
         self.precision = precision
-        # TODO: delete assertion when including single precision
-        assert precision == Precision.DOUBLE
 
     def show(self):
         print("\n".join(self.output))

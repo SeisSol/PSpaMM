@@ -14,6 +14,7 @@ kernels = []
 delta_sp = 1e-6
 delta_dp = 1e-7
 
+# test cases for double precision multiplication
 kernels.append(generator.DenseKernel("sve_mixed_test1", 9, 9, 9, 9, 9, 9, 1.0, 0.0, [(3, 3)] + [x.getBlocksize(9, 9, 1, v_size) for x in blocksize_algs], delta_dp))
 kernels.append(generator.SparseKernel("sve_mixed_test2", 9, 9, 9, 9, 0, 9, 4.0, 2.5, [(3, 3)] + [x.getBlocksize(9, 9, 1, v_size) for x in blocksize_algs], generator.generateMTX(9, 9, 20), delta_dp))
 kernels.append(generator.SparseKernel("sve_mixed_test3", 18, 18, 18, 18, 0, 18, 3.4, -2.5, [(1, 1), (3, 3), (6, 6), (9, 9)] + [x.getBlocksize(18, 18, 1, v_size) for x in blocksize_algs], generator.generateMTX(18, 18, 59), delta_dp))
@@ -46,7 +47,7 @@ kernels.append(generator.DenseKernel("sve_arm_only_test14", 16, 5, 7, 16, 7, 16,
 kernels.append(generator.DenseKernel("sve_arm_only_test15", 23, 29, 31, 23, 31, 23, 1.32, 0.96, [x.getBlocksize(23, 29, 1, v_size) for x in blocksize_algs], 0.0000001))
 kernels.append(generator.SparseKernel("sve_arm_only_test16", 23, 29, 31, 23, 0, 23, 1.32, 0.96, [x.getBlocksize(23, 29, 1, v_size) for x in blocksize_algs], generator.generateMTX(31, 29, 61), delta_dp))
 
-# TODO: test cases for single precision multiplication.
+# test cases for single precision multiplication
 kernels.append(generator.DenseKernelS("sve_single_prec_test_S1", 9, 9, 9, 9, 9, 9, 1.24, 0.87, [x.getBlocksize(9, 9, 1, v_size_s) for x in blocksize_algs], delta_sp))
 kernels.append(generator.DenseKernelS("sve_single_prec_test_S2", 15, 15, 15, 15, 15, 15, -3.14, 6.28, [x.getBlocksize(15, 15, 1, v_size_s) for x in blocksize_algs], delta_sp))
 kernels.append(generator.DenseKernelS("sve_single_prec_test_S3", 23, 23, 23, 23, 23, 23, 1.5, -0.66, [x.getBlocksize(23, 23, 1, v_size_s) for x in blocksize_algs], delta_sp))

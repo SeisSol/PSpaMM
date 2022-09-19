@@ -129,11 +129,8 @@ int post(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned* LDB, unsign
     for(int j = 0; j < N; j++)
       // we use the relative error instead of the absolute error because of an issue we found for sparse single precision 
       // kernels presumably due to limited precision of floats
-      if(std::abs((C[i + j * LDC] - Cref[i + j * LDC])) / Cref[i + j * LDC] > DELTA) {
-        // printf("error %.9f > %.9f\\n", std::abs((C[i + j * LDC] - Cref[i + j * LDC])) / Cref[i + j * LDC], DELTA);
+      if(std::abs((C[i + j * LDC] - Cref[i + j * LDC])) / Cref[i + j * LDC] > DELTA)
         return 0;
-      }
-
 
   return 1;
 }
