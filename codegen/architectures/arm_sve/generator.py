@@ -9,7 +9,7 @@ from codegen.precision import *
 
 class Generator(AbstractGenerator):
     template = """
-void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, const {real_type}* prefetch) {{{{
+void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, const {real_type} alpha, const {real_type} beta, const {real_type}* prefetch) {{{{
   __asm__ __volatile__(
     "ldr x0, %0\\n\\t"
     "ldr x1, %1\\n\\t"
@@ -19,7 +19,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     {init_registers}
     {body_text}
 
-    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta) : {clobbered});
+    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta) : "memory",{clobbered});
     
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -71,8 +71,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         # use max(vm, 1) in case bm < v_size, otherwise we get no A_regs/C_regs
         A_regs = Matrix([[z(max(vm, 1) * c + r + 2, prec) for c in range(bk)] for r in range(max(vm, 1))])
         B_regs = Matrix([[z(max(vm, 1) * bk + 2 + bn * r + c, prec) for c in range(bn)] for r in range(bk)])
-        C_regs = Matrix(
-            [[z(32 - max(vm, 1) * bn + max(vm, 1) * c + r, prec) for c in range(bn)] for r in range(max(vm, 1))])
+        C_regs = Matrix([[z(32 - max(vm, 1) * bn + max(vm, 1) * c + r, prec) for c in range(bn)] for r in range(max(vm, 1))])
 
         alpha_reg = [z(0, prec), z(0, prec)]
         beta_reg = [z(1, prec), z(1, prec)]
@@ -92,7 +91,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         beta_reg: Register,
                         ) -> Block:
 
-        asm = block("Broadcast alpha and beta so that efficient multiplication is possible")
+        asm = block("Broadcasted alpha and beta into z0/z1 so that efficient multiplication is possible")
         return asm
 
     def make_scaling_offsets(self,
@@ -136,8 +135,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         # https://developer.arm.com/documentation/ddi0596/2020-12/Shared-Pseudocode/AArch64-Functions?lang=en#impl-aarch64.DecodePredCount.2
         # 'ptrue' doesnt work for initialising overhead predicate when using single precision -> see valid patterns from above
         # overhead = "\"ptrue p0.{suffix}, #{overhead}{eol}\"\n\t" if bm != 0 else ""    # define overhead predicate
-        overhead = "\"mov {gen_reg}3, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}3{eol}\"\n\t" if bm != 0 else ""
-        all_true = "\"ptrue p7.{suffix}, #{v_size}{eol}\""                             # define all true predicate
+        overhead = "\"mov {gen_reg}5, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}5{eol}\"\n\t" if bm != 0 else ""
+        all_true = "\"ptrue p7.{suffix}, #31{eol}\""                             # define all true predicate
         init_registers = (dup_alpha + dup_beta + comment + overhead + all_true).format(suffix=p_suffix,
                                                                                        gen_reg=gen_reg,
                                                                                        v_size=v_size,

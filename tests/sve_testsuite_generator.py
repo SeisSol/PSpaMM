@@ -26,7 +26,7 @@ def make(kernels, arch):
         arguments = [sys.executable, './../pspamm.py', str(kern.m), str(kern.n), str(kern.k), str(kern.lda),
                      str(kern.ldb), str(kern.ldc), str(kern.alpha), str(kern.beta)]
 
-        if isinstance(kern, SparseKernel):
+        if isinstance(kern, SparseKernel) or isinstance(kern, SparseKernelS):
             arguments += ['--mtx_filename', kern.mtx]
 
         prec = 's' if isinstance(kern, SparseKernelS) or isinstance(kern, DenseKernelS) else 'd'
@@ -82,7 +82,7 @@ def make(kernels, arch):
             bn = bs[1]
             name = kern.name + '_' + str(bm) + '_' + str(bn)
 
-            if isinstance(kern, SparseKernel):
+            if isinstance(kern, SparseKernel) or isinstance(kern, SparseKernelS):
                 mtx = kern.mtx
             else:
                 mtx = ""
@@ -90,10 +90,10 @@ def make(kernels, arch):
             prec = 'f' if isinstance(kern, SparseKernelS) or isinstance(kern, DenseKernelS) else ''
 
             f.write("""
-  ldb = {ldb}; {p}alpha = {alpha}; {p}beta = {beta};
+  {p}alpha = {alpha}; {p}beta = {beta}; ldb = {ldb};
   {p}pointers = pre<{T}>({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
-  {name}(std::get<0>({p}pointers), std::get<{sparse}>({p}pointers), std::get<3>({p}pointers), alpha, beta, nullptr);
-  result = post<{T}>({m}, {n}, {k}, {lda}, &ldb, {ldc}, &alpha, &beta, std::get<0>({p}pointers), std::get<1>({p}pointers), std::get<3>({p}pointers), std::get<4>({p}pointers), {delta:.7f});
+  {name}(std::get<0>({p}pointers), std::get<{sparse}>({p}pointers), std::get<3>({p}pointers), {p}alpha, {p}beta, nullptr);
+  result = post<{T}>({m}, {n}, {k}, {lda}, &ldb, {ldc}, &{p}alpha, &{p}beta, std::get<0>({p}pointers), std::get<1>({p}pointers), std::get<3>({p}pointers), std::get<4>({p}pointers), {delta:.7f});
   results.push_back(std::make_tuple("{name}", result));
   free(std::get<0>({p}pointers)); free(std::get<1>({p}pointers)); free(std::get<2>({p}pointers)); free(std::get<3>({p}pointers)); free(std::get<4>({p}pointers));
 """.format(m=kern.m, n=kern.n, k=kern.k, lda=kern.lda, ldb=kern.ldb, ldc=kern.ldc, alpha=kern.alpha, beta=kern.beta,

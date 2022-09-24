@@ -44,7 +44,7 @@ kernels.append(generator.DenseKernel("sve_arm_only_test12", 2, 1, 1, 2, 1, 8, 1.
 kernels.append(generator.DenseKernel("sve_arm_only_test13", 2, 3, 3, 2, 3, 2, 1.0, 0.0, [(2, 1)] + [x.getBlocksize(2, 3, 1, v_size) for x in blocksize_algs], delta_dp))
 kernels.append(generator.DenseKernel("sve_arm_only_test14", 16, 5, 7, 16, 7, 16, 1.0, 1.0, [(8, 1), (8,2)] + [x.getBlocksize(16, 5, 1, v_size) for x in blocksize_algs], delta_dp))
 
-kernels.append(generator.DenseKernel("sve_arm_only_test15", 23, 29, 31, 23, 31, 23, 1.32, 0.96, [x.getBlocksize(23, 29, 1, v_size) for x in blocksize_algs], 0.0000001))
+kernels.append(generator.DenseKernel("sve_arm_only_test15", 23, 29, 31, 23, 31, 23, 1.32, 0.96, [x.getBlocksize(23, 29, 1, v_size) for x in blocksize_algs], delta_dp))
 kernels.append(generator.SparseKernel("sve_arm_only_test16", 23, 29, 31, 23, 0, 23, 1.32, 0.96, [x.getBlocksize(23, 29, 1, v_size) for x in blocksize_algs], generator.generateMTX(31, 29, 61), delta_dp))
 
 # test cases for single precision multiplication

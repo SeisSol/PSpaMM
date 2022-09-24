@@ -215,7 +215,7 @@ class MatMul:
                     for ic in range(regs.shape[1]):
                         for ir in range(regs.shape[0]):
                             pred_m = None if not self.is_sve else self.generator.pred_n_trues(self.bm - ir * self.v_size, self.v_size, "m")
-                            asm.add(mul(regs[ir,ic], self.beta_reg[1], regs[ir,ic], pred=pred_m))
+                            asm.add(mul(regs[ir,ic], self.beta_reg[1], regs[ir,ic], "C = beta * C", pred=pred_m))
             else:
                 asm.add(self.generator.make_zero_block(regs, self.additional_regs))
 
