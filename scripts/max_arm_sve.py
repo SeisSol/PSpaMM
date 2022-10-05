@@ -4,7 +4,7 @@ def getBlocksize(m, n, bk, v_size=2):
     bn = 1
     maxval = 0
 
-    for i in range(2, m + 1, 1):
+    for i in range(1, m + 1, 1):
         next_multiple = i
         while next_multiple % v_size != 0:
             next_multiple += 1

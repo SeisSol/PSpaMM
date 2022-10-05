@@ -21,7 +21,18 @@ long long pspamm_num_total_flops = 0;
 """
 
 function_definitions = """
-void gemm_ref(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, double ALPHA, double BETA, double* A, double* B, double* C) {
+template <typename T>
+void pretty_print(unsigned M, unsigned N, unsigned LDC, T* C) {
+  for (int m = 0; m < M; ++m) {
+    for (int n = 0; n < N; ++n) {
+      printf("%.4f ", C[m * LDC + n]);
+    }
+    printf("\\n");
+  }
+}
+
+template <typename T>
+void gemm_ref(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, T ALPHA, T BETA, T* A, T* B, T* C) {
   for (unsigned col = 0; col < N; ++col) {
     for (unsigned row = 0; row < M; ++row) {
       C[row + col * LDC] = BETA * C[row + col * LDC];
@@ -36,22 +47,23 @@ void gemm_ref(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, un
   }
 }
 
-std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, std::string MTX) {
+template <typename T>
+std::tuple<T*, T*, T*, T*, T*> pre(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, std::string MTX) {
 
   if(LDB == 0)
     LDB = K;
 
-  double *A;
-  double *B;
-  double *Bsparse;
-  double *Cref;
-  double *C;
+  T *A;
+  T *B;
+  T *Bsparse;
+  T *Cref;
+  T *C;
 
-  int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, LDA*LDB*sizeof(double));
-  int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, LDB*N*sizeof(double));
-  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, LDB*N*sizeof(double));  
-  int resCref = posix_memalign(reinterpret_cast<void **>(&Cref), 64, LDC*N*sizeof(double));
-  int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, LDC*N*sizeof(double));
+  int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, LDA*LDB*sizeof(T));
+  int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, LDB*N*sizeof(T));
+  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, LDB*N*sizeof(T));  
+  int resCref = posix_memalign(reinterpret_cast<void **>(&Cref), 64, LDC*N*sizeof(T));
+  int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, LDC*N*sizeof(T));
 
   std::string line;
   std::ifstream f(MTX);
@@ -60,17 +72,17 @@ std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned
   getline(f, line);
 
   for(int i = 0; i < LDA*LDB; i++)
-    A[i] = (double)rand() / RAND_MAX;
+    A[i] = (T)rand() / RAND_MAX;
 
   for(int i = 0; i < LDB*N; i++)
     if(MTX.compare(""))
       B[i] = 0;
     else 
-      B[i] = (double)rand() / RAND_MAX;
+      B[i] = (T)rand() / RAND_MAX;
 
   for(int i = 0; i < LDC*N; i++)
   {
-    Cref[i] = (double)rand() / RAND_MAX;
+    Cref[i] = (T)rand() / RAND_MAX;
     C[i] = Cref[i];
   }
 
@@ -105,7 +117,8 @@ std::tuple<double*, double*, double*, double*, double*> pre(unsigned M, unsigned
   return std::make_tuple(A, B, Bsparse, C, Cref);
 }
 
-int post(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned* LDB, unsigned LDC, double* ALPHA, double* BETA, double* A, double* B, double* C, double* Cref, double DELTA) {
+template <typename T>
+int post(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned* LDB, unsigned LDC, T* ALPHA, T* BETA, T* A, T* B, T* C, T* Cref, T DELTA) {
 
   if(*LDB == 0)
     *LDB = K;
@@ -114,7 +127,9 @@ int post(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned* LDB, unsign
     
   for(int i = 0; i < M; i++)
     for(int j = 0; j < N; j++)
-      if(std::abs(C[i + j * LDC] - Cref[i + j * LDC]) > DELTA)
+      // we use the relative error instead of the absolute error because of an issue we found for sparse single precision 
+      // kernels presumably due to limited precision of floats
+      if(std::abs((C[i + j * LDC] - Cref[i + j * LDC])) / Cref[i + j * LDC] > DELTA)
         return 0;
 
   return 1;
@@ -134,9 +149,9 @@ int main()
 
 setup_single_testcase = """
   ldb = {ldb}; alpha = {alpha}; beta = {beta};
-  pointers = pre({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
+  pointers = pre<double>({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
   {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers), {alpha}, {beta}, nullptr);
-  result = post({m}, {n}, {k}, {lda}, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.7f});
+  result = post<double>({m}, {n}, {k}, {lda}, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.7f});
   results.push_back(std::make_tuple("{name}", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 """
