@@ -311,6 +311,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         return asm
 
     def init_prefetching(self, prefetching):
-        Generator.template = Generator.template.format(prefetching_mov="", prefetching_decl='',
-                                                       funcName="{funcName}", body_text="{body_text}",
-                                                       clobbered="{clobbered}")
+        # When calling PSpaMM within SeisSol, prefetching is activated by default; However, the partial formatting
+        # of our template string breaks the generator -> For now, we just do nothing when calling init_prefetching()
+        # for arm_sve as a quick fix. We don't use prefetching for the SVE unit tests anyway, so this changes nothing
+        pass
+        # Generator.template = Generator.template.format(prefetching_mov="", prefetching_decl='',
+        #                                                funcName="{funcName}", body_text="{body_text}",
+        #                                                clobbered="{clobbered}")

@@ -7,6 +7,7 @@ from codegen.precision import *
 
 import scripts.old_arm
 import scripts.max_bn_knl
+import scripts.max_arm_sve
 
 from cursors import *
 
@@ -121,7 +122,7 @@ class MatMul:
             elif arch == 'arm':
                 (self.bm, self.bn) = scripts.old_arm.getBlocksize(m, n, bk, self.v_size)
             elif arch == 'arm_sve':
-                (self.b, self.bn) = scripts.max_arm(m, n, bk, self.v_size)
+                (self.bm, self.bn) = scripts.max_arm_sve.getBlocksize(m, n, bk, self.v_size)
         else: 
             self.bm = bm
             self.bn = bn
