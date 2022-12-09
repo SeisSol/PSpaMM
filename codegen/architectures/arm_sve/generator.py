@@ -81,7 +81,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         starting_regs = [r(0), r(1), r(2)]
 
-        additional_regs = [r(11), l("0.0"), r(10)]  # r10 used for scaling offsets
+        additional_regs = [r(11), l("0.0"), r(10), r(8)]  # r10 used for scaling offsets
 
         loop_reg = r(12)
 
@@ -216,7 +216,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                         asm.add(add(addr.disp, additional_regs[0], offset_comment, addr.base))
                         if prefetching is not None and store:
                             # increment prefetch register similarly to the C pointer register
-                            asm.add(add(addr.disp, self.prefetch_reg.clobbered, "increment the prefetch register", self.prefetch_reg.clobbered))
+                            asm.add(add(addr.disp, additional_regs[3], "increment the prefetch register", self.prefetch_reg))
                         prev_disp = addr.disp
                         addr.base = additional_regs[0]
                         prev_base = addr.base
@@ -232,8 +232,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                         asm.add(ld(addr, registers[ir, ic], True, comment, pred=p_zeroing, is_B=is_B, scalar_offs=False,
                                    add_reg=additional_regs[2]))
                     if prefetching is not None and store:
-                        self.prefetch_reg.disp = addr.disp
-                        asm.add(prefetch(self.prefetch_reg, "", p, prec, access_type="ST"))
+                        #self.prefetch_reg.disp = addr.disp
+                        asm.add(prefetch(mem(additional_regs[3], addr.disp), "", p, prec, access_type="ST"))
 
                     prev_overhead = int(p.ugly[1]) == 0  # determine if we previously used p0 (overhead predicate)
 
@@ -335,11 +335,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             prefetch_reg = None
             prefetching_mov = ''
         else:
-            prefetch_reg = mem(r(8), 0) # r(8)
-            prefetching_mov = "\"ldr x8, %5\\n\\t\""
+            prefetch_reg = r(5)
+            prefetching_mov = "\"ldr {}, %5\\n\\t\"".format(prefetch_reg.ugly)
         self.prefetch_reg = prefetch_reg
 
-        prefetching_decl = ''
+        prefetching_decl = ""#{}".format(str(prefetch_reg.base.ugly))
         Generator.template = Generator.template.format(prefetching_mov=prefetching_mov, prefetching_decl=prefetching_decl,
                                                        funcName="{funcName}", body_text="{body_text}",
                                                        clobbered="{clobbered}", real_type="{real_type}",

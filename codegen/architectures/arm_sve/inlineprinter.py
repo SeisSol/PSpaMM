@@ -180,7 +180,7 @@ class InlinePrinter(Visitor):
         xn = stmt.dest.ugly_base
         # TODO: how do we get the offset, just from load/store instruction?
         offset = stmt.dest.ugly_offset
-        src_string = "[{}, #{}, MUL VL]".format(xn, offset)
+        src_string = "[{}, {}, MUL VL]".format(xn, offset)
         p = self.p_string(stmt.pred)
         prec = "d" if stmt.precision == Precision.DOUBLE else "w"
         s = "prf{} P{}{}{}, {}{}".format(prec, stmt.access_type, cache_level, temporality, p.split('/')[0], src_string)
