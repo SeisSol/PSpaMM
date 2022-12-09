@@ -79,7 +79,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         alpha_reg = [z(0, prec), z(0, prec)]
         beta_reg = [z(1, prec), z(1, prec)]
 
-        starting_regs = [r(0), r(1), r(2)]
+        starting_regs = [r(0), r(1), r(2), r(3), r(4), r(6)]  # r6 is needed for predicate creation, r5 is added int init_prefetching()
 
         additional_regs = [r(11), l("0.0"), r(10), r(8)]  # r10 used for scaling offsets
 
@@ -129,7 +129,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # Wn adresses the lower 32 bits of Xn
         # generally: Xn/Wn "[...] are two separate ways of looking at the same register"
         # this means we can load alpha/beta into x3/x4 even if they are floats (32 bits)
-        dup_alpha = "\t\"dup z0.{suffix}, {gen_reg}3{eol}\"\n\t"  # define broadcasting of alpha
+        dup_alpha = "//Broadcasted alpha and beta into z0/z1 so that efficient multiplication is possible\n\t\"dup z0.{suffix}, {gen_reg}3{eol}\"\n\t"  # define broadcasting of alpha
         dup_beta = "\"dup z1.{suffix}, {gen_reg}4{eol}\"\n\t"   # define broadcasting of beta
 
         comment = "//p7 denotes the 'all-true' predicate and, if given, p0 denotes the 'bm % v_size' predicate\n\t"
@@ -138,7 +138,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # https://developer.arm.com/documentation/ddi0596/2020-12/Shared-Pseudocode/AArch64-Functions?lang=en#impl-aarch64.DecodePredCount.2
         # 'ptrue' doesnt work for initialising overhead predicate when using single precision -> see valid patterns from above
         # overhead = "\"ptrue p0.{suffix}, #{overhead}{eol}\"\n\t" if bm != 0 else ""    # define overhead predicate
-        overhead = "\"mov {gen_reg}5, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}5{eol}\"\n\t" if bm != 0 else ""
+        overhead = "\"mov {gen_reg}5, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}6{eol}\"\n\t" if bm != 0 else ""
         all_true = "\"ptrue p7.{suffix}, #31{eol}\""                             # define all true predicate
         init_registers = (dup_alpha + dup_beta + comment + overhead + all_true).format(suffix=p_suffix,
                                                                                        gen_reg=gen_reg,
