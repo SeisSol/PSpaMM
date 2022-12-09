@@ -89,6 +89,10 @@ class MemoryAddress_ARM(MemoryAddress):
         return "[{}, {}, MUL VL]".format(self.base.ugly, self.disp)
 
     @property
+    def clobbered(self):
+        return self.base
+
+    @property
     def ugly_no_vl_scaling(self):
         return "[{}, {}]".format(self.base.ugly, self.disp)
 

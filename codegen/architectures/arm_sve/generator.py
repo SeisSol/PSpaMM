@@ -9,17 +9,18 @@ from codegen.precision import *
 
 class Generator(AbstractGenerator):
     template = """
-void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, const {real_type} alpha, const {real_type} beta, const {real_type}* prefetch) {{{{
+void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, const {real_type} alpha, const {real_type} beta, const {real_type}* prefetch) {{{{{{{{
   __asm__ __volatile__(
     "ldr x0, %0\\n\\t"
     "ldr x1, %1\\n\\t"
     "ldr x2, %2\\n\\t"
     "ldr x3, %3\\n\\t"
     "ldr x4, %4\\n\\t"
+    {prefetching_mov}
     {init_registers}
     {body_text}
 
-    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta) : "memory",{clobbered});
+    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta) : "memory",{prefetching_decl}{clobbered});
     
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -28,7 +29,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     pspamm_num_total_flops += {flop};
     #endif
 
-}}}};"""
+}}}}}}}};"""
+
+    prefetch_reg = None
 
     def get_v_size(self):
         if self.precision == Precision.DOUBLE:
@@ -78,7 +81,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         starting_regs = [r(0), r(1), r(2)]
 
-        additional_regs = [r(11), l("0.0"), r(10), r(3)]  # r10 used for scaling offsets
+        additional_regs = [r(11), l("0.0"), r(10)]  # r10 used for scaling offsets
 
         loop_reg = r(12)
 
@@ -169,6 +172,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         rows, cols = registers.shape
         action = "Store" if store else "Load"
         asm = block("{} {} register block @ {}".format(action, cursor.name, block_offset))
+        prec = self.get_precision()
+
+        # Determine whether we use prefetching and if we are currently operating on C
+        do_prefetch = prefetching is not None and cursor.name == "C"
 
         b_row, b_col, i, _ = cursor.get_block(cursor_ptr, block_offset)
 
@@ -201,9 +208,15 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     cont_counter = ((addr.disp - prev_disp) // mul_vl)
                     larger_max_offset = cont_counter > max_mem_ins_mult
 
+                    # if prefetching is not None and store:
+                    #     self.prefetch_reg.disp = addr.disp
+
                     if larger_max_offset or (prev_overhead and addr.disp > 0):
                         offset_comment = "disp > {}".format(max_offset) if larger_max_offset else "previous mem. instr. used p0"
                         asm.add(add(addr.disp, additional_regs[0], offset_comment, addr.base))
+                        if prefetching is not None and store:
+                            # increment prefetch register similarly to the C pointer register
+                            asm.add(add(addr.disp, self.prefetch_reg.clobbered, "increment the prefetch register", self.prefetch_reg.clobbered))
                         prev_disp = addr.disp
                         addr.base = additional_regs[0]
                         prev_base = addr.base
@@ -218,6 +231,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     else:
                         asm.add(ld(addr, registers[ir, ic], True, comment, pred=p_zeroing, is_B=is_B, scalar_offs=False,
                                    add_reg=additional_regs[2]))
+                    if prefetching is not None and store:
+                        self.prefetch_reg.disp = addr.disp
+                        asm.add(prefetch(self.prefetch_reg, "", p, prec, access_type="ST"))
 
                     prev_overhead = int(p.ugly[1]) == 0  # determine if we previously used p0 (overhead predicate)
 
@@ -314,7 +330,18 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # When calling PSpaMM within SeisSol, prefetching is activated by default; However, the partial formatting
         # of our template string breaks the generator -> For now, we just do nothing when calling init_prefetching()
         # for arm_sve as a quick fix. We don't use prefetching for the SVE unit tests anyway, so this changes nothing
-        pass
-        # Generator.template = Generator.template.format(prefetching_mov="", prefetching_decl='',
-        #                                                funcName="{funcName}", body_text="{body_text}",
-        #                                                clobbered="{clobbered}")
+        # pass
+        if prefetching == None:
+            prefetch_reg = None
+            prefetching_mov = ''
+        else:
+            prefetch_reg = mem(r(8), 0) # r(8)
+            prefetching_mov = "\"ldr x8, %5\\n\\t\""
+        self.prefetch_reg = prefetch_reg
+
+        prefetching_decl = ''
+        Generator.template = Generator.template.format(prefetching_mov=prefetching_mov, prefetching_decl=prefetching_decl,
+                                                       funcName="{funcName}", body_text="{body_text}",
+                                                       clobbered="{clobbered}", real_type="{real_type}",
+                                                       init_registers="{init_registers}", flop="{flop}")
+        return prefetch_reg

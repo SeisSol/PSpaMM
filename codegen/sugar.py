@@ -118,10 +118,14 @@ def st(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None
         stmt.typ = AsmType.i64
     return stmt
 
-def prefetch(dest: Operand, comment:str = None):
+def prefetch(dest: Operand, comment:str = None, pred: Register = None, precision: str = None, access_type: str = None):
     stmt = PrefetchStmt()
     stmt.dest = dest
     stmt.comment = comment
+    # used in arm_sve:
+    stmt.pred = pred
+    stmt.precision = precision
+    stmt.access_type = access_type
     return stmt
 
 def data(value: Union[Operand, int], asmType=AsmType.i64):
