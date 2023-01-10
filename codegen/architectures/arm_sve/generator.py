@@ -20,7 +20,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     {init_registers}
     {body_text}
 
-    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta) : "memory",{prefetching_decl}{clobbered});
+    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta){prefetching_decl}: "memory",{clobbered});
     
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -124,6 +124,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         eol = "\\n\\t"                          # define the "end of line" sequence for easy assembly
         p_suffix = "d" if v_size == 8 else "s"  # determine whether predicate suffix is '.d' or '.s
         gen_reg = "x" if v_size == 8 else "w"   # determine if 'dup' registers are 64 bit or 32 bit
+        overhead_counter = 6
 
         # https://developer.arm.com/documentation/102374/0101/Registers-in-AArch64---general-purpose-registers
         # Wn adresses the lower 32 bits of Xn
@@ -138,10 +139,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # https://developer.arm.com/documentation/ddi0596/2020-12/Shared-Pseudocode/AArch64-Functions?lang=en#impl-aarch64.DecodePredCount.2
         # 'ptrue' doesnt work for initialising overhead predicate when using single precision -> see valid patterns from above
         # overhead = "\"ptrue p0.{suffix}, #{overhead}{eol}\"\n\t" if bm != 0 else ""    # define overhead predicate
-        overhead = "\"mov {gen_reg}5, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}6{eol}\"\n\t" if bm != 0 else ""
+        overhead = "\"mov {gen_reg}{overhead_counter}, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bm != 0 else ""
         all_true = "\"ptrue p7.{suffix}, #31{eol}\""                             # define all true predicate
         init_registers = (dup_alpha + dup_beta + comment + overhead + all_true).format(suffix=p_suffix,
                                                                                        gen_reg=gen_reg,
+                                                                                       overhead_counter=overhead_counter,
                                                                                        v_size=v_size,
                                                                                        overhead=bm,
                                                                                        eol=eol)
@@ -180,6 +182,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         b_row, b_col, i, _ = cursor.get_block(cursor_ptr, block_offset)
 
         cur11 = 0
+        prefetch_count = 0
+        threshold = 4
 
         # TODO: if another CPU implements SVE at VL != 64 bytes, rewrite mul_vl (maybe do this dynamically)
         mul_vl = 64     # A64FX has VL of 64 bytes in memory
@@ -214,7 +218,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     if larger_max_offset or (prev_overhead and addr.disp > 0):
                         offset_comment = "disp > {}".format(max_offset) if larger_max_offset else "previous mem. instr. used p0"
                         asm.add(add(addr.disp, additional_regs[0], offset_comment, addr.base))
-                        if prefetching is not None and store:
+                        if prefetching is not None and store and prefetch_count == threshold:
                             # increment prefetch register similarly to the C pointer register
                             asm.add(add(addr.disp, additional_regs[3], "increment the prefetch register", self.prefetch_reg))
                         prev_disp = addr.disp
@@ -226,14 +230,18 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     addr.disp = (addr.disp - prev_disp) // mul_vl
 
                     if store:
+                        if prefetching == "BL2viaC" and store and prefetch_count % threshold == 0:
+                            # self.prefetch_reg.disp = addr.disp
+                            asm.add(prefetch(mem(additional_regs[3] if prev_disp > 0 else self.prefetch_reg, addr.disp),
+                                             "", p, prec, access_type="ST"))
+                            prefetch_count = 0
+
                         asm.add(st(registers[ir, ic], addr, True, comment, pred=p, scalar_offs=False,
                                    add_reg=additional_regs[2]))
+                        prefetch_count += 1
                     else:
                         asm.add(ld(addr, registers[ir, ic], True, comment, pred=p_zeroing, is_B=is_B, scalar_offs=False,
                                    add_reg=additional_regs[2]))
-                    if prefetching is not None and store:
-                        #self.prefetch_reg.disp = addr.disp
-                        asm.add(prefetch(mem(additional_regs[3], addr.disp), "", p, prec, access_type="ST"))
 
                     prev_overhead = int(p.ugly[1]) == 0  # determine if we previously used p0 (overhead predicate)
 
@@ -334,12 +342,13 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         if prefetching == None:
             prefetch_reg = None
             prefetching_mov = ''
+            prefetching_decl = ''
         else:
             prefetch_reg = r(5)
             prefetching_mov = "\"ldr {}, %5\\n\\t\"".format(prefetch_reg.ugly)
-        self.prefetch_reg = prefetch_reg
+            prefetching_decl = ", \"m\"(prefetch)"
 
-        prefetching_decl = ""#{}".format(str(prefetch_reg.base.ugly))
+        self.prefetch_reg = prefetch_reg
         Generator.template = Generator.template.format(prefetching_mov=prefetching_mov, prefetching_decl=prefetching_decl,
                                                        funcName="{funcName}", body_text="{body_text}",
                                                        clobbered="{clobbered}", real_type="{real_type}",
