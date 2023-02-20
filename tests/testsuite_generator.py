@@ -134,7 +134,9 @@ int post(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned* LDB, unsign
 
   return 1;
 }
+"""
 
+setup_main = """
 int main()
 {
   std::vector<std::tuple<std::string, int>> results;
@@ -241,6 +243,7 @@ def make(kernels, arch):
     f.write('\n')
 
     f.write(function_definitions)
+    f.write(setup_main)
 
     for kern in kernels:
 
