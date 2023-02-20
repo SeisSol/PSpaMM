@@ -169,16 +169,11 @@ class InlinePrinter(Visitor):
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
 
-    #  instead of dest: Register
-    def visitPrefetch(self, stmt: PrefetchStmt):#, access_type: str, prec: str, p: Register):
-        # call visitPrefetch from within load/store methods, avoid cluttering non sve-specific files (ast.py, matmul.py, etc.)
+    def visitPrefetch(self, stmt: PrefetchStmt):
         # https://stackoverflow.com/questions/37070/what-is-the-meaning-of-non-temporal-memory-accesses-in-x86#:~:text=Data%20referenced%20by%20a%20program,%2C%20is%20often%20non%2Dtemporal.
-        # temporal vs non-temporal data? Do we see a difference in execution time depending on the type of prefetching?
-        # TODO: we could dynamically choose where to prefetch data to (L1 vs L2), maybe this is irrelevant though
-        cache_level = "L1"
-        temporality = "STRM"
+        cache_level = "L1"  # specify cache level to which we prefetch
+        temporality = "STRM"  # could use "STRM" for non-temporal prefetching if needed
         xn = stmt.dest.ugly_base
-        # TODO: how do we get the offset, just from load/store instruction?
         offset = stmt.dest.ugly_offset
         src_string = "[{}, {}, MUL VL]".format(xn, offset)
         p = self.p_string(stmt.pred)

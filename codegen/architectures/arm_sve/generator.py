@@ -32,6 +32,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 }}}}}}}};"""
 
     prefetch_reg = None
+    prefetch_count = 0
+    is_sparse = False
 
     def get_v_size(self):
         if self.precision == Precision.DOUBLE:
@@ -66,8 +68,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     def ceil_div(self, n, d):
         return -(n // -d)
 
+    # is at most one tim in matmul.py
+    def set_sparse(self):
+        self.is_sparse = True
+
     def make_reg_blocks(self, bm: int, bn: int, bk: int, v_size: int, nnz: int, m: int, n: int, k: int):
-        vm = self.ceil_div(bm, v_size)                  # can be 0 if bm < v_size
+        vm = self.ceil_div(bm, v_size)                  # vm can be 0 if bm < v_size -> makes ceil_div necessary
         assert ((bn + bk) * vm + bn * bk + 2 <= 32)     # Needs to fit in SVE z registers
         prec = "d" if self.get_precision() == Precision.DOUBLE else "s"
 
@@ -79,7 +85,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         alpha_reg = [z(0, prec), z(0, prec)]
         beta_reg = [z(1, prec), z(1, prec)]
 
-        starting_regs = [r(0), r(1), r(2), r(3), r(4), r(6)]  # r6 is needed for predicate creation, r5 is added int init_prefetching()
+        starting_regs = [r(0), r(1), r(2), r(3), r(4), r(6)]  # r6 is needed for predicate creation, r5 is added in init_prefetching()
 
         additional_regs = [r(11), l("0.0"), r(10), r(8)]  # r10 used for scaling offsets
 
@@ -177,13 +183,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         prec = self.get_precision()
 
         # Determine whether we use prefetching and if we are currently operating on C
-        do_prefetch = prefetching is not None and cursor.name == "C"
+        do_prefetch = prefetching is not None and cursor.name == "C" and store
 
         b_row, b_col, i, _ = cursor.get_block(cursor_ptr, block_offset)
 
         cur11 = 0
-        prefetch_count = 0
-        threshold = 4
+        threshold = 1 if self.is_sparse else 4  # uses whole 256 byte cache line, as one SVE vector = 64 bytes
 
         # TODO: if another CPU implements SVE at VL != 64 bytes, rewrite mul_vl (maybe do this dynamically)
         mul_vl = 64     # A64FX has VL of 64 bytes in memory
@@ -200,8 +205,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                 if (mask is None) or (mask[ir, ic]):
                     processed = ir * v_size
                     p = self.pred_n_trues(b_row - processed, v_size) if not is_B else self.pred_n_trues(v_size, v_size)
-                    p_zeroing = self.pred_n_trues(b_row - processed, v_size, "z") if not is_B else self.pred_n_trues(v_size,
-                                                                                                                     v_size, "z")
+                    p_zeroing = self.pred_n_trues(b_row - processed, v_size, "z") if not is_B else self.pred_n_trues(v_size, v_size, "z")
                     cell_offset = Coords(down=ir * v_size, right=ic)
 
                     # addr = base "pointer" + relative offset in bytes
@@ -212,15 +216,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     cont_counter = ((addr.disp - prev_disp) // mul_vl)
                     larger_max_offset = cont_counter > max_mem_ins_mult
 
-                    # if prefetching is not None and store:
-                    #     self.prefetch_reg.disp = addr.disp
-
                     if larger_max_offset or (prev_overhead and addr.disp > 0):
                         offset_comment = "disp > {}".format(max_offset) if larger_max_offset else "previous mem. instr. used p0"
                         asm.add(add(addr.disp, additional_regs[0], offset_comment, addr.base))
-                        if prefetching is not None and store and prefetch_count == threshold:
-                            # increment prefetch register similarly to the C pointer register
-                            asm.add(add(addr.disp, additional_regs[3], "increment the prefetch register", self.prefetch_reg))
                         prev_disp = addr.disp
                         addr.base = additional_regs[0]
                         prev_base = addr.base
@@ -230,15 +228,15 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     addr.disp = (addr.disp - prev_disp) // mul_vl
 
                     if store:
-                        if prefetching == "BL2viaC" and store and prefetch_count % threshold == 0:
-                            # self.prefetch_reg.disp = addr.disp
-                            asm.add(prefetch(mem(additional_regs[3] if prev_disp > 0 else self.prefetch_reg, addr.disp),
-                                             "", p, prec, access_type="ST"))
-                            prefetch_count = 0
-
                         asm.add(st(registers[ir, ic], addr, True, comment, pred=p, scalar_offs=False,
                                    add_reg=additional_regs[2]))
-                        prefetch_count += 1
+                        # perform prefetching after a store instruction, similar to KNL case
+                        if do_prefetch and (self.prefetch_count % threshold == 0):
+                            asm.add(add(addr.disp, additional_regs[3], "increment the prefetch register", self.prefetch_reg))
+                            asm.add(prefetch(mem(additional_regs[3] if prev_disp > 0 else self.prefetch_reg, addr.disp),
+                                             "", p, prec, access_type="ST"))
+                            self.prefetch_count = 0
+                        self.prefetch_count += 1
                     else:
                         asm.add(ld(addr, registers[ir, ic], True, comment, pred=p_zeroing, is_B=is_B, scalar_offs=False,
                                    add_reg=additional_regs[2]))
@@ -335,11 +333,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         return asm
 
     def init_prefetching(self, prefetching):
-        # When calling PSpaMM within SeisSol, prefetching is activated by default; However, the partial formatting
-        # of our template string breaks the generator -> For now, we just do nothing when calling init_prefetching()
-        # for arm_sve as a quick fix. We don't use prefetching for the SVE unit tests anyway, so this changes nothing
-        # pass
-        if prefetching == None:
+        if prefetching is None:
             prefetch_reg = None
             prefetching_mov = ''
             prefetching_decl = ''
