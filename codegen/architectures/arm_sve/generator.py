@@ -68,7 +68,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     def ceil_div(self, n, d):
         return -(n // -d)
 
-    # is at most one tim in matmul.py
+    # is called at most one time in matmul.py
     def set_sparse(self):
         self.is_sparse = True
 
@@ -188,6 +188,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         b_row, b_col, i, _ = cursor.get_block(cursor_ptr, block_offset)
 
         cur11 = 0
+        #TODO: figure out appropriate threshold
         threshold = 1 if self.is_sparse else 4  # uses whole 256 byte cache line, as one SVE vector = 64 bytes
 
         # TODO: if another CPU implements SVE at VL != 64 bytes, rewrite mul_vl (maybe do this dynamically)
@@ -231,8 +232,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                         asm.add(st(registers[ir, ic], addr, True, comment, pred=p, scalar_offs=False,
                                    add_reg=additional_regs[2]))
                         # perform prefetching after a store instruction, similar to KNL case
-                        if do_prefetch and (self.prefetch_count % threshold == 0):
-                            asm.add(add(addr.disp, additional_regs[3], "increment the prefetch register", self.prefetch_reg))
+                        if do_prefetch and self.prefetch_count % threshold == 0:
+                            if prev_disp > 0:
+                                asm.add(add(prev_disp, additional_regs[3], "increment the prefetch register", self.prefetch_reg))
                             asm.add(prefetch(mem(additional_regs[3] if prev_disp > 0 else self.prefetch_reg, addr.disp),
                                              "", p, prec, access_type="ST"))
                             self.prefetch_count = 0

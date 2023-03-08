@@ -172,7 +172,7 @@ class InlinePrinter(Visitor):
     def visitPrefetch(self, stmt: PrefetchStmt):
         # https://stackoverflow.com/questions/37070/what-is-the-meaning-of-non-temporal-memory-accesses-in-x86#:~:text=Data%20referenced%20by%20a%20program,%2C%20is%20often%20non%2Dtemporal.
         cache_level = "L1"  # specify cache level to which we prefetch
-        temporality = "STRM"  # could use "STRM" for non-temporal prefetching if needed
+        temporality = "KEEP"  # could use "STRM" for non-temporal prefetching if needed
         xn = stmt.dest.ugly_base
         offset = stmt.dest.ugly_offset
         src_string = "[{}, {}, MUL VL]".format(xn, offset)
