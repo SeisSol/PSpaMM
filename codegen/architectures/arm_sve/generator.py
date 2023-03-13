@@ -183,7 +183,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         prec = self.get_precision()
 
         # Determine whether we use prefetching and if we are currently operating on C
-        do_prefetch = prefetching is not None and cursor.name == "C" and store
+        do_prefetch = self.prefetch_reg is not None and cursor.name == "C" and store
 
         b_row, b_col, i, _ = cursor.get_block(cursor_ptr, block_offset)
 
@@ -335,6 +335,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         return asm
 
     def init_prefetching(self, prefetching):
+        #TODO: currently, SVE prefetching brings at best equal performance compared to no prefetching
+        # for now disable it -> if we find a way to get better performance with prefetching, delete the next line
+        prefetching = None  # disable prefetching and make it easy to enable
         if prefetching is None:
             prefetch_reg = None
             prefetching_mov = ''
