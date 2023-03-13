@@ -7,7 +7,7 @@ CXXFLAGSNEON=-std=c++17 -O3 -mcpu=native -fopenmp -Wall -g
 all: sve_testsuite neon_testsuite
 
 sve_testsuite: sve_testsuite.cpp
-	${CXXCLANG} ${CXXFLAGS} $< -o sve_testsuite
+	${CXX} ${CXXFLAGS} $< -o sve_testsuite
 
 neon_testsuite: testsuite.cpp
 	${CXX} ${CXXFLAGSNEON} $< -o neon_testsuite
