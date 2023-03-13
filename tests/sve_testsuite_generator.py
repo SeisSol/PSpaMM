@@ -15,8 +15,8 @@ DenseKernelS = namedtuple('DenseKernelS', 'name m n k lda ldb ldc alpha beta blo
 setup_prefetching = """
 template <typename T>
 void setup_prefetch(T* prefetch, T* matrix, unsigned n, unsigned ldc) {
- posix_memalign(reinterpret_cast<void **>(&prefetch), 64, {ldc}*{n}*sizeof({T}));
- std::memcpy(prefetch, matrix, {ldc}*{n}*sizeof({T}));
+ posix_memalign(reinterpret_cast<void **>(&prefetch), 64, ldc*n*sizeof(T));
+ std::memcpy(prefetch, matrix, ldc*n*sizeof(T));
 }
 """
 
