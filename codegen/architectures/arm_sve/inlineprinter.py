@@ -169,6 +169,18 @@ class InlinePrinter(Visitor):
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
 
+    def visitPrefetch(self, stmt: PrefetchStmt):
+        # https://stackoverflow.com/questions/37070/what-is-the-meaning-of-non-temporal-memory-accesses-in-x86#:~:text=Data%20referenced%20by%20a%20program,%2C%20is%20often%20non%2Dtemporal.
+        cache_level = "L1"  # specify cache level to which we prefetch
+        temporality = "KEEP"  # could use "STRM" for non-temporal prefetching if needed
+        xn = stmt.dest.ugly_base
+        offset = stmt.dest.ugly_offset
+        src_string = "[{}, {}, MUL VL]".format(xn, offset)
+        p = self.p_string(stmt.pred)
+        prec = "d" if stmt.precision == Precision.DOUBLE else "w"
+        s = "prf{} P{}{}{}, {}{}".format(prec, stmt.access_type, cache_level, temporality, p.split('/')[0], src_string)
+        self.addLine(s, "prefetch from memory")
+
     def visitBlock(self, block: Block):
         self.stack.append(block)
         self.depth += 1

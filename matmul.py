@@ -140,6 +140,8 @@ class MatMul:
 
         if ldb == 0:
             pattern = Matrix.load(mtx_filename)
+            if self.is_sve:
+                self.generator.set_sparse()
         else:
             mtx = numpy.zeros((k, n))
             for i in range(k):

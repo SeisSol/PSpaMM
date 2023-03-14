@@ -12,6 +12,14 @@ DenseKernel = namedtuple('DenseKernel', 'name m n k lda ldb ldc alpha beta block
 SparseKernelS = namedtuple('SparseKernelS', 'name m n k lda ldb ldc alpha beta block_sizes mtx delta')
 DenseKernelS = namedtuple('DenseKernelS', 'name m n k lda ldb ldc alpha beta block_sizes delta')
 
+setup_prefetching = """
+template <typename T>
+void setup_prefetch(T* prefetch, T* matrix, unsigned n, unsigned ldc) {
+ posix_memalign(reinterpret_cast<void **>(&prefetch), 64, ldc*n*sizeof(T));
+ std::memcpy(prefetch, matrix, ldc*n*sizeof(T));
+}
+"""
+
 def generateMTX(k, n, nnz):
     return test_generator.generateMTX(k, n, nnz)
 
@@ -54,7 +62,7 @@ def make(kernels, arch):
 
             additional_args = ['--output_funcname', name, '--output_filename', arch + '/' + name + '.h',
                                '--output_overwrite']
-            additional_args += ['--bm', str(bm), '--bn', str(bn), '--arch', arch]
+            additional_args += ['--bm', str(bm), '--bn', str(bn), '--arch', arch, '--prefetching', 'BL2viaC']
 
             try:
                 subprocess.check_output(arguments + additional_args, stderr=subprocess.STDOUT)
@@ -66,12 +74,15 @@ def make(kernels, arch):
     f.write('\n')
     # necessary functions are defined in testsuite_generator.py
     f.write(test_generator.function_definitions)
+    f.write(setup_prefetching)
+    f.write(test_generator.setup_main)
     # add variable declarations for single precision test cases
     if include_single_prec:
-        f.write("""
-    std::tuple<float*, float*, float*, float*, float*> fpointers;
-    float falpha; float fbeta;
-    """)
+        f.write("""  std::tuple<float*, float*, float*, float*, float*> fpointers;
+  float falpha; float fbeta;
+  double* prefetch;
+  float* fprefetch;
+  """)
 
     for kern in kernels:
 
@@ -92,10 +103,11 @@ def make(kernels, arch):
             f.write("""
   {p}alpha = {alpha}; {p}beta = {beta}; ldb = {ldb};
   {p}pointers = pre<{T}>({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
-  {name}(std::get<0>({p}pointers), std::get<{sparse}>({p}pointers), std::get<3>({p}pointers), {p}alpha, {p}beta, nullptr);
+  setup_prefetch({p}prefetch, std::get<3>({p}pointers), {n}, {ldc});
+  {name}(std::get<0>({p}pointers), std::get<{sparse}>({p}pointers), std::get<3>({p}pointers), {p}alpha, {p}beta, {p}prefetch);
   result = post<{T}>({m}, {n}, {k}, {lda}, &ldb, {ldc}, &{p}alpha, &{p}beta, std::get<0>({p}pointers), std::get<1>({p}pointers), std::get<3>({p}pointers), std::get<4>({p}pointers), {delta:.7f});
   results.push_back(std::make_tuple("{name}", result));
-  free(std::get<0>({p}pointers)); free(std::get<1>({p}pointers)); free(std::get<2>({p}pointers)); free(std::get<3>({p}pointers)); free(std::get<4>({p}pointers));
+  free(std::get<0>({p}pointers)); free(std::get<1>({p}pointers)); free(std::get<2>({p}pointers)); free(std::get<3>({p}pointers)); free(std::get<4>({p}pointers));  free({p}prefetch);
 """.format(m=kern.m, n=kern.n, k=kern.k, lda=kern.lda, ldb=kern.ldb, ldc=kern.ldc, alpha=kern.alpha, beta=kern.beta,
            mtx=mtx, delta=kern.delta, name=name, sparse=2 if kern.ldb == 0 else 1, p=prec, T="float" if prec == 'f' else "double"))
 

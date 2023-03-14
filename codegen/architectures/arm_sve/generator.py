@@ -9,17 +9,18 @@ from codegen.precision import *
 
 class Generator(AbstractGenerator):
     template = """
-void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, const {real_type} alpha, const {real_type} beta, const {real_type}* prefetch) {{{{
+void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, const {real_type} alpha, const {real_type} beta, const {real_type}* prefetch) {{{{{{{{
   __asm__ __volatile__(
     "ldr x0, %0\\n\\t"
     "ldr x1, %1\\n\\t"
     "ldr x2, %2\\n\\t"
     "ldr x3, %3\\n\\t"
     "ldr x4, %4\\n\\t"
+    {prefetching_mov}
     {init_registers}
     {body_text}
 
-    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta) : "memory",{clobbered});
+    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta){prefetching_decl}: "memory",{clobbered});
     
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -28,7 +29,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     pspamm_num_total_flops += {flop};
     #endif
 
-}}}};"""
+}}}}}}}};"""
+
+    prefetch_reg = None
+    prefetch_count = 0
+    is_sparse = False
 
     def get_v_size(self):
         if self.precision == Precision.DOUBLE:
@@ -63,8 +68,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     def ceil_div(self, n, d):
         return -(n // -d)
 
+    # is called at most one time in matmul.py
+    def set_sparse(self):
+        self.is_sparse = True
+
     def make_reg_blocks(self, bm: int, bn: int, bk: int, v_size: int, nnz: int, m: int, n: int, k: int):
-        vm = self.ceil_div(bm, v_size)                  # can be 0 if bm < v_size
+        vm = self.ceil_div(bm, v_size)                  # vm can be 0 if bm < v_size -> makes ceil_div necessary
         assert ((bn + bk) * vm + bn * bk + 2 <= 32)     # Needs to fit in SVE z registers
         prec = "d" if self.get_precision() == Precision.DOUBLE else "s"
 
@@ -76,9 +85,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         alpha_reg = [z(0, prec), z(0, prec)]
         beta_reg = [z(1, prec), z(1, prec)]
 
-        starting_regs = [r(0), r(1), r(2)]
+        starting_regs = [r(0), r(1), r(2), r(3), r(4), r(6)]  # r6 is needed for predicate creation, r5 is added in init_prefetching()
 
-        additional_regs = [r(11), l("0.0"), r(10), r(3)]  # r10 used for scaling offsets
+        additional_regs = [r(11), l("0.0"), r(10), r(8)]  # r10 used for scaling offsets
 
         loop_reg = r(12)
 
@@ -121,12 +130,13 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         eol = "\\n\\t"                          # define the "end of line" sequence for easy assembly
         p_suffix = "d" if v_size == 8 else "s"  # determine whether predicate suffix is '.d' or '.s
         gen_reg = "x" if v_size == 8 else "w"   # determine if 'dup' registers are 64 bit or 32 bit
+        overhead_counter = 6
 
         # https://developer.arm.com/documentation/102374/0101/Registers-in-AArch64---general-purpose-registers
         # Wn adresses the lower 32 bits of Xn
         # generally: Xn/Wn "[...] are two separate ways of looking at the same register"
         # this means we can load alpha/beta into x3/x4 even if they are floats (32 bits)
-        dup_alpha = "\t\"dup z0.{suffix}, {gen_reg}3{eol}\"\n\t"  # define broadcasting of alpha
+        dup_alpha = "//Broadcasted alpha and beta into z0/z1 so that efficient multiplication is possible\n\t\"dup z0.{suffix}, {gen_reg}3{eol}\"\n\t"  # define broadcasting of alpha
         dup_beta = "\"dup z1.{suffix}, {gen_reg}4{eol}\"\n\t"   # define broadcasting of beta
 
         comment = "//p7 denotes the 'all-true' predicate and, if given, p0 denotes the 'bm % v_size' predicate\n\t"
@@ -135,10 +145,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # https://developer.arm.com/documentation/ddi0596/2020-12/Shared-Pseudocode/AArch64-Functions?lang=en#impl-aarch64.DecodePredCount.2
         # 'ptrue' doesnt work for initialising overhead predicate when using single precision -> see valid patterns from above
         # overhead = "\"ptrue p0.{suffix}, #{overhead}{eol}\"\n\t" if bm != 0 else ""    # define overhead predicate
-        overhead = "\"mov {gen_reg}5, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}5{eol}\"\n\t" if bm != 0 else ""
+        overhead = "\"mov {gen_reg}{overhead_counter}, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bm != 0 else ""
         all_true = "\"ptrue p7.{suffix}, #31{eol}\""                             # define all true predicate
         init_registers = (dup_alpha + dup_beta + comment + overhead + all_true).format(suffix=p_suffix,
                                                                                        gen_reg=gen_reg,
+                                                                                       overhead_counter=overhead_counter,
                                                                                        v_size=v_size,
                                                                                        overhead=bm,
                                                                                        eol=eol)
@@ -169,10 +180,16 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         rows, cols = registers.shape
         action = "Store" if store else "Load"
         asm = block("{} {} register block @ {}".format(action, cursor.name, block_offset))
+        prec = self.get_precision()
+
+        # Determine whether we use prefetching and if we are currently operating on C
+        do_prefetch = self.prefetch_reg is not None and cursor.name == "C" and store
 
         b_row, b_col, i, _ = cursor.get_block(cursor_ptr, block_offset)
 
         cur11 = 0
+        #TODO: figure out appropriate threshold
+        threshold = 1 if self.is_sparse else 4  # uses whole 256 byte cache line, as one SVE vector = 64 bytes
 
         # TODO: if another CPU implements SVE at VL != 64 bytes, rewrite mul_vl (maybe do this dynamically)
         mul_vl = 64     # A64FX has VL of 64 bytes in memory
@@ -189,8 +206,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                 if (mask is None) or (mask[ir, ic]):
                     processed = ir * v_size
                     p = self.pred_n_trues(b_row - processed, v_size) if not is_B else self.pred_n_trues(v_size, v_size)
-                    p_zeroing = self.pred_n_trues(b_row - processed, v_size, "z") if not is_B else self.pred_n_trues(v_size,
-                                                                                                                     v_size, "z")
+                    p_zeroing = self.pred_n_trues(b_row - processed, v_size, "z") if not is_B else self.pred_n_trues(v_size, v_size, "z")
                     cell_offset = Coords(down=ir * v_size, right=ic)
 
                     # addr = base "pointer" + relative offset in bytes
@@ -215,6 +231,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     if store:
                         asm.add(st(registers[ir, ic], addr, True, comment, pred=p, scalar_offs=False,
                                    add_reg=additional_regs[2]))
+                        # perform prefetching after a store instruction, similar to KNL case
+                        if do_prefetch and self.prefetch_count % threshold == 0:
+                            if prev_disp > 0:
+                                asm.add(add(prev_disp, additional_regs[3], "increment the prefetch register", self.prefetch_reg))
+                            asm.add(prefetch(mem(additional_regs[3] if prev_disp > 0 else self.prefetch_reg, addr.disp),
+                                             "", p, prec, access_type="ST"))
+                            self.prefetch_count = 0
+                        self.prefetch_count += 1
                     else:
                         asm.add(ld(addr, registers[ir, ic], True, comment, pred=p_zeroing, is_B=is_B, scalar_offs=False,
                                    add_reg=additional_regs[2]))
@@ -311,10 +335,21 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         return asm
 
     def init_prefetching(self, prefetching):
-        # When calling PSpaMM within SeisSol, prefetching is activated by default; However, the partial formatting
-        # of our template string breaks the generator -> For now, we just do nothing when calling init_prefetching()
-        # for arm_sve as a quick fix. We don't use prefetching for the SVE unit tests anyway, so this changes nothing
-        pass
-        # Generator.template = Generator.template.format(prefetching_mov="", prefetching_decl='',
-        #                                                funcName="{funcName}", body_text="{body_text}",
-        #                                                clobbered="{clobbered}")
+        #TODO: currently, SVE prefetching brings at best equal performance compared to no prefetching
+        # for now disable it -> if we find a way to get better performance with prefetching, delete the next line
+        prefetching = None  # disable prefetching and make it easy to enable
+        if prefetching is None:
+            prefetch_reg = None
+            prefetching_mov = ''
+            prefetching_decl = ''
+        else:
+            prefetch_reg = r(5)
+            prefetching_mov = "\"ldr {}, %5\\n\\t\"".format(prefetch_reg.ugly)
+            prefetching_decl = ", \"m\"(prefetch)"
+
+        self.prefetch_reg = prefetch_reg
+        Generator.template = Generator.template.format(prefetching_mov=prefetching_mov, prefetching_decl=prefetching_decl,
+                                                       funcName="{funcName}", body_text="{body_text}",
+                                                       clobbered="{clobbered}", real_type="{real_type}",
+                                                       init_registers="{init_registers}", flop="{flop}")
+        return prefetch_reg

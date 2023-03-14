@@ -74,6 +74,10 @@ class StoreStmt(AsmStmt):
 
 class PrefetchStmt(AsmStmt):
     dest = None
+    # used in arm_sve:
+    pred = None
+    precision = None
+    access_type = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitPrefetch(self)
