@@ -96,7 +96,7 @@ class InlinePrinter(Visitor):
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
                 s = "vpxord {}, {}, {}".format(stmt.dest.ugly,stmt.dest.ugly,stmt.dest.ugly)
             else:
-                s = "vmovap{} {}, {}".format(self.precision, src_str,stmt.dest.ugly)
+                s = "vmovup{} {}, {}".format(self.precision, src_str,stmt.dest.ugly)
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
