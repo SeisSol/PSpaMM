@@ -1,0 +1,9 @@
+__pycache__/
+
+# Testing (for now)
+tests/arm/
+tests/arm_sve/
+tests/hsw/
+tests/knl/
+tests/testsuite.cpp
+a.out
