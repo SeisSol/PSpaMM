@@ -7,6 +7,7 @@ from codegen.precision import *
 
 import scripts.old_arm
 import scripts.max_bn_knl
+import scripts.max_bn_hsw
 import scripts.max_arm_sve
 
 from cursors import *
@@ -119,6 +120,8 @@ class MatMul:
         if bm == None or bn == None:
             if arch == 'knl':
                 (self.bm, self.bn) = scripts.max_bn_knl.getBlocksize(m, n, bk, self.v_size)
+            elif arch == 'hsw':
+                (self.bm, self.bn) = scripts.max_bn_hsw.getBlocksize(m, n, bk, self.v_size)
             elif arch == 'arm':
                 (self.bm, self.bn) = scripts.old_arm.getBlocksize(m, n, bk, self.v_size)
             elif arch == 'arm_sve':
@@ -165,10 +168,11 @@ class MatMul:
             self.nnz = ldb * self.n
             self.flop = m * n * k * 2
 
-        if prefetching is not None:
-            prefetchReg = self.generator.init_prefetching(self.prefetching)
-        else:
-            prefetchReg = None
+        #if prefetching is not None:
+        #    prefetchReg = self.generator.init_prefetching(self.prefetching)
+        #else:
+        #    prefetchReg = None
+        prefetchReg = self.generator.init_prefetching(self.prefetching)
 
         # if matrices are always padded to multiple of v_size, we can remove the if-part and execute the assert for SVE too
         if not self.is_sve:

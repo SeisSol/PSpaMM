@@ -164,9 +164,14 @@ end_of_testsuite = """
   for(int i = 0; i < results.size(); i++)
   {
     if(std::get<1>(results[i]))
-      correct++;
+    {
+      ++correct;
+      printf("%s succeeded.\\n", (std::get<0>(results[i])).c_str());
+    }
     else
+    {
       printf("%s failed!\\n", (std::get<0>(results[i])).c_str());
+    }
   }
 
   printf("\\n%i out of %lu test successful!\\n", correct, results.size());
@@ -193,7 +198,7 @@ def generateMTX(k, n, nnz):
         for j in range(1, n + 1):
             zeros.add((i, j))
 
-    nonzeros = random.sample(zeros, nnz)
+    nonzeros = random.sample(sorted(zeros), nnz)
 
     for entry in nonzeros:
         f.write('\n' + str(entry[0]) + ' ' + str(entry[1]) + ' ' + str(random.uniform(0.00001, 1000)))
@@ -234,6 +239,7 @@ def make(kernels, arch):
             additional_args += ['--bm', str(bm), '--bn', str(bn), '--arch', arch]
 
             try:
+                print(' '.join(arguments + additional_args))
                 subprocess.check_output(arguments + additional_args, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
