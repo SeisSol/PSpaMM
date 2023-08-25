@@ -30,7 +30,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     pspamm_num_total_flops += {flop};
     #endif
 
-}}}};"""
+}}}};
+"""
 
     def get_v_size(self):
         if self.precision == Precision.DOUBLE:
