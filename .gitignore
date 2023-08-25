@@ -2,8 +2,10 @@ __pycache__/
 
 # Testing (for now)
 tests/arm/
-tests/arm_sve/
+tests/arm_sve*/
 tests/hsw/
 tests/knl/
 tests/testsuite.cpp
+tests/arm_*testsuite.cpp
+tests/sve*-test
 a.out

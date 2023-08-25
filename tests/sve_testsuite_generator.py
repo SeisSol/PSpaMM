@@ -3,7 +3,7 @@ import subprocess
 import numpy as np
 import random
 import sys
-import os.path
+import os
 import testsuite_generator as test_generator
 
 SparseKernel = namedtuple('SparseKernel', 'name m n k lda ldb ldc alpha beta block_sizes mtx delta')
@@ -14,7 +14,7 @@ DenseKernelS = namedtuple('DenseKernelS', 'name m n k lda ldb ldc alpha beta blo
 
 setup_prefetching = """
 template <typename T>
-void setup_prefetch(T* prefetch, T* matrix, unsigned n, unsigned ldc) {
+void setup_prefetch(T*& prefetch, T* matrix, unsigned n, unsigned ldc) {
  posix_memalign(reinterpret_cast<void **>(&prefetch), 64, ldc*n*sizeof(T));
  std::memcpy(prefetch, matrix, ldc*n*sizeof(T));
 }
@@ -24,7 +24,11 @@ def generateMTX(k, n, nnz):
     return test_generator.generateMTX(k, n, nnz)
 
 def make(kernels, arch):
-    f = open('sve_testsuite.cpp', 'w')
+
+    f = open(f'{arch}_testsuite.cpp', 'w')
+
+    if not os.path.exists(arch):
+        os.mkdir(arch)
 
     f.write(test_generator.head_of_testsuite)
 
@@ -52,11 +56,16 @@ def make(kernels, arch):
                 assert (bm % 8 == 0 and (bn + 1) * (bm / 8) <= 32)
             elif arch == "arm":
                 assert (bm % 2 == 0 and (bn + 1) * (bm / 2) + bn <= 32)
-            elif arch == "arm_sve":
-                # this is for A64fx only, with SVE_vector_bits = 512
-                v_len = 8 if prec == 'd' else 16
+            elif arch.startswith("arm_sve"):
+                veclen = int(arch[7:])
+                assert veclen % 128 == 0 and veclen <= 2048
+                reglen = veclen // 128
+                v_len = 2 * reglen if prec == 'd' else 4 * reglen
                 # this should be the same assertion as in ../scripts/max_arm_sve.py
-                assert ((bn + 1) * (bm / v_len) + bn <= 32)
+                bk = 1
+                if not ((bn + bk) * (bm / v_len) + bn * bk + 2 <= 32):
+                    print(f'Skipping block size {bm}x{bn} for {arch}')
+                    continue
 
             name = kern.name + '_' + str(bm) + '_' + str(bn)
 
@@ -83,7 +92,7 @@ def make(kernels, arch):
   double* prefetch;
   float* fprefetch;
   """)
-
+  
     for kern in kernels:
 
         block_sizes = list(set(kern.block_sizes))
@@ -91,6 +100,20 @@ def make(kernels, arch):
         for bs in block_sizes:
             bm = bs[0]
             bn = bs[1]
+
+            prec = 's' if isinstance(kern, SparseKernelS) or isinstance(kern, DenseKernelS) else 'd'
+
+            if arch.startswith("arm_sve"):
+                veclen = int(arch[7:])
+                assert veclen % 128 == 0 and veclen <= 2048
+                reglen = veclen // 128
+                v_len = 2 * reglen if prec == 'd' else 4 * reglen
+                # this should be the same assertion as in ../scripts/max_arm_sve.py
+                bk = 1
+                if not ((bn + bk) * (bm / v_len) + bn * bk + 2 <= 32):
+                    # print(f'Skipping block size {bm}x{bn} for {arch}')
+                    continue
+
             name = kern.name + '_' + str(bm) + '_' + str(bn)
 
             if isinstance(kern, SparseKernel) or isinstance(kern, SparseKernelS):

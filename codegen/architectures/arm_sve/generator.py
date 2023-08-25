@@ -29,17 +29,19 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     pspamm_num_total_flops += {flop};
     #endif
 
-}}}}}}}};"""
+}}}}}}}};
+"""
 
     prefetch_reg = None
     prefetch_count = 0
     is_sparse = False
+    v_len = 4 # vector register length: v_len * 128 bit
 
     def get_v_size(self):
         if self.precision == Precision.DOUBLE:
-            return 8
+            return 2 * self.v_len # 128 bit == 2 x 64 bit (double)
         elif self.precision == Precision.SINGLE:
-            return 16
+            return 4 * self.v_len # 128 bit == 4 x 32 bit (float)
         raise NotImplementedError
 
     def get_precision(self):
@@ -55,7 +57,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
          set to true"""
         assert (num_trues > 0)
         assert (suffix == "m" or suffix == "z" or suffix is None)
-        # we only use p7 or p0 as predicates
+
+        # we only use p7 or p0 as predicates (1 == p0, 8 == p7)
         num_trues = 8 if num_trues >= v_size else 1
 
         if suffix is None:
@@ -125,11 +128,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                        v_size: int
                        ) -> None:
 
-        bm %= v_size
+        bmmod = bm % v_size
 
         eol = "\\n\\t"                          # define the "end of line" sequence for easy assembly
-        p_suffix = "d" if v_size == 8 else "s"  # determine whether predicate suffix is '.d' or '.s
-        gen_reg = "x" if v_size == 8 else "w"   # determine if 'dup' registers are 64 bit or 32 bit
+        p_suffix = "d" if v_size == 2 * self.v_len else "s"  # determine whether predicate suffix is '.d' or '.s
+        gen_reg = "x" if v_size == 2 * self.v_len else "w"   # determine if 'dup' registers are 64 bit or 32 bit
         overhead_counter = 6
 
         # https://developer.arm.com/documentation/102374/0101/Registers-in-AArch64---general-purpose-registers
@@ -145,13 +148,13 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # https://developer.arm.com/documentation/ddi0596/2020-12/Shared-Pseudocode/AArch64-Functions?lang=en#impl-aarch64.DecodePredCount.2
         # 'ptrue' doesnt work for initialising overhead predicate when using single precision -> see valid patterns from above
         # overhead = "\"ptrue p0.{suffix}, #{overhead}{eol}\"\n\t" if bm != 0 else ""    # define overhead predicate
-        overhead = "\"mov {gen_reg}{overhead_counter}, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bm != 0 else ""
+        overhead = "\"mov {gen_reg}{overhead_counter}, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bmmod != 0 else ""
         all_true = "\"ptrue p7.{suffix}, #31{eol}\""                             # define all true predicate
         init_registers = (dup_alpha + dup_beta + comment + overhead + all_true).format(suffix=p_suffix,
                                                                                        gen_reg=gen_reg,
                                                                                        overhead_counter=overhead_counter,
                                                                                        v_size=v_size,
-                                                                                       overhead=bm,
+                                                                                       overhead=bmmod,
                                                                                        eol=eol)
 
         # since .format() doesn't allow partial formatting, we need to re-include the
@@ -188,12 +191,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         b_row, b_col, i, _ = cursor.get_block(cursor_ptr, block_offset)
 
         cur11 = 0
-        #TODO: figure out appropriate threshold
-        threshold = 1 if self.is_sparse else 4  # uses whole 256 byte cache line, as one SVE vector = 64 bytes
+        #TODO: figure out appropriate threshold (the 16 // self.v_len may still not be optimal; especially if 16 % self.v_len != 0, e.g. 384 bit)
+        threshold = 1 if self.is_sparse else (16 // self.v_len)  # uses whole 256 byte cache line, as one SVE-512 vector = 64 bytes
 
-        # TODO: if another CPU implements SVE at VL != 64 bytes, rewrite mul_vl (maybe do this dynamically)
-        mul_vl = 64     # A64FX has VL of 64 bytes in memory
-        max_mem_ins_mult = 7  # A64FX allows a maximum positive offset of 7 in memory instructions, e.g. ld1d z1.d, p0/z, [x0, 7, MUL VL]
+        # DONE if another CPU implements SVE at VL != 64 bytes, rewrite mul_vl (maybe do this dynamically)
+        mul_vl = 16 * self.v_len   # e.g. A64FX has VL of 64 bytes in memory (thus, use v_len==4)
+        max_mem_ins_mult = 7  # A64FX allows a maximum positive offset of 7 in memory instructions, e.g. ld1d z1.d, p0/z, [x0, 7, MUL VL] (TODO: tune, if ever different)
         max_offset = mul_vl * max_mem_ins_mult  # ld1d/st1d instruction encodes the immediate offset using 4 bits, multiplies it with MUL VL
 
         prev_disp = 0
