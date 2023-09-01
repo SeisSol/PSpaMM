@@ -98,6 +98,16 @@ class MatMul:
 
         if arch == 'skx':
           arch = 'knl'
+        
+        # hacky implementation of multi-register length
+        if arch.startswith('arm_sve'):
+          if len(arch) == 7:
+            v_len_regs = 4 # compatibility: arm_sve == arm_sve512
+          else:
+            v_len_bits = int(arch[7:])
+            assert v_len_bits % 128 == 0 and v_len_bits <= 2048
+            v_len_regs = v_len_bits // 128
+          arch = 'arm_sve'
 
         self.arch = arch
         assert precision.lower() in ['s', 'd']
@@ -110,9 +120,13 @@ class MatMul:
 
         self.generator = architecture.Generator(self.precision)
 
-        self.v_size = self.generator.get_v_size()
         # flag that determines if a matmul kernel uses sve instructions -> needed for sve predicates
         self.is_sve = arch == "arm_sve"
+
+        if self.is_sve:
+          self.generator.v_len = v_len_regs
+
+        self.v_size = self.generator.get_v_size()
 
         if bk == None:
             bk = 2 if arch == 'knl' else 1

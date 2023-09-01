@@ -125,12 +125,15 @@ int post(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned* LDB, unsign
 
   gemm_ref(M, N, K, LDA, *LDB, LDC, *ALPHA, *BETA, A, B, Cref);
     
-  for(int i = 0; i < M; i++)
-    for(int j = 0; j < N; j++)
+  for(int i = 0; i < M; i++) {
+    for(int j = 0; j < N; j++) {
       // we use the relative error instead of the absolute error because of an issue we found for sparse single precision 
       // kernels presumably due to limited precision of floats
-      if(std::abs((C[i + j * LDC] - Cref[i + j * LDC])) / Cref[i + j * LDC] > DELTA)
+      if(std::abs((C[i + j * LDC] - Cref[i + j * LDC])) / Cref[i + j * LDC] > DELTA) {
         return 0;
+      }
+    }
+  }
 
   return 1;
 }
@@ -177,7 +180,8 @@ end_of_testsuite = """
   printf("\\n%i out of %lu test successful!\\n", correct, results.size());
 
   return 0;
-}"""
+}
+"""
 
 
 def generateMTX(k, n, nnz):

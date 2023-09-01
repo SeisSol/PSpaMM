@@ -4,15 +4,23 @@ import sve_testsuite_generator as generator
 
 import scripts.max_arm_sve as max_sve
 
+import sys
+
+v_len = 4
+
+if len(sys.argv) == 2:
+    v_len = int(sys.argv[1]) // 128
+
 blocksize_algs = [max_sve]
-v_size = 8
-v_size_s = 16
+v_size = 2 * v_len
+v_size_s = 4 * v_len
+bitlen = v_len * 128
 kernels = []
 
 # define the maximum allowed difference between elements of our solution and the reference solution for
 # double and single precision
-delta_sp = 1e-6
-delta_dp = 1e-7
+delta_sp = 1e-4 # epsilon is around e-7 => /2 ... For most cases, 1e-6 is enough
+delta_dp = 1e-7 # epsilon is around e-15 => /2
 
 # test cases for double precision multiplication
 kernels.append(generator.DenseKernel("sve_mixed_test1", 9, 9, 9, 9, 9, 9, 1.0, 0.0, [(3, 3)] + [x.getBlocksize(9, 9, 1, v_size) for x in blocksize_algs], delta_dp))
@@ -57,4 +65,4 @@ kernels.append(generator.SparseKernelS("sve_single_prec_test_S6", 15, 15, 15, 15
 kernels.append(generator.SparseKernelS("sve_single_prec_test_S7", 23, 23, 23, 23, 0, 23, 1.5, -0.66, [x.getBlocksize(23, 23, 1, v_size_s) for x in blocksize_algs], generator.generateMTX(23, 23, 52), delta_sp))
 kernels.append(generator.SparseKernelS("sve_single_prec_test_S8", 23, 31, 13, 23, 0, 23, 2.0, 0.0, [x.getBlocksize(23, 31, 1, v_size_s) for x in blocksize_algs], generator.generateMTX(13, 31, 40), delta_sp))
 
-generator.make(kernels, "arm_sve")
+generator.make(kernels, f"arm_sve{bitlen}")

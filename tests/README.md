@@ -41,3 +41,31 @@ If nothing breaks, the generated testsuite reports the number of successful test
 2. Adjust the Makefile as needed and compile the generated ```sve_testsuite.cpp``` by calling  
 ```make sve_testsuite```
 3. Run the compiled executable with ```./sve_testsuite```
+
+#### Notes Running SVE with QEMU user-static
+
+Run `runall-sve.sh` which tests a bunch of configurations already.
+
+For a bit length `BITLEN`, it executes the following commands:
+```
+# generate tests
+python unit_tests_arm_sve.py $BITLEN
+
+# compile: we use AVM V8.2 and SVE; the SVE vector length is set explicitly
+aarch64-linux-gnu-g++ -static -march=armv8.2-a+sve -msve-vector-bits=${BITLEN} arm_sve${BITLEN}_testsuite.cpp -o sve${BITLEN}-test
+
+# run using QEMU, this way we may run on x86-64 as well; enable all features and constrain to sve${BITLEN} SVE registers maximum length (cf. https://qemu-project.gitlab.io/qemu/system/arm/cpu-features.html); the sve-default-vector-length=-1 parameter is needed for 1024 and 2048 bit SVE to work correctly (otherwise, QEMU will assume 512 bit maximum)
+qemu-aarch64-static -cpu max,sve${BITLEN}=on,sve-default-vector-length=-1 ./sve${BITLEN}-test
+```
+
+
+For debugging, for example for vector length 512 (cf. https://mariokartwii.com/showthread.php?tid=1998 ):
+```
+aarch64-linux-gnu-g++ -g -ggdb -static -march=armv9-a+sve -msve-vector-bits=512 sve_testsuite.cpp
+qemu-aarch64-static -g 1234 -cpu max,sve512=on ./a.out
+```
+(we use 1234 as port here, and a.out as filename)
+
+In a separate window, run `aarch64-linux-gnu-gdb --ex "target remote localhost:1234" --ex "file a.out"`.
+The extra commands already connect you with QEMU and attach you to the compiled binary file, so method names etc. are printed correctly.
+To run the program, just type `continue`. You may maybe want to set up breakpoints etc. before you do that.
