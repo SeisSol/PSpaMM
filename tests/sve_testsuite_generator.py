@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from collections import namedtuple
 import subprocess
 import numpy as np
@@ -5,6 +6,8 @@ import random
 import sys
 import os
 import testsuite_generator as test_generator
+
+BASEDIR = 'build'
 
 SparseKernel = namedtuple('SparseKernel', 'name m n k lda ldb ldc alpha beta block_sizes mtx delta')
 DenseKernel = namedtuple('DenseKernel', 'name m n k lda ldb ldc alpha beta block_sizes delta')
@@ -24,18 +27,16 @@ def generateMTX(k, n, nnz):
     return test_generator.generateMTX(k, n, nnz)
 
 def make(kernels, arch):
+    os.makedirs(os.path.join(BASEDIR, arch), exist_ok=True)
 
-    f = open(f'{arch}_testsuite.cpp', 'w')
-
-    if not os.path.exists(arch):
-        os.mkdir(arch)
+    f = open(os.path.join(BASEDIR, f'{arch}_testsuite.cpp'), 'w')
 
     f.write(test_generator.head_of_testsuite)
 
     include_single_prec = False
 
     for kern in kernels:
-        arguments = [sys.executable, './../pspamm.py', str(kern.m), str(kern.n), str(kern.k), str(kern.lda),
+        arguments = ['pspamm-generator', str(kern.m), str(kern.n), str(kern.k), str(kern.lda),
                      str(kern.ldb), str(kern.ldc), str(kern.alpha), str(kern.beta)]
 
         if isinstance(kern, SparseKernel) or isinstance(kern, SparseKernelS):
@@ -69,7 +70,7 @@ def make(kernels, arch):
 
             name = kern.name + '_' + str(bm) + '_' + str(bn)
 
-            additional_args = ['--output_funcname', name, '--output_filename', arch + '/' + name + '.h',
+            additional_args = ['--output_funcname', name, '--output_filename', os.path.join(BASEDIR, arch, name + '.h'),
                                '--output_overwrite']
             additional_args += ['--bm', str(bm), '--bn', str(bn), '--arch', arch, '--prefetching', 'BL2viaC']
 

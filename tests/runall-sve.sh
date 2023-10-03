@@ -9,8 +9,8 @@ do
     echo ""
     echo "Testing $BITLEN bit SVE register GEMM"
     python unit_tests_arm_sve.py $BITLEN
-    aarch64-linux-gnu-g++ -static -march=armv8.2-a+sve -msve-vector-bits=${BITLEN} arm_sve${BITLEN}_testsuite.cpp -o sve${BITLEN}-test
-    qemu-aarch64-static -cpu max,sve${BITLEN}=on,sve-default-vector-length=-1 ./sve${BITLEN}-test
+    aarch64-linux-gnu-g++ -static -march=armv8.2-a+sve -msve-vector-bits=${BITLEN} build/arm_sve${BITLEN}_testsuite.cpp -o build/sve${BITLEN}-test
+    qemu-aarch64-static -cpu max,sve${BITLEN}=on,sve-default-vector-length=-1 build/sve${BITLEN}-test
 done
 
 echo "All tests done. Bye!"
