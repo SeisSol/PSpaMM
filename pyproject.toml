@@ -2,7 +2,7 @@
 name = "PspaMM"
 description="Inline assembly generator for sparse matrix multiplications"
 license = {file = "LICENSE"}
-requires-python = ">=3.5"
+requires-python = ">=3.7"
 authors = [
     { name = "Peter Wauligmann", email = "peter.wauligmann@gmail.com" },
     { name = "Nathan Brei", email = "nathan.w.brei@gmail.com" },
