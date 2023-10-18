@@ -2,9 +2,9 @@
 
 import testsuite_generator as generator
 
-import scripts.max_knl as max_square
-import scripts.max_bn_knl as max_bn
-import scripts.old_knl as old
+import pspamm.scripts.max_knl as max_square
+import pspamm.scripts.max_bn_knl as max_bn
+import pspamm.scripts.old_knl as old
 
 blocksize_algs = [max_square, max_bn, old]
 

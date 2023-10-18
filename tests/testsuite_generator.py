@@ -5,6 +5,8 @@ import random
 import sys
 import os.path
 
+BASEDIR = 'build'
+
 SparseKernel = namedtuple('SparseKernel', 'name m n k lda ldb ldc alpha beta block_sizes mtx delta')
 DenseKernel = namedtuple('DenseKernel', 'name m n k lda ldb ldc alpha beta block_sizes delta')
 
@@ -186,40 +188,40 @@ end_of_testsuite = """
 
 def generateMTX(k, n, nnz):
     assert (nnz <= k * n)
+    os.makedirs(os.path.join(BASEDIR, 'mtx'), exist_ok=True)
 
-    filename = 'mtx/' + str(k) + 'x' + str(n) + '_' + str(nnz) + '.mtx'
+    filename = os.path.join(BASEDIR, 'mtx', str(k) + 'x' + str(n) + '_' + str(nnz) + '.mtx')
 
     if os.path.isfile(filename):
         return filename
 
-    f = open(filename, 'w')
+    with open(filename, 'w') as f:
 
-    f.write('%%MatrixMarket matrix coordinate real general\n%\n' + str(k) + ' ' + str(n) + ' ' + str(nnz))
+      f.write('%%MatrixMarket matrix coordinate real general\n%\n' + str(k) + ' ' + str(n) + ' ' + str(nnz))
 
-    zeros = set()
+      zeros = set()
 
-    for i in range(1, k + 1):
-        for j in range(1, n + 1):
-            zeros.add((i, j))
+      for i in range(1, k + 1):
+          for j in range(1, n + 1):
+              zeros.add((i, j))
 
-    nonzeros = random.sample(sorted(zeros), nnz)
+      nonzeros = random.sample(sorted(zeros), nnz)
 
-    for entry in nonzeros:
-        f.write('\n' + str(entry[0]) + ' ' + str(entry[1]) + ' ' + str(random.uniform(0.00001, 1000)))
-
-    f.close()
+      for entry in nonzeros:
+          f.write('\n' + str(entry[0]) + ' ' + str(entry[1]) + ' ' + str(random.uniform(0.00001, 1000)))
 
     return filename
 
 
 def make(kernels, arch):
-    f = open('testsuite.cpp', 'w')
+    os.makedirs(os.path.join(BASEDIR, arch), exist_ok=True)
+    f = open(os.path.join(BASEDIR, f'{arch}_testsuite.cpp'), 'w')
 
     f.write(head_of_testsuite)
 
     for kern in kernels:
 
-        arguments = [sys.executable, './../pspamm.py', str(kern.m), str(kern.n), str(kern.k), str(kern.lda), str(kern.ldb),
+        arguments = ['pspamm-generator', str(kern.m), str(kern.n), str(kern.k), str(kern.lda), str(kern.ldb),
                      str(kern.ldc), str(kern.alpha), str(kern.beta)]
 
         if isinstance(kern, SparseKernel):
@@ -238,7 +240,7 @@ def make(kernels, arch):
 
             name = kern.name + '_' + str(bm) + '_' + str(bn)
 
-            additional_args = ['--output_funcname', name, '--output_filename', arch + '/' + name + '.h',
+            additional_args = ['--output_funcname', name, '--output_filename', os.path.join(BASEDIR, arch, name + '.h'),
                                '--output_overwrite']
             additional_args += ['--bm', str(bm), '--bn', str(bn), '--arch', arch]
 

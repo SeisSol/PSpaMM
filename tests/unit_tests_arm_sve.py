@@ -2,7 +2,7 @@
 
 import sve_testsuite_generator as generator
 
-import scripts.max_arm_sve as max_sve
+import pspamm.scripts.max_arm_sve as max_sve
 
 import sys
 
