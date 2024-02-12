@@ -5,10 +5,9 @@
 # Also don't want to introduce a hard dependence on scipy if not necessary.
 
 from typing import TypeVar, Generic, Union, Tuple, List, overload, Any
-from scipy import full, matrix # type: ignore
 from scipy.sparse import csc_matrix
 from scipy.io import mmread, mmwrite
-import numpy
+import numpy as np
 import random
 
 T = TypeVar('T')
@@ -16,9 +15,9 @@ class Matrix(Generic[T]):
 
     def __init__(self, data):
         if isinstance(data, Matrix):
-            self._underlying = matrix(data._underlying)
+            self._underlying = np.matrix(data._underlying)
         else:
-            self._underlying = matrix(data)
+            self._underlying = np.matrix(data)
         self.shape = self._underlying.shape
         self.rows = self.shape[0]
         self.cols = self.shape[1]
@@ -26,7 +25,7 @@ class Matrix(Generic[T]):
     @classmethod
     def full(cls, rows:int, cols:int, initial_value:T):
         """Create a brand new matrix of given size"""
-        return cls(full((rows,cols), initial_value))
+        return cls(np.full((rows,cols), initial_value))
 
     def __repr__(self):
         col_str = []
@@ -50,7 +49,7 @@ class Matrix(Generic[T]):
 
     def __getitem__(self, t) -> Union[T, "Matrix[T]"]:
         result = self._underlying[t]
-        if isinstance(result, matrix):
+        if isinstance(result, np.matrix):
             return Matrix(result)
         else:
             return result
@@ -74,19 +73,14 @@ class Matrix(Generic[T]):
     @classmethod
     def load_pattern(cls, filename) -> "Matrix[bool]":
         m = mmread(filename)
-        m = m.astype(numpy.bool)
+        m = m.astype(np.bool)
         m = m.todense()
         return Matrix(m)
 
     @classmethod
     def load(cls, filename) -> "Matrix[float]":
         m = mmread(filename)
-        m = m.astype(numpy.float64)
-        if not isinstance(m, numpy.ndarray):
+        m = m.astype(np.float64)
+        if not isinstance(m, np.ndarray):
             m = m.todense()
         return Matrix(m)
-
-
-
-
-
