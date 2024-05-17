@@ -20,6 +20,7 @@ classifiers= [
     "Operating System :: OS Independent",
 ]
 dynamic = ["version", "readme", "dependencies"]
+dependencies = {file = ["requirements.txt"]}
 
 [build-system]
 requires = ["setuptools>=61.0.0", "wheel"]
