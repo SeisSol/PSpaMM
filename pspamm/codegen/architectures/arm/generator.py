@@ -69,8 +69,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         ) -> Block:
 
         asm = block("Broadcast alpha and beta so that efficient multiplication is possible")
-        asm.add(mov(alpha_reg[0], alpha_reg[1], True))
-        asm.add(mov(beta_reg[0], beta_reg[1], True))
+        # asm.add(mov(alpha_reg[0], alpha_reg[1], True))
+        # asm.add(mov(beta_reg[0], beta_reg[1], True))
         return asm
 
     def make_scaling_offsets(self,
