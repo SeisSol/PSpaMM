@@ -26,51 +26,130 @@ jobs:
 
       - name: dry-run-pspamm
         run: |
+          set +e
           pspamm-generator
+          retcode=$?
+          set -e
+
+          if [ $retcode -ne 2 ]; then
+            echo "Unexpected exit code."
+            exit 1
+          fi
+
+          echo "Success!"
 
   pspamm-codegen-avx:
     name: pspamm-codegen-avx
     runs-on: ubuntu-22.04
     needs: install-pspamm
     steps:
-      - name: setup-qemu
-        uses: docker/setup-qemu-action@v3
+      - name: apt-get
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install g++ qemu-user-static
 
-      - name: run-pspamm-tests
+      - name: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: checkout-pspamm
+        uses: actions/checkout@v4
+
+      - name: pip-pspamm
+        run: |
+          pip install .
+
+      - name: pspamm-tests-generate
         run: |
           cd tests/
-          python tests/unit_tests_hsw.py
-          g++ -mavx2 tests/build/hsw_testsuite.cpp
-          qemu-x86_64-static -cpu max build/hsw-test
+          python unit_tests_hsw.py
+      
+      - name: pspamm-tests-compile
+        run: |
+          cd tests/
+          g++ -static -mavx512f build/hsw_testsuite.cpp -o build/hsw-test
+      
+      - name: pspamm-tests-run
+        run: |
+          cd tests/
+          qemu-x86_64-static -cpu Haswell build/hsw-test
 
   pspamm-codegen-avx512:
     name: pspamm-codegen-avx512
     runs-on: ubuntu-22.04
     needs: install-pspamm
     steps:
-      - name: setup-qemu
-        uses: docker/setup-qemu-action@v3
+      - name: apt-get
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install g++ qemu-user-static
 
-      - name: run-pspamm-tests
+      - name: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: checkout-pspamm
+        uses: actions/checkout@v4
+
+      - name: pip-pspamm
+        run: |
+          pip install .
+
+      - name: pspamm-tests-generate
         run: |
           cd tests/
-          python tests/unit_tests_knl.py
-          g++ -mavx512f tests/build/knl_testsuite.cpp
-          qemu-x86_64-static -cpu max build/knl-test
+          python unit_tests_knl.py
+      
+      - name: pspamm-tests-compile
+        run: |
+          cd tests/
+          g++ -static -mavx512f build/knl_testsuite.cpp -o build/knl-test
+      
+      - name: pspamm-tests-run
+        run: |
+          cd tests/
+          qemu-x86_64-static -cpu Skylake-Server build/knl-test
 
   pspamm-codegen-aarch64:
     name: pspamm-codegen-aarch64
     runs-on: ubuntu-22.04
     needs: install-pspamm
     steps:
-      - name: setup-qemu
-        uses: docker/setup-qemu-action@v3
+      - name: apt-get
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install g++-aarch64-linux-gnu qemu-user-static
 
-      - name: run-pspamm-tests
+      - name: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: checkout-pspamm
+        uses: actions/checkout@v4
+
+      - name: pip-pspamm
+        run: |
+          pip install .
+
+      - name: pspamm-tests-generate
         run: |
           cd tests/
-          python tests/unit_tests_arm.py
-          aarch64-linux-gnu-g++ -static -march=armv8.2-a tests/build/arm_testsuite.cpp
+          python unit_tests_arm.py
+      
+      - name: pspamm-tests-compile
+        run: |
+          cd tests/
+          aarch64-linux-gnu-g++ -static -march=armv8.2-a build/arm_testsuite.cpp -o build/arm-test
+      
+      - name: pspamm-tests-run
+        run: |
+          cd tests/
           qemu-aarch64-static -cpu max build/arm-test
 
   pspamm-codegen-armsve:
@@ -80,20 +159,42 @@ jobs:
     # include vector lengths for SVE manually (for now)
     strategy:
       matrix:
-        VECTORLEN:
+        vectorlen:
           - 128
           - 256
           - 512
           - 1024
           - 2048
     steps:
-      - name: setup-qemu
-        uses: docker/setup-qemu-action@v3
+      - name: apt-get
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install g++-aarch64-linux-gnu qemu-user-static
 
-      - name: run-pspamm-tests
+      - name: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: checkout-pspamm
+        uses: actions/checkout@v4
+
+      - name: pip-pspamm
+        run: |
+          pip install .
+
+      - name: pspamm-tests-generate
         run: |
           cd tests/
-          echo arm_sve${VECTORLEN}
-          python unit_tests_arm_sve.py ${VECTORLEN}
-          aarch64-linux-gnu-g++ -static -march=armv8.2-a+sve -msve-vector-bits=${VECTORLEN} build/arm_sve${VECTORLEN}_testsuite.cpp build/sve${BITLEN}-test
-          qemu-aarch64-static -cpu max,sve${VECTORLEN}=on,sve-default-vector-length=-1 build/sve${VECTORLEN}-test
+          python unit_tests_arm_sve.py ${{matrix.vectorlen}}
+      
+      - name: pspamm-tests-compile
+        run: |
+          cd tests/
+          aarch64-linux-gnu-g++ -static -march=armv8.2-a+sve -msve-vector-bits=${{matrix.vectorlen}} build/arm_sve${{matrix.vectorlen}}_testsuite.cpp -o build/arm_sve${{matrix.vectorlen}}-test
+      
+      - name: pspamm-tests-run
+        run: |
+          cd tests/
+          qemu-aarch64-static -cpu max,sve${{matrix.vectorlen}}=on,sve-default-vector-length=-1 build/arm_sve${{matrix.vectorlen}}-test
