@@ -1,0 +1,99 @@
+name: codegen
+on:
+  - push
+
+jobs:
+  install-pspamm:
+    name: install-pspamm
+    runs-on: ubuntu-22.04
+    steps:
+      - name: apt-get
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+
+      - name: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: checkout-pspamm
+        uses: actions/checkout@v4
+
+      - name: pip-pspamm
+        run: |
+          pip install .
+
+      - name: dry-run-pspamm
+        run: |
+          pspamm-generator
+
+  pspamm-codegen-avx:
+    name: pspamm-codegen-avx
+    runs-on: ubuntu-22.04
+    needs: install-pspamm
+    steps:
+      - name: setup-qemu
+        uses: docker/setup-qemu-action@v3
+
+      - name: run-pspamm-tests
+        run: |
+          cd tests/
+          python tests/unit_tests_hsw.py
+          g++ -mavx2 tests/build/hsw_testsuite.cpp
+          qemu-x86_64-static -cpu max build/hsw-test
+
+  pspamm-codegen-avx512:
+    name: pspamm-codegen-avx512
+    runs-on: ubuntu-22.04
+    needs: install-pspamm
+    steps:
+      - name: setup-qemu
+        uses: docker/setup-qemu-action@v3
+
+      - name: run-pspamm-tests
+        run: |
+          cd tests/
+          python tests/unit_tests_knl.py
+          g++ -mavx512f tests/build/knl_testsuite.cpp
+          qemu-x86_64-static -cpu max build/knl-test
+
+  pspamm-codegen-aarch64:
+    name: pspamm-codegen-aarch64
+    runs-on: ubuntu-22.04
+    needs: install-pspamm
+    steps:
+      - name: setup-qemu
+        uses: docker/setup-qemu-action@v3
+
+      - name: run-pspamm-tests
+        run: |
+          cd tests/
+          python tests/unit_tests_arm.py
+          aarch64-linux-gnu-g++ -static -march=armv8.2-a tests/build/arm_testsuite.cpp
+          qemu-aarch64-static -cpu max build/arm-test
+
+  pspamm-codegen-armsve:
+    name: pspamm-codegen-armsve
+    runs-on: ubuntu-22.04
+    needs: install-pspamm
+    # include vector lengths for SVE manually (for now)
+    strategy:
+      matrix:
+        VECTORLEN:
+          - 128
+          - 256
+          - 512
+          - 1024
+          - 2048
+    steps:
+      - name: setup-qemu
+        uses: docker/setup-qemu-action@v3
+
+      - name: run-pspamm-tests
+        run: |
+          cd tests/
+          echo arm_sve${VECTORLEN}
+          python unit_tests_arm_sve.py ${VECTORLEN}
+          aarch64-linux-gnu-g++ -static -march=armv8.2-a+sve -msve-vector-bits=${VECTORLEN} build/arm_sve${VECTORLEN}_testsuite.cpp build/sve${BITLEN}-test
+          qemu-aarch64-static -cpu max,sve${VECTORLEN}=on,sve-default-vector-length=-1 build/sve${VECTORLEN}-test
