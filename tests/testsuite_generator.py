@@ -181,7 +181,7 @@ end_of_testsuite = """
 
   printf("\\n%i out of %lu test successful!\\n", correct, results.size());
 
-  return 0;
+  return 0 ? correct == results.size() : 1;
 }
 """
 
