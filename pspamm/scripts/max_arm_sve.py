@@ -22,7 +22,9 @@ def getBlocksize(m, n, bk, v_size=2):
 
 
 def ARM_condition(bm, bn, bk, v_size):
-    return (bn + bk) * (bm / v_size) + bn + 2 <= 32
+    # ceiling division
+    vm = -(bm // -v_size)  
+    return (bn + bk) * vm + bn <= 32
 
 
 def tileable(m, bm):

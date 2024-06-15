@@ -77,16 +77,18 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
     def make_reg_blocks(self, bm: int, bn: int, bk: int, v_size: int, nnz: int, m: int, n: int, k: int):
         vm = self.ceil_div(bm, v_size)                  # vm can be 0 if bm < v_size -> makes ceil_div necessary
-        assert ((bn + bk) * vm + bn * bk + 2 <= 32)     # Needs to fit in SVE z registers
+        assert ((bn + bk) * vm + bn * bk <= 32)     # Needs to fit in SVE z registers
         prec = "d" if self.get_precision() == Precision.DOUBLE else "s"
 
         # use max(vm, 1) in case bm < v_size, otherwise we get no A_regs/C_regs
-        A_regs = Matrix([[z(max(vm, 1) * c + r + 2, prec) for c in range(bk)] for r in range(max(vm, 1))])
-        B_regs = Matrix([[z(max(vm, 1) * bk + 2 + bn * r + c, prec) for c in range(bn)] for r in range(bk)])
+        A_regs = Matrix([[z(max(vm, 1) * c + r , prec) for c in range(bk)] for r in range(max(vm, 1))])
+        B_regs = Matrix([[z(max(vm, 1) * bk + bn * r + c, prec) for c in range(bn)] for r in range(bk)])
         C_regs = Matrix([[z(32 - max(vm, 1) * bn + max(vm, 1) * c + r, prec) for c in range(bn)] for r in range(max(vm, 1))])
 
-        alpha_reg = [z(0, prec), z(0, prec)]
-        beta_reg = [z(1, prec), z(1, prec)]
+#        temp = B_regs[0, 0].ugly.split(".")
+        b_reg, b_prec = B_regs[0, 0].ugly[1:].split(".") #temp[0][1:], temp[1]
+        alpha_reg = [z(int(b_reg), b_prec), z(int(b_reg), b_prec)]
+        beta_reg = [z(int(b_reg) + 1, b_prec), z(int(b_reg) + 1, b_prec)]
 
         starting_regs = [r(0), r(1), r(2), r(3), r(4), r(6)]  # r6 is needed for predicate creation, r5 is added in init_prefetching()
 
@@ -103,9 +105,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                         beta_reg: Register,
                         ) -> Block:
 
-        asm = block("Broadcasted alpha and beta into z0/z1 so that efficient multiplication is possible")
-        # asm.add(mov(alpha_reg[0], alpha_reg[1], True))
-        # asm.add(mov(beta_reg[0], beta_reg[1], True))
+        asm = block("Broadcast alpha and beta when necessary")
         return asm
 
     def make_scaling_offsets(self,
@@ -137,13 +137,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         gen_reg = "x" if v_size == 2 * self.v_len else "w"   # determine if 'dup' registers are 64 bit or 32 bit
         overhead_counter = 6
 
-        # https://developer.arm.com/documentation/102374/0101/Registers-in-AArch64---general-purpose-registers
-        # Wn adresses the lower 32 bits of Xn
-        # generally: Xn/Wn "[...] are two separate ways of looking at the same register"
-        # this means we can load alpha/beta into x3/x4 even if they are floats (32 bits)
-        dup_alpha = "//Broadcasted alpha and beta into z0/z1 so that efficient multiplication is possible\n\t\"dup z0.{suffix}, {gen_reg}3{eol}\"\n\t"  # define broadcasting of alpha
-        dup_beta = "\"dup z1.{suffix}, {gen_reg}4{eol}\"\n\t"   # define broadcasting of beta
-
         comment = "//p7 denotes the 'all-true' predicate and, if given, p0 denotes the 'bm % v_size' predicate\n\t"
         # specification for ptrue: https://developer.arm.com/documentation/ddi0596/2021-12/SVE-Instructions/PTRUE--Initialise-predicate-from-named-constraint-
         # search for 'DecodePredCount' for the explanation of how the pattern in 'ptrue p{d}.{suffix}, #pattern' is decoded:
@@ -152,12 +145,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # overhead = "\"ptrue p0.{suffix}, #{overhead}{eol}\"\n\t" if bm != 0 else ""    # define overhead predicate
         overhead = "\"mov {gen_reg}{overhead_counter}, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bmmod != 0 else ""
         all_true = "\"ptrue p7.{suffix}, #31{eol}\""                             # define all true predicate
-        init_registers = (dup_alpha + dup_beta + comment + overhead + all_true).format(suffix=p_suffix,
-                                                                                       gen_reg=gen_reg,
-                                                                                       overhead_counter=overhead_counter,
-                                                                                       v_size=v_size,
-                                                                                       overhead=bmmod,
-                                                                                       eol=eol)
+        init_registers = (comment + overhead + all_true).format(suffix=p_suffix,
+                                                                gen_reg=gen_reg,
+                                                                overhead_counter=overhead_counter,
+                                                                v_size=v_size,
+                                                                overhead=bmmod,
+                                                                eol=eol)
 
         # since .format() doesn't allow partial formatting, we need to re-include the
         # placeholders that are replaced at the end of generating a kernel
