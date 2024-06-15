@@ -26,4 +26,6 @@ def lowerToNextDiv(m, n, bm, bn, v_size):
 
 
 def ARM_condition(bm, bn, bk, v_size):
-	return (bn+bk) * (bm / v_size) + bn + 2 <= 32
+  # ceiling division
+  vm = -(bm // -v_size)
+  return (bn+bk) * vm + bn <= 32

@@ -17,8 +17,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     "ldr x2, %2\\n\\t"
     "ldr x3, %3\\n\\t"
     "ldr x4, %4\\n\\t"
-    "dup v0.2d, x3\\n\\t"
-    "dup v1.2d, x4\\n\\t"
     {body_text}
 
     : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta) : {clobbered});
@@ -44,15 +42,18 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
         vm = bm//v_size
-        assert((bn+bk) * vm + bn * bk + 2<= 32)  # Needs to fit in NEON v registers
+        assert((bn+bk) * vm + bn * bk <= 32)  # Needs to fit in NEON v registers
 
-        A_regs = Matrix([[v(vm*c + r + 2) for c in range(bk)] for r in range(vm)])
-        B_regs = Matrix([[v(vm*bk + 2 + bn * r + c) for c in range(bn)] for r in range(bk)])
+        A_regs = Matrix([[v(vm*c + r) for c in range(bk)] for r in range(vm)])
+        B_regs = Matrix([[v(vm*bk + bn * r + c) for c in range(bn)] for r in range(bk)])
         C_regs = Matrix([[v(32 - vm*bn + vm*c + r) for c in range(bn)]
                                                    for r in range(vm)])
-        alpha_reg = [v(0), v(0)]
 
-        beta_reg = [v(1), v(1)]
+        # get vector register number of the first vector in B_regs
+        b_reg = B_regs[0, 0].ugly.split(".")[0][1:]
+        alpha_reg = [v(int(b_reg)), v(int(b_reg))]
+        beta_reg = [v(int(b_reg) + 1), v(int(b_reg) + 1)]
+
 
         starting_regs = [r(0), r(1), r(2)]
 
