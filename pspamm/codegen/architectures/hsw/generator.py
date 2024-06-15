@@ -14,8 +14,6 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
     "movq %0, %%rdi\\n\\t"
     "movq %1, %%rsi\\n\\t"
     "movq %2, %%rdx\\n\\t"
-    "vmovq %3, %%xmm0\\n\\t"
-    "vmovq %4, %%xmm1\\n\\t"
 {prefetching_mov}
 {{body_text}}
 
@@ -43,10 +41,10 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
         vm = bm//v_size
-        assert((bn + bk) * vm + bn * bk + 2 <= 16)  # Needs to fit in AVX/AVX2 ymm registers
+        assert((bn + bk) * vm + bn * bk <= 16)  # Needs to fit in AVX/AVX2 ymm registers
 
-        A_regs = Matrix([[ymm(vm*c + r + 2) for c in range(bk)] for r in range(vm)])
-        B_regs = Matrix([[ymm(vm*bk + 2 + bn * r + c) for c in range(bn)] for r in range(bk)])
+        A_regs = Matrix([[ymm(vm*c + r) for c in range(bk)] for r in range(vm)])
+        B_regs = Matrix([[ymm(vm*bk + bn * r + c) for c in range(bn)] for r in range(bk)])
         C_regs = Matrix([[ymm(16 - vm*bn + vm*c + r) for c in range(bn)]
                                                      for r in range(vm)])
         print([[ymm(vm*c + r + 2).ugly for c in range(bk)] for r in range(vm)])
@@ -55,9 +53,9 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                                                      for r in range(vm)])
         starting_regs = [rdi, rsi, rdx]
 
-        alpha_reg = [xmm(0), ymm(0)]
-
-        beta_reg = [xmm(1), ymm(1)]
+        b_reg = B_regs[0, 0].ugly[5:]
+        alpha_reg = [xmm(int(b_reg)), ymm(int(b_reg))]
+        beta_reg = [xmm(int(b_reg) + 1), ymm(int(b_reg) + 1)]
 
         available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax, rbx, rcx]
 

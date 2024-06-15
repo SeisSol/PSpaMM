@@ -11,4 +11,4 @@ def getBlocksize(m, n, bk, v_size=4):
 
 
 def HSW_condition(bm, bn, bk, v_size):
-    return (bn + bk) * (bm / v_size) + bn * bk + 2 <= 16
+    return (bn + bk) * (bm / v_size) + bn * bk <= 16
