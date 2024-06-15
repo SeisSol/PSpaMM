@@ -122,6 +122,8 @@ class MatMul:
 
         # flag that determines if a matmul kernel uses sve instructions -> needed for sve predicates
         self.is_sve = arch == "arm_sve"
+        # define which architectures need to use an explicit broadcast, necessary for alpha/beta values
+        self.use_bcst = arch in ["arm", "arm_sve", "hsw"]
 
         if self.is_sve:
           self.generator.v_len = v_len_regs
@@ -233,6 +235,8 @@ class MatMul:
             if self.alpha == 1.0 and self.beta != 0.0:
                 asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, False))
                 if self.beta != 1.0:
+                    if self.use_bcst:
+                        asm.add(bcst(pspamm.architecture.operands.r(4), self.beta_reg[1], "Broadcast beta"))
                     for ic in range(regs.shape[1]):
                         for ir in range(regs.shape[0]):
                             pred_m = None if not self.is_sve else self.generator.pred_n_trues(self.bm - ir * self.v_size, self.v_size, "m")
@@ -250,7 +254,12 @@ class MatMul:
 
             if self.alpha != 1.0:
                 store_block = block("")
-                
+
+                if self.use_bcst:
+                    store_block.add(bcst(pspamm.architecture.operands.r(3), self.alpha_reg[1], "Broadcast alpha"))
+                    if self.beta != 0.0 and self.beta != 1.0:
+                        store_block.add(bcst(pspamm.architecture.operands.r(4), self.beta_reg[1], "Broadcast beta"))
+
                 for x in range(0, regs.shape[1], self.A_regs.shape[1]):
                     A_regs_cut = self.A_regs[0:min(self.A_regs.shape[0], regs.shape[0]), 0:regs.shape[1]-x]
                     if self.beta != 0.0:
