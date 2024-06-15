@@ -61,6 +61,16 @@ class InlinePrinter(Visitor):
         s = "fmul {}, {}{}, {}".format(a, p, b, m)
         self.addLine(s, stmt.comment)
 
+    def visitBcst(self, stmt: BcstStmt):
+        # Used to broadcast a scalar register into a vector register
+        b = stmt.bcast_src.ugly
+        a = stmt.dest.ugly
+        # make sure the src register is a W register when using single precision
+        if a[-1] == 's':
+            b = "w" + b[1:]
+        s = "dup {}, {}".format(a, b)
+        self.addLine(s, stmt.comment)
+
     def visitAdd(self, stmt: AddStmt):
         if isinstance(stmt.src, Constant) and (stmt.src.value > 4095 or stmt.src.value < -4095):
             # This condition is probably related to immediate values being restricted to 12 bits for add instructions
