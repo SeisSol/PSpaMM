@@ -64,7 +64,15 @@ class InlinePrinter(Visitor):
     def visitBcst(self, stmt: BcstStmt):
         b = stmt.bcast_src.ugly
         a = stmt.dest.ugly
-        s = "vbroadcasts{} {}, {}".format(self.precision, b,a)
+        # check if we broadcast a general register
+        if b[2] == 'r':
+            # determine if we broadcast alpha or beta
+            src = "%3" if stmt.bcast_src.ugly == "%%rbx" else "%4"
+            b = a.replace("y", "x")
+            s = "vmovq {}, {}".format(src, b)
+            comment = "Move {scalar} into xmm register".format(scalar="alpha" if src == "%3" else "beta")
+            self.addLine(s, comment)
+        s = "vbroadcasts{} {}, {}".format(self.precision, b, a)
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):
