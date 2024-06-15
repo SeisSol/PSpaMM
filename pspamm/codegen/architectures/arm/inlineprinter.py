@@ -61,6 +61,12 @@ class InlinePrinter(Visitor):
         s = "fmul {}, {}, {}".format(a,m,b)
         self.addLine(s, stmt.comment)
 
+    def visitBcst(self, stmt: BcstStmt):
+        b = stmt.bcast_src.ugly
+        a = stmt.dest.ugly
+        s = "dup {}, {}".format(a, b)
+        self.addLine(s, stmt.comment)
+
     def visitAdd(self, stmt: AddStmt):
         if isinstance(stmt.src, Constant) and (stmt.src.value > 4095 or stmt.src.value < -4095):
             if (stmt.src.value >> 16) & 0xFFFF > 0 and stmt.src.value < 0:
