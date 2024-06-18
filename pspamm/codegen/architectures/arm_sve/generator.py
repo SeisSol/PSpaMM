@@ -85,7 +85,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         B_regs = Matrix([[z(max(vm, 1) * bk + bn * r + c, prec) for c in range(bn)] for r in range(bk)])
         C_regs = Matrix([[z(32 - max(vm, 1) * bn + max(vm, 1) * c + r, prec) for c in range(bn)] for r in range(max(vm, 1))])
 
-#        temp = B_regs[0, 0].ugly.split(".")
         b_reg, b_prec = B_regs[0, 0].ugly[1:].split(".") #temp[0][1:], temp[1]
         alpha_reg = [z(int(b_reg), b_prec), z(int(b_reg), b_prec)]
         beta_reg = [z(int(b_reg) + 1, b_prec), z(int(b_reg) + 1, b_prec)]
