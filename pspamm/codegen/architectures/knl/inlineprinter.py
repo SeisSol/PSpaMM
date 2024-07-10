@@ -52,14 +52,22 @@ class InlinePrinter(Visitor):
         if stmt.bcast:
             s = "vfmadd231p{} {}%{{1to{}%}}, {}, {}".format(self.precision, b, 8 if self.precision == 'd' else 16, m, a)
         else:
-            s = "vfmadd231p{} {}, {}, {}".format(self.precision, b,m,a)
+            if m[0] == '0':
+                # in this case, m is a MemoryAddress_KNL that points to alpha
+                s = "vfmadd231p{} {}%{{1to{}%}}, {}, {}".format(self.precision, m, 8 if self.precision == 'd' else 16, b, a)
+            else:
+                s = "vfmadd231p{} {}, {}, {}".format(self.precision, b,m,a)
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
         b = stmt.src.ugly
         m = stmt.mult_src.ugly
         a = stmt.dest.ugly
-        s = "vmulp{} {}, {}, {}".format(self.precision, b,m,a)
+        if m[0] == '0':
+            # in this case, m is a MemoryAddress_KNL that points to alpha/beta
+            s = "vmulp{} {}%{{1to{}%}}, {}, {}".format(self.precision, m, 8 if self.precision == 'd' else 16, b, a)
+        else:
+            s = "vmulp{} {}, {}, {}".format(self.precision, b,m,a)
         self.addLine(s, stmt.comment)
 
     def visitBcst(self, stmt: BcstStmt):
