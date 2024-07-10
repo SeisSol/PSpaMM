@@ -11,4 +11,4 @@ def getBlocksize(m, n, bk, v_size=8):
 
 
 def KNL_condition(bm, bn, bk, v_size):
-    return (bn+bk) * (bm / v_size) + 2 <= 32
+    return (bn+bk) * (bm / v_size) <= 32
