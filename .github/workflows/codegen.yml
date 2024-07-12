@@ -1,6 +1,5 @@
 name: codegen
 on:
-  - push
   - pull_request
 
 jobs:
@@ -77,8 +76,8 @@ jobs:
           cd tests/
           qemu-x86_64-static -cpu Haswell build/hsw-test
 
-  pspamm-codegen-avx512:
-    name: pspamm-codegen-avx512
+  pspamm-codegen-avx512-no-run:
+    name: pspamm-codegen-avx512-no-run
     runs-on: ubuntu-24.04
     needs: install-pspamm
     steps:
@@ -110,10 +109,11 @@ jobs:
           cd tests/
           g++ -static -mavx512f build/knl_testsuite.cpp -o build/knl-test
       
-      - name: pspamm-tests-run
-        run: |
-          cd tests/
-          qemu-x86_64-static -cpu Skylake-Server build/knl-test
+      # disabled, since qemu doesn't support AVX512F (yet) with of Ubuntu 24.04
+      # - name: pspamm-tests-run
+      #   run: |
+      #     cd tests/
+      #     qemu-x86_64-static -cpu Skylake-Server build/knl-test
 
   pspamm-codegen-aarch64:
     name: pspamm-codegen-aarch64
