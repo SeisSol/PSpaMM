@@ -1,11 +1,12 @@
 name: codegen
 on:
   - push
+  - pull_request
 
 jobs:
   install-pspamm:
     name: install-pspamm
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: apt-get
         run: |
@@ -40,7 +41,7 @@ jobs:
 
   pspamm-codegen-avx:
     name: pspamm-codegen-avx
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: install-pspamm
     steps:
       - name: apt-get
@@ -78,7 +79,7 @@ jobs:
 
   pspamm-codegen-avx512:
     name: pspamm-codegen-avx512
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: install-pspamm
     steps:
       - name: apt-get
@@ -116,7 +117,7 @@ jobs:
 
   pspamm-codegen-aarch64:
     name: pspamm-codegen-aarch64
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: install-pspamm
     steps:
       - name: apt-get
@@ -154,7 +155,7 @@ jobs:
 
   pspamm-codegen-armsve:
     name: pspamm-codegen-armsve
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: install-pspamm
     # include vector lengths for SVE manually (for now)
     strategy:
