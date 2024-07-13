@@ -85,9 +85,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         B_regs = Matrix([[z(max(vm, 1) * bk + bn * r + c, prec) for c in range(bn)] for r in range(bk)])
         C_regs = Matrix([[z(32 - max(vm, 1) * bn + max(vm, 1) * c + r, prec) for c in range(bn)] for r in range(max(vm, 1))])
 
-        b_reg, b_prec = B_regs[0, 0].ugly[1:].split(".") #temp[0][1:], temp[1]
-        alpha_reg = [z(int(b_reg), b_prec), z(int(b_reg), b_prec)]
-        beta_reg = [z(int(b_reg) + 1, b_prec), z(int(b_reg) + 1, b_prec)]
+        b_reg = max(vm, 1) * bk
+        alpha_reg = [z(b_reg, prec), z(b_reg, prec)]
+        beta_reg = [z(b_reg + 1, prec), z(b_reg + 1, prec)]
 
         starting_regs = [r(0), r(1), r(2), r(3), r(4), r(6)]  # r6 is needed for predicate creation, r5 is added in init_prefetching()
 

@@ -50,9 +50,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                                                    for r in range(vm)])
 
         # get vector register number of the first vector in B_regs
-        b_reg = B_regs[0, 0].ugly.split(".")[0][1:]
-        alpha_reg = [v(int(b_reg)), v(int(b_reg))]
-        beta_reg = [v(int(b_reg) + 1), v(int(b_reg) + 1)]
+        b_reg = vm*bk
+        alpha_reg = [v(b_reg), v(b_reg)]
+        beta_reg = [v(b_reg + 1), v(b_reg + 1)]
 
 
         starting_regs = [r(0), r(1), r(2)]

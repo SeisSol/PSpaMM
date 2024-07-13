@@ -47,15 +47,15 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         B_regs = Matrix([[ymm(vm*bk + bn * r + c) for c in range(bn)] for r in range(bk)])
         C_regs = Matrix([[ymm(16 - vm*bn + vm*c + r) for c in range(bn)]
                                                      for r in range(vm)])
-        print([[ymm(vm*c + r + 2).ugly for c in range(bk)] for r in range(vm)])
-        print([[ymm(vm*bk + 2 + bn * r + c).ugly for c in range(bn)] for r in range(bk)])
+        print([[ymm(vm*c + r ).ugly for c in range(bk)] for r in range(vm)])
+        print([[ymm(vm*bk + bn * r + c).ugly for c in range(bn)] for r in range(bk)])
         print([[ymm(16 - vm*bn + vm*c + r).ugly for c in range(bn)]
                                                      for r in range(vm)])
         starting_regs = [rdi, rsi, rdx]
 
-        b_reg = B_regs[0, 0].ugly[5:]
-        alpha_reg = [xmm(int(b_reg)), ymm(int(b_reg))]
-        beta_reg = [xmm(int(b_reg) + 1), ymm(int(b_reg) + 1)]
+        b_reg = vm*bk 
+        alpha_reg = [xmm(b_reg), ymm(b_reg)]
+        beta_reg = [xmm(b_reg + 1), ymm(b_reg + 1)]
 
         available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax, rbx, rcx]
 
