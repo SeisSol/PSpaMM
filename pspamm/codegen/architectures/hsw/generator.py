@@ -10,14 +10,18 @@ from pspamm.codegen.precision import *
 class Generator(AbstractGenerator):
     template = """
 void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}* C, {{real_type}} alpha, {{real_type}} beta, {{real_type}} const* prefetch) {{{{
+  {{real_type}}* alpha_p = &alpha;
+  {{real_type}}* beta_p = &beta;
   __asm__ __volatile__(
     "movq %0, %%rdi\\n\\t"
     "movq %1, %%rsi\\n\\t"
     "movq %2, %%rdx\\n\\t"
+    "movq %3, %%rbx\\n\\t"
+    "movq %4, %%rcx\\n\\t"
 {prefetching_mov}
 {{body_text}}
 
-    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta){prefetching_decl} : {{clobbered}});
+    : : "m"(A), "m"(B), "m"(C), "m"(alphai_p), "m"(beta_p){prefetching_decl} : {{clobbered}});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
