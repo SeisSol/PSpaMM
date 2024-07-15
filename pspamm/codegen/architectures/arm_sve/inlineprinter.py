@@ -66,7 +66,7 @@ class InlinePrinter(Visitor):
         b = stmt.bcast_src.ugly
         a = stmt.dest.ugly
         # make sure the src register is a W register when using single precision
-        if a[-1] == 's':
+        if stmt.dest.ugly_precision == 's':
             b = "w" + b[1:]
         s = "dup {}, {}".format(a, b)
         self.addLine(s, stmt.comment)

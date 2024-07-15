@@ -66,12 +66,8 @@ class InlinePrinter(Visitor):
         a = stmt.dest.ugly
         # check if we broadcast a general register
         if b[2] == 'r':
-            # determine if we broadcast alpha or beta
-            src = "%3" if stmt.bcast_src.ugly == "%%rbx" else "%4"
-            b = a.replace("y", "x")
-            s = "vmovq {}, {}".format(src, b)
-            comment = "Move {scalar} into xmm register".format(scalar="alpha" if src == "%3" else "beta")
-            self.addLine(s, comment)
+            # reformat bcast_src to be a memory address
+            b = "0({})".format(b)
         s = "vbroadcasts{} {}, {}".format(self.precision, b, a)
         self.addLine(s, stmt.comment)
 

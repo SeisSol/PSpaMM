@@ -52,9 +52,9 @@ class InlinePrinter(Visitor):
         if stmt.bcast:
             s = "vfmadd231p{} {}%{{1to{}%}}, {}, {}".format(self.precision, b, 8 if self.precision == 'd' else 16, m, a)
         else:
-            if m[0] == '0':
+            if stmt.mult_src.typeinfo == AsmType.i64:
                 # in this case, m is a MemoryAddress_KNL that points to alpha
-                s = "vfmadd231p{} {}%{{1to{}%}}, {}, {}".format(self.precision, m, 8 if self.precision == 'd' else 16, b, a)
+                s = "vfmadd231p{} 0({})%{{1to{}%}}, {}, {}".format(self.precision, m, 8 if self.precision == 'd' else 16, b, a)
             else:
                 s = "vfmadd231p{} {}, {}, {}".format(self.precision, b,m,a)
         self.addLine(s, stmt.comment)
@@ -63,9 +63,9 @@ class InlinePrinter(Visitor):
         b = stmt.src.ugly
         m = stmt.mult_src.ugly
         a = stmt.dest.ugly
-        if m[0] == '0':
+        if stmt.mult_src.typeinfo == AsmType.i64:
             # in this case, m is a MemoryAddress_KNL that points to alpha/beta
-            s = "vmulp{} {}%{{1to{}%}}, {}, {}".format(self.precision, m, 8 if self.precision == 'd' else 16, b, a)
+            s = "vmulp{} 0({})%{{1to{}%}}, {}, {}".format(self.precision, m, 8 if self.precision == 'd' else 16, b, a)
         else:
             s = "vmulp{} {}, {}, {}".format(self.precision, b,m,a)
         self.addLine(s, stmt.comment)
