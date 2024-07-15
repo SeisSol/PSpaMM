@@ -196,6 +196,8 @@ class MatMul:
 
         self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.alpha_reg, self.beta_reg, self.loop_reg, self.additional_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.nnz, self.m, self.n, self.k)
 
+        self.alpha_bcst_reg, self.beta_bcst_reg = pspamm.architecture.operands.r(3), pspamm.architecture.operands.r(4)
+
         self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk, self.precision.value)
         self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.value, blocks, patterns,mtx_overhead)
         self.C = DenseCursor("C", self.starting_regs[2], self.m, self.n, self.ldc, self.bm, self.bn, self.precision.value)
@@ -236,7 +238,7 @@ class MatMul:
                 asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, False))
                 if self.beta != 1.0:
                     if self.use_bcst:
-                        asm.add(bcst(pspamm.architecture.operands.r(4), self.beta_reg[1], "Broadcast beta"))
+                        asm.add(bcst(self.beta_bcst_reg, self.beta_reg[1], "Broadcast beta"))
                     for ic in range(regs.shape[1]):
                         for ir in range(regs.shape[0]):
                             pred_m = None if not self.is_sve else self.generator.pred_n_trues(self.bm - ir * self.v_size, self.v_size, "m")
@@ -256,9 +258,9 @@ class MatMul:
                 store_block = block("")
 
                 if self.use_bcst:
-                    store_block.add(bcst(pspamm.architecture.operands.r(3), self.alpha_reg[1], "Broadcast alpha"))
+                    store_block.add(bcst(self.alpha_bcst_reg, self.alpha_reg[1], "Broadcast alpha"))
                     if self.beta != 0.0 and self.beta != 1.0:
-                        store_block.add(bcst(pspamm.architecture.operands.r(4), self.beta_reg[1], "Broadcast beta"))
+                        store_block.add(bcst(self.beta_bcst_reg, self.beta_reg[1], "Broadcast beta"))
 
                 for x in range(0, regs.shape[1], self.A_regs.shape[1]):
                     A_regs_cut = self.A_regs[0:min(self.A_regs.shape[0], regs.shape[0]), 0:regs.shape[1]-x]
