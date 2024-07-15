@@ -73,8 +73,8 @@ rdi = Register_KNL(AsmType.i64, "rdi")
 rsi = Register_KNL(AsmType.i64, "rsi")
 
 # necessary for the inline broadcasting in vfmadd231p{d/s} and vmulp{d/s}, we only need a mapping for r(3) and r(4)
-gen_regs = {3: mem(rbx, 0),
-            4: mem(rcx, 0)}
+gen_regs = {3: rbx,
+            4: rcx}
 
 r   = lambda n: Register_KNL(AsmType.i64, "r"+str(n)) if n > 7 else gen_regs[n]
 xmm = lambda n: Register_KNL(AsmType.f64x2, "xmm"+str(n))
