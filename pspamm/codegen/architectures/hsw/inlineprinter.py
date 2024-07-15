@@ -65,7 +65,7 @@ class InlinePrinter(Visitor):
         b = stmt.bcast_src.ugly
         a = stmt.dest.ugly
         # check if we broadcast a general register
-        if b[2] == 'r':
+        if isinstance(stmt.bcast_scr, Regsiter):
             # reformat bcast_src to be a memory address
             b = "0({})".format(b)
         s = "vbroadcasts{} {}, {}".format(self.precision, b, a)

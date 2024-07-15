@@ -57,7 +57,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                                                      for r in range(vm)])
         starting_regs = [rdi, rsi, rdx]
 
-        b_reg = vm*bk 
+        b_reg = vm*bk
         alpha_reg = [xmm(b_reg), ymm(b_reg)]
         beta_reg = [xmm(b_reg + 1), ymm(b_reg + 1)]
 
@@ -85,10 +85,10 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                         beta_reg: Register,
                         ) -> Block:
 
-        asm = block("Broadcast alpha and beta so that efficient multiplication is possible")
+        asm = block("Broadcast alpha and beta when needed")
 
-        asm.add(bcst(alpha_reg[0], alpha_reg[1]))
-        asm.add(bcst(beta_reg[0], beta_reg[1]))
+#        asm.add(bcst(alpha_reg[0], alpha_reg[1]))
+#        asm.add(bcst(beta_reg[0], beta_reg[1]))
         
         return asm
 
