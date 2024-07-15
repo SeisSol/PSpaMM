@@ -27,4 +27,6 @@ def lowerToNextDiv(m, n, bm, bn):
 
 def HSW_condition(bm, bn, bk):
 	v_size = 4
-	return (bn + bk) * (bm / v_size) + bn * bk <= 16
+	# ceiling division
+	vm = -(bm // -v_size)
+	return (bn + bk) * vm + bn * bk <= 16

@@ -11,4 +11,6 @@ def getBlocksize(m, n, bk, v_size=8):
 
 
 def KNL_condition(bm, bn, bk, v_size):
-    return (bn+bk) * (bm / v_size) <= 32
+    # ceiling division
+    vm = -(bm // -v_size)
+    return (bn+bk) * vm <= 32
