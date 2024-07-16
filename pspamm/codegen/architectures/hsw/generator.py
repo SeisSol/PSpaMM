@@ -55,13 +55,13 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         print([[ymm(vm*bk + bn * r + c).ugly for c in range(bn)] for r in range(bk)])
         print([[ymm(16 - vm*bn + vm*c + r).ugly for c in range(bn)]
                                                      for r in range(vm)])
-        starting_regs = [rdi, rsi, rdx]
+        starting_regs = [rdi, rsi, rdx, rbx, rcx]
 
         b_reg = vm*bk
         alpha_reg = [xmm(b_reg), ymm(b_reg)]
         beta_reg = [xmm(b_reg + 1), ymm(b_reg + 1)]
 
-        available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax, rbx, rcx]
+        available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax]
 
         additional_regs = [r(8)]
 
