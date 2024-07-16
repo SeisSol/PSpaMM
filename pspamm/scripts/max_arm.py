@@ -16,4 +16,7 @@ def getBlocksize(m , n, bk):
 
 
 def ARM_condition(bm, bn, bk):
-    return (bn+bk) * (bm / 2) + bn + 2 <= 32
+  v_size = 2
+  # ceiling division
+  vm = -(bm // -v_size)
+  return (bn+bk) * vm + bn <= 32

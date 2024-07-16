@@ -10,16 +10,18 @@ from pspamm.codegen.precision import *
 class Generator(AbstractGenerator):
     template = """
 void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}* C, {{real_type}} alpha, {{real_type}} beta, {{real_type}} const* prefetch) {{{{
+  {{real_type}}* alpha_p = &alpha;
+  {{real_type}}* beta_p = &beta;
   __asm__ __volatile__(
     "movq %0, %%rdi\\n\\t"
     "movq %1, %%rsi\\n\\t"
     "movq %2, %%rdx\\n\\t"
-    "vmovq %3, %%xmm0\\n\\t"
-    "vmovq %4, %%xmm1\\n\\t"
+    "movq %3, %%rbx\\n\\t"
+    "movq %4, %%rcx\\n\\t"
 {prefetching_mov}
 {{body_text}}
 
-    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta){prefetching_decl} : {{clobbered}});
+    : : "m"(A), "m"(B), "m"(C), "m"(alpha_p), "m"(beta_p){prefetching_decl} : {{clobbered}});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -45,16 +47,15 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         vm = bm//v_size
         assert((bn+bk) * vm <= 32)  # Needs to fit in AVX512 zmm registers
 
-        A_regs = Matrix([[zmm(vm*c + r + 2) for c in range(bk)] for r in range(vm)])
+        A_regs = Matrix([[zmm(vm*c + r) for c in range(bk)] for r in range(vm)])
         B_regs = []
         C_regs = Matrix([[zmm(32 - vm*bn + vm*c + r) for c in range(bn)]
                                                      for r in range(vm)])
 
         starting_regs = [rdi, rsi, rdx]
 
-        alpha_reg = [xmm(0), zmm(0)]
-
-        beta_reg = [xmm(1), zmm(1)]
+        alpha_reg = [r(3), r(3)]
+        beta_reg = [r(4), r(4)]
 
         available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax, rbx, rcx]
 
@@ -80,10 +81,10 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                         beta_reg: Register,
                         ) -> Block:
 
-        asm = block("Broadcast alpha and beta so that efficient multiplication is possible")
+        asm = block("Broadcast alpha and beta using inline broadcasting")
 
-        asm.add(bcst(alpha_reg[0], alpha_reg[1]))
-        asm.add(bcst(beta_reg[0], beta_reg[1]))
+#        asm.add(bcst(alpha_reg[0], alpha_reg[1]))
+#        asm.add(bcst(beta_reg[0], beta_reg[1]))
         
         return asm
 

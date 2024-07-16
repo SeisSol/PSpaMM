@@ -64,7 +64,11 @@ class InlinePrinter(Visitor):
     def visitBcst(self, stmt: BcstStmt):
         b = stmt.bcast_src.ugly
         a = stmt.dest.ugly
-        s = "vbroadcasts{} {}, {}".format(self.precision, b,a)
+        # check if we broadcast a general register
+        if isinstance(stmt.bcast_src, Register):
+            # reformat bcast_src to be a memory address
+            b = "0({})".format(b)
+        s = "vbroadcasts{} {}, {}".format(self.precision, b, a)
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):

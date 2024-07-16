@@ -64,7 +64,9 @@ def make(kernels, arch):
                 v_len = 2 * reglen if prec == 'd' else 4 * reglen
                 # this should be the same assertion as in ../scripts/max_arm_sve.py
                 bk = 1
-                if not ((bn + bk) * (bm / v_len) + bn * bk + 2 <= 32):
+                # ceiling division
+                vm = -(bm // -v_len)  
+                if not ((bn + bk) * vm + bn * bk <= 32):
                     print(f'Skipping block size {bm}x{bn} for {arch}')
                     continue
 
@@ -87,8 +89,7 @@ def make(kernels, arch):
     f.write(setup_prefetching)
     f.write(test_generator.setup_main)
     # add variable declarations for single precision test cases
-    if include_single_prec:
-        f.write("""  std::tuple<float*, float*, float*, float*, float*> fpointers;
+    f.write("""  std::tuple<float*, float*, float*, float*, float*> fpointers;
   float falpha; float fbeta;
   double* prefetch;
   float* fprefetch;
@@ -111,7 +112,9 @@ def make(kernels, arch):
                 v_len = 2 * reglen if prec == 'd' else 4 * reglen
                 # this should be the same assertion as in ../scripts/max_arm_sve.py
                 bk = 1
-                if not ((bn + bk) * (bm / v_len) + bn * bk + 2 <= 32):
+                # ceiling division
+                vm = -( bm // -v_len)
+                if not ((bn + bk) * vm + bn * bk <= 32):
                     # print(f'Skipping block size {bm}x{bn} for {arch}')
                     continue
 
@@ -131,7 +134,7 @@ def make(kernels, arch):
   {name}(std::get<0>({p}pointers), std::get<{sparse}>({p}pointers), std::get<3>({p}pointers), {p}alpha, {p}beta, {p}prefetch);
   result = post<{T}>({m}, {n}, {k}, {lda}, &ldb, {ldc}, &{p}alpha, &{p}beta, std::get<0>({p}pointers), std::get<1>({p}pointers), std::get<3>({p}pointers), std::get<4>({p}pointers), {delta:.7f});
   results.push_back(std::make_tuple("{name}", result));
-  free(std::get<0>({p}pointers)); free(std::get<1>({p}pointers)); free(std::get<2>({p}pointers)); free(std::get<3>({p}pointers)); free(std::get<4>({p}pointers));  free({p}prefetch);
+  free(std::get<0>({p}pointers)); free(std::get<1>({p}pointers)); free(std::get<2>({p}pointers)); free(std::get<3>({p}pointers)); free(std::get<4>({p}pointers)); free({p}prefetch);
 """.format(m=kern.m, n=kern.n, k=kern.k, lda=kern.lda, ldb=kern.ldb, ldc=kern.ldc, alpha=kern.alpha, beta=kern.beta,
            mtx=mtx, delta=kern.delta, name=name, sparse=2 if kern.ldb == 0 else 1, p=prec, T="float" if prec == 'f' else "double"))
 

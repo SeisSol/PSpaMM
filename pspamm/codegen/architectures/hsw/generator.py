@@ -10,16 +10,18 @@ from pspamm.codegen.precision import *
 class Generator(AbstractGenerator):
     template = """
 void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}* C, {{real_type}} alpha, {{real_type}} beta, {{real_type}} const* prefetch) {{{{
+  {{real_type}}* alpha_p = &alpha;
+  {{real_type}}* beta_p = &beta;
   __asm__ __volatile__(
     "movq %0, %%rdi\\n\\t"
     "movq %1, %%rsi\\n\\t"
     "movq %2, %%rdx\\n\\t"
-    "vmovq %3, %%xmm0\\n\\t"
-    "vmovq %4, %%xmm1\\n\\t"
+    "movq %3, %%rbx\\n\\t"
+    "movq %4, %%rcx\\n\\t"
 {prefetching_mov}
 {{body_text}}
 
-    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta){prefetching_decl} : {{clobbered}});
+    : : "m"(A), "m"(B), "m"(C), "m"(alpha_p), "m"(beta_p){prefetching_decl} : {{clobbered}});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -43,21 +45,21 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
         vm = bm//v_size
-        assert((bn + bk) * vm + bn * bk + 2 <= 16)  # Needs to fit in AVX/AVX2 ymm registers
+        assert((bn + bk) * vm + bn * bk <= 16)  # Needs to fit in AVX/AVX2 ymm registers
 
-        A_regs = Matrix([[ymm(vm*c + r + 2) for c in range(bk)] for r in range(vm)])
-        B_regs = Matrix([[ymm(vm*bk + 2 + bn * r + c) for c in range(bn)] for r in range(bk)])
+        A_regs = Matrix([[ymm(vm*c + r) for c in range(bk)] for r in range(vm)])
+        B_regs = Matrix([[ymm(vm*bk + bn * r + c) for c in range(bn)] for r in range(bk)])
         C_regs = Matrix([[ymm(16 - vm*bn + vm*c + r) for c in range(bn)]
                                                      for r in range(vm)])
-        print([[ymm(vm*c + r + 2).ugly for c in range(bk)] for r in range(vm)])
-        print([[ymm(vm*bk + 2 + bn * r + c).ugly for c in range(bn)] for r in range(bk)])
+        print([[ymm(vm*c + r ).ugly for c in range(bk)] for r in range(vm)])
+        print([[ymm(vm*bk + bn * r + c).ugly for c in range(bn)] for r in range(bk)])
         print([[ymm(16 - vm*bn + vm*c + r).ugly for c in range(bn)]
                                                      for r in range(vm)])
         starting_regs = [rdi, rsi, rdx]
 
-        alpha_reg = [xmm(0), ymm(0)]
-
-        beta_reg = [xmm(1), ymm(1)]
+        b_reg = vm*bk
+        alpha_reg = [xmm(b_reg), ymm(b_reg)]
+        beta_reg = [xmm(b_reg + 1), ymm(b_reg + 1)]
 
         available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax, rbx, rcx]
 
@@ -83,10 +85,10 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                         beta_reg: Register,
                         ) -> Block:
 
-        asm = block("Broadcast alpha and beta so that efficient multiplication is possible")
+        asm = block("Broadcast alpha and beta when needed")
 
-        asm.add(bcst(alpha_reg[0], alpha_reg[1]))
-        asm.add(bcst(beta_reg[0], beta_reg[1]))
+#        asm.add(bcst(alpha_reg[0], alpha_reg[1]))
+#        asm.add(bcst(beta_reg[0], beta_reg[1]))
         
         return asm
 
