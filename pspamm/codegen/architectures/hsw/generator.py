@@ -21,7 +21,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 {prefetching_mov}
 {{body_text}}
 
-    : : "m"(A), "m"(B), "m"(C), "m"(alphai_p), "m"(beta_p){prefetching_decl} : {{clobbered}});
+    : : "m"(A), "m"(B), "m"(C), "m"(alpha_p), "m"(beta_p){prefetching_decl} : {{clobbered}});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
