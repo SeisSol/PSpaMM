@@ -55,7 +55,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         beta_reg = [v(b_reg + 1), v(b_reg + 1)]
 
 
-        starting_regs = [r(0), r(1), r(2)]
+        starting_regs = [r(0), r(1), r(2), r(3), r(4)]
 
         additional_regs = [r(11), xzr]
 

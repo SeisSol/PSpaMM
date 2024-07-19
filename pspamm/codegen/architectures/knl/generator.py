@@ -52,12 +52,12 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         C_regs = Matrix([[zmm(32 - vm*bn + vm*c + r) for c in range(bn)]
                                                      for r in range(vm)])
 
-        starting_regs = [rdi, rsi, rdx]
+        starting_regs = [rdi, rsi, rdx, rbx, rcx]
 
-        alpha_reg = [r(3), r(3)]
-        beta_reg = [r(4), r(4)]
+        alpha_reg = [rbx, rbx]
+        beta_reg = [rcx, rcx]
 
-        available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax, rbx, rcx]
+        available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax]
 
         additional_regs = [r(8)]
 
