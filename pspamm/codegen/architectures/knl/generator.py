@@ -32,13 +32,15 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
 }}}};
 """
+    v_len = 4
+
     def get_v_size(self):
         if self.precision == Precision.DOUBLE:
-          return 8
+          return 2 * self.v_len
         elif self.precision == Precision.SINGLE:
-          return 16
+          return 4 * self.v_len
         elif self.precision == Precision.HALF:
-          return 32
+          return 8 * self.v_len
         raise NotImplementedError
 
     def get_template(self):
@@ -47,11 +49,17 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
         vm = bm//v_size
-        assert((bn+bk) * vm <= 32)  # Needs to fit in AVX512 zmm registers
+        assert((bn+bk) * vm <= 32)  # Needs to fit in AVX512 xmm/ymm/zmm registers
 
-        A_regs = Matrix([[zmm(vm*c + r) for c in range(bk)] for r in range(vm)])
+        vmm = {
+            1: xmm,
+            2: ymm,
+            4: zmm
+        }[self.v_len]
+
+        A_regs = Matrix([[vmm(vm*c + r) for c in range(bk)] for r in range(vm)])
         B_regs = []
-        C_regs = Matrix([[zmm(32 - vm*bn + vm*c + r) for c in range(bn)]
+        C_regs = Matrix([[vmm(32 - vm*bn + vm*c + r) for c in range(bn)]
                                                      for r in range(vm)])
 
         starting_regs = [rdi, rsi, rdx, rbx, rcx]

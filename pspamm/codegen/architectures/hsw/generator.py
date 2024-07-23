@@ -32,11 +32,13 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
 }}}};
 """
+    v_len = 2
+
     def get_v_size(self):
         if self.precision == Precision.DOUBLE:
-          return 4
+          return 2 * self.v_len
         elif self.precision == Precision.SINGLE:
-          return 8
+          return 4 * self.v_len
         raise NotImplementedError
 
     def get_template(self):
@@ -47,19 +49,24 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         vm = bm//v_size
         assert((bn + bk) * vm + bn * bk <= 16)  # Needs to fit in AVX/AVX2 ymm registers
 
-        A_regs = Matrix([[ymm(vm*c + r) for c in range(bk)] for r in range(vm)])
-        B_regs = Matrix([[ymm(vm*bk + bn * r + c) for c in range(bn)] for r in range(bk)])
-        C_regs = Matrix([[ymm(16 - vm*bn + vm*c + r) for c in range(bn)]
+        vmm = {
+            1: xmm,
+            2: ymm
+        }[self.v_len]
+
+        A_regs = Matrix([[vmm(vm*c + r) for c in range(bk)] for r in range(vm)])
+        B_regs = Matrix([[vmm(vm*bk + bn * r + c) for c in range(bn)] for r in range(bk)])
+        C_regs = Matrix([[vmm(16 - vm*bn + vm*c + r) for c in range(bn)]
                                                      for r in range(vm)])
-        print([[ymm(vm*c + r ).ugly for c in range(bk)] for r in range(vm)])
-        print([[ymm(vm*bk + bn * r + c).ugly for c in range(bn)] for r in range(bk)])
-        print([[ymm(16 - vm*bn + vm*c + r).ugly for c in range(bn)]
+        print([[vmm(vm*c + r ).ugly for c in range(bk)] for r in range(vm)])
+        print([[vmm(vm*bk + bn * r + c).ugly for c in range(bn)] for r in range(bk)])
+        print([[vmm(16 - vm*bn + vm*c + r).ugly for c in range(bn)]
                                                      for r in range(vm)])
         starting_regs = [rdi, rsi, rdx, rbx, rcx]
 
         b_reg = vm*bk
-        alpha_reg = [xmm(b_reg), ymm(b_reg)]
-        beta_reg = [xmm(b_reg + 1), ymm(b_reg + 1)]
+        alpha_reg = [xmm(b_reg), vmm(b_reg)]
+        beta_reg = [xmm(b_reg + 1), vmm(b_reg + 1)]
 
         available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax]
 
