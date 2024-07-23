@@ -9,6 +9,17 @@ class AbstractGenerator(ABC):
 
     def get_precision(self):
       return self.precision
+    
+    def set_sparse(self):
+        pass
+
+    @abstractmethod
+    def use_broadcast(self):
+        pass
+
+    @abstractmethod
+    def has_masks(self):
+        pass
 
     @abstractmethod
     def get_v_size(self):

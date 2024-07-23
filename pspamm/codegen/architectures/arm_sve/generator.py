@@ -51,6 +51,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
     def get_template(self):
         return self.template
+    
+    def use_broadcast(self):
+        return True
+
+    def has_masks(self):
+        return True
 
     def pred_n_trues(self, num_trues: int, v_size: int, suffix: str = None) -> Register_ARM:
         """pred takes num_trues=num of true elements and suffix=type of predicate (m or z) for merging or zeroing

@@ -98,7 +98,7 @@ class MatMul:
 
         if arch == 'skx':
           arch = 'knl'
-        
+
         # hacky implementation of multi-register length
         if arch.startswith('arm_sve'):
           if len(arch) == 7:
@@ -110,8 +110,12 @@ class MatMul:
           arch = 'arm_sve'
 
         self.arch = arch
-        assert precision.lower() in ['s', 'd']
-        self.precision = Precision.DOUBLE if precision.lower() == 'd' else Precision.SINGLE
+        assert precision.lower() in ['h', 's', 'd']
+        self.precision = {
+            'h' : Precision.HALF,
+            's' : Precision.SINGLE,
+            'd' : Precision.DOUBLE
+        }[precision.lower()]
 
         pspamm.architecture.init()
         pspamm.architecture.arch = arch
@@ -121,11 +125,11 @@ class MatMul:
         self.generator = pspamm.architecture.Generator(self.precision)
 
         # flag that determines if a matmul kernel uses sve instructions -> needed for sve predicates
-        self.is_sve = arch == "arm_sve"
+        self.masks = self.generator.has_masks()
         # define which architectures need to use an explicit broadcast, necessary for alpha/beta values
-        self.use_bcst = arch in ["arm", "arm_sve", "hsw"]
+        self.use_bcst = self.generator.use_broadcast()
 
-        if self.is_sve:
+        if arch.startswith('arm_sve'):
           self.generator.v_len = v_len_regs
 
         self.v_size = self.generator.get_v_size()
@@ -159,7 +163,7 @@ class MatMul:
 
         if ldb == 0:
             pattern = Matrix.load(mtx_filename)
-            if self.is_sve:
+            if self.masks:
                 self.generator.set_sparse()
         else:
             mtx = numpy.zeros((k, n))
@@ -191,7 +195,7 @@ class MatMul:
         prefetchReg = self.generator.init_prefetching(self.prefetching)
 
         # if matrices are always padded to multiple of v_size, we can remove the if-part and execute the assert for SVE too
-        if not self.is_sve:
+        if not self.masks:
             assert(self.m % self.v_size == 0)
 
         self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.alpha_reg, self.beta_reg, self.loop_reg, self.additional_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.nnz, self.m, self.n, self.k)
@@ -216,7 +220,7 @@ class MatMul:
         Bn = self.n // self.bn
         Bk = self.k // self.bk
         # handle fringe case of SVE -> allow bm < v_size
-        vm = self.bm // self.v_size if not self.is_sve else self.generator.ceil_div(self.bm, self.v_size)
+        vm = self.bm // self.v_size if not self.masks else self.generator.ceil_div(self.bm, self.v_size)
 
         n_overhead = self.n % self.bn
         k_overhead = self.k % self.bk
@@ -242,7 +246,7 @@ class MatMul:
                         asm.add(bcst(self.beta_bcst_reg, self.beta_reg[1], "Broadcast beta"))
                     for ic in range(regs.shape[1]):
                         for ir in range(regs.shape[0]):
-                            pred_m = None if not self.is_sve else self.generator.pred_n_trues(self.bm - ir * self.v_size, self.v_size, "m")
+                            pred_m = None if not self.masks else self.generator.pred_n_trues(self.bm - ir * self.v_size, self.v_size, "m")
                             asm.add(mul(regs[ir,ic], self.beta_reg[1], regs[ir,ic], "C = beta * C", pred=pred_m))
             else:
                 asm.add(self.generator.make_zero_block(regs, self.additional_regs))
@@ -271,7 +275,7 @@ class MatMul:
 
                     for ir in range(A_regs_cut.shape[0]):
                         for ic in range(A_regs_cut.shape[1]):
-                            pred_m = None if not self.is_sve else self.generator.pred_n_trues(self.bm - ir*self.v_size, self.v_size, "m")
+                            pred_m = None if not self.masks else self.generator.pred_n_trues(self.bm - ir*self.v_size, self.v_size, "m")
                             if self.beta != 0.0 and self.beta != 1.0:
                                 store_block.add(mul(A_regs_cut[ir,ic], self.beta_reg[1], A_regs_cut[ir,ic], pred=pred_m))
                             if self.beta == 0.0:

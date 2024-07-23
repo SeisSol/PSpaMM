@@ -50,7 +50,7 @@ def main() -> None:
     parser.add_argument("--bk", type=int, help="Size of k-blocks")
 
     parser.add_argument("--arch", help="Architecture", default="knl")
-    parser.add_argument("--precision", help="Single (s) or double (d) precision", default="d")
+    parser.add_argument("--precision", help="Precision of the matrix multiplication, either half (h), single (s), or double (d)", default="d")
 
     parser.add_argument("--prefetching", help="Prefetching")
 
