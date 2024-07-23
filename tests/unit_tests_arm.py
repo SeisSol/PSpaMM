@@ -2,8 +2,8 @@
 
 import testsuite_generator as generator
 
-import scripts.max_arm as max_square
-import scripts.old_arm as old
+import pspamm.scripts.max_arm as max_square
+import pspamm.scripts.old_arm as old
 
 blocksize_algs = [max_square, old]
 

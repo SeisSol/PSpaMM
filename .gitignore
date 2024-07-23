@@ -1,4 +1,8 @@
+build/
 __pycache__/
+PspaMM.egg-info/
+
+.vscode/
 
 # Testing (for now)
 tests/arm/

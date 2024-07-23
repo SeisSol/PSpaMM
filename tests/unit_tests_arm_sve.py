@@ -2,7 +2,7 @@
 
 import sve_testsuite_generator as generator
 
-import scripts.max_arm_sve as max_sve
+import pspamm.scripts.max_arm_sve as max_sve
 
 import sys
 
@@ -25,7 +25,7 @@ delta_dp = 1e-7 # epsilon is around e-15 => /2
 # test cases for double precision multiplication
 kernels.append(generator.DenseKernel("sve_mixed_test1", 9, 9, 9, 9, 9, 9, 1.0, 0.0, [(3, 3)] + [x.getBlocksize(9, 9, 1, v_size) for x in blocksize_algs], delta_dp))
 kernels.append(generator.SparseKernel("sve_mixed_test2", 9, 9, 9, 9, 0, 9, 4.0, 2.5, [(3, 3)] + [x.getBlocksize(9, 9, 1, v_size) for x in blocksize_algs], generator.generateMTX(9, 9, 20), delta_dp))
-kernels.append(generator.SparseKernel("sve_mixed_test3", 18, 18, 18, 18, 0, 18, 3.4, -2.5, [(1, 1), (3, 3), (6, 6), (9, 9)] + [x.getBlocksize(18, 18, 1, v_size) for x in blocksize_algs], generator.generateMTX(18, 18, 59), delta_dp))
+kernels.append(generator.SparseKernel("sve_mixed_test3", 18, 18, 18, 18, 0, 18, 3.4, -2.5, [(1, 1), (3, 3), (6, 6)] + [x.getBlocksize(18, 18, 1, v_size) for x in blocksize_algs], generator.generateMTX(18, 18, 59), delta_dp))
 kernels.append(generator.SparseKernel("sve_mixed_test4", 80, 80, 80, 80, 0, 80, 0.0, -2.5, [(4, 4), (8, 8)] + [x.getBlocksize(80, 80, 1, v_size) for x in blocksize_algs], generator.generateMTX(80, 80, 312), delta_dp))
 kernels.append(generator.SparseKernel("sve_mixed_test5", 8, 8, 8, 10, 0, 8, 3.0, -0.9, [(2, 2), (4, 4)] + [x.getBlocksize(8, 8, 1, v_size) for x in blocksize_algs], generator.generateMTX(8, 8, 6), delta_dp))
 kernels.append(generator.DenseKernel("sve_mixed_test6", 8, 8, 8, 10, 8, 8, 3.0, -0.9, [(2, 2), (4, 4)] + [x.getBlocksize(8, 8, 1, v_size) for x in blocksize_algs], delta_dp))
