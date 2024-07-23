@@ -96,8 +96,8 @@ class MatMul:
         except:
           self.beta = 'generic'
 
-        if arch == 'skx':
-          arch = 'knl'
+        if arch.startswith('skx'):
+          arch = 'knl' + arch[3:]
 
         # hacky implementation of multi-register length
         if arch.startswith('arm_sve'):
@@ -108,6 +108,24 @@ class MatMul:
             assert v_len_bits % 128 == 0 and v_len_bits <= 2048
             v_len_regs = v_len_bits // 128
           arch = 'arm_sve'
+        
+        if arch.startswith('knl'):
+          if len(arch) == 3:
+            v_len_regs = 4
+          else:
+            v_len_bits = int(arch[3:])
+            assert v_len_bits in (128, 256, 512)
+            v_len_regs = v_len_bits // 128
+          arch = 'knl'
+        
+        if arch.startswith('hsw'):
+          if len(arch) == 3:
+            v_len_regs = 2
+          else:
+            v_len_bits = int(arch[3:])
+            assert v_len_bits in (128, 256)
+            v_len_regs = v_len_bits // 128
+          arch = 'hsw'
 
         self.arch = arch
         assert precision.lower() in ['h', 's', 'd']
@@ -129,7 +147,7 @@ class MatMul:
         # define which architectures need to use an explicit broadcast, necessary for alpha/beta values
         self.use_bcst = self.generator.use_broadcast()
 
-        if arch.startswith('arm_sve'):
+        if arch in ('arm_sve', 'hsw', 'knl'):
           self.generator.v_len = v_len_regs
 
         self.v_size = self.generator.get_v_size()
