@@ -19,6 +19,10 @@ class InlinePrinter(Visitor):
         self.output = []
         self.stack = []
         self.precision = precision
+        if stmt.dest.ugly_precision == "d":
+            self.ugly_precision = "d"
+        else:
+            self.ugly_precision = "w"
 
     def show(self):
         print("\n".join(self.output))
@@ -134,7 +138,7 @@ class InlinePrinter(Visitor):
             src_str = stmt.src.ugly if not stmt.is_B else stmt.src.ugly_no_vl_scaling
 
         p = self.p_string(stmt.pred)
-        prec = "d" if stmt.dest.ugly_precision == "d" else "w"
+        prec = self.ugly_precision
 
         if stmt.typ == AsmType.i64:
             s = "add {}, {}, {}".format(stmt.dest.ugly, stmt.dest.ugly, src_str)
@@ -159,7 +163,7 @@ class InlinePrinter(Visitor):
             dest_str = stmt.dest.ugly
 
         p = self.p_string(stmt.pred)
-        prec = "d" if stmt.src.ugly_precision == "d" else "w"
+        prec = self.ugly_precision
 
         if stmt.typ == AsmType.i64:
             s = "add {}, {}, {}".format(stmt.dest.ugly, stmt.dest.ugly, src_str)
@@ -177,7 +181,7 @@ class InlinePrinter(Visitor):
         offset = stmt.dest.ugly_offset
         src_string = "[{}, {}, MUL VL]".format(xn, offset)
         p = self.p_string(stmt.pred)
-        prec = "d" if stmt.precision == Precision.DOUBLE else "w"
+        prec = self.ugly_precision
         s = "prf{} P{}{}{}, {}{}".format(prec, stmt.access_type, cache_level, temporality, p.split('/')[0], src_string)
         self.addLine(s, "prefetch from memory")
 

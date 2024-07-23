@@ -42,6 +42,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             return 2 * self.v_len # 128 bit == 2 x 64 bit (double)
         elif self.precision == Precision.SINGLE:
             return 4 * self.v_len # 128 bit == 4 x 32 bit (float)
+        elif self.precision == Precision.HALF:
+            return 8 * self.v_len # 128 bit == 8 x 16 bit (half)
         raise NotImplementedError
 
     def get_precision(self):
@@ -78,7 +80,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     def make_reg_blocks(self, bm: int, bn: int, bk: int, v_size: int, nnz: int, m: int, n: int, k: int):
         vm = self.ceil_div(bm, v_size)                  # vm can be 0 if bm < v_size -> makes ceil_div necessary
         assert ((bn + bk) * vm + bn * bk + 2 <= 32)     # Needs to fit in SVE z registers
-        prec = "d" if self.get_precision() == Precision.DOUBLE else "s"
+        prec = {
+            Precision.DOUBLE: "d",
+            Precision.FLOAT: "s",
+            Precision.HALF: "h"
+        }[self.get_precision()]
 
         # use max(vm, 1) in case bm < v_size, otherwise we get no A_regs/C_regs
         A_regs = Matrix([[z(max(vm, 1) * c + r + 2, prec) for c in range(bk)] for r in range(max(vm, 1))])
@@ -131,8 +137,18 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         bmmod = bm % v_size
 
         eol = "\\n\\t"                          # define the "end of line" sequence for easy assembly
-        p_suffix = "d" if v_size == 2 * self.v_len else "s"  # determine whether predicate suffix is '.d' or '.s
-        gen_reg = "x" if v_size == 2 * self.v_len else "w"   # determine if 'dup' registers are 64 bit or 32 bit
+        # determine the predicate suffix
+        p_suffix = {
+            Precision.DOUBLE: "d",
+            Precision.FLOAT: "s",
+            Precision.HALF: "h"
+        }[self.get_precision()]
+        # determine length of 'dup' registers
+        gen_reg = {
+            Precision.DOUBLE: "x",
+            Precision.FLOAT: "w",
+            Precision.HALF: "w"
+        }[self.get_precision()]
         overhead_counter = 6
 
         # https://developer.arm.com/documentation/102374/0101/Registers-in-AArch64---general-purpose-registers

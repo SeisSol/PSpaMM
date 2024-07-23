@@ -52,7 +52,11 @@ class Register_ARM(Register):
 
     @property
     def ugly_lsl_shift(self):
-        return 3 if self.ugly_precision == "d" else 2
+        return {
+            "d": 3,
+            "s": 2,
+            "h": 1
+        }[self.ugly_precision]
 
     @property
     def clobbered(self):

@@ -35,6 +35,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
           return 8
         elif self.precision == Precision.SINGLE:
           return 16
+        elif self.precision == Precision.HALF:
+          return 32
         raise NotImplementedError
 
     def get_template(self):
