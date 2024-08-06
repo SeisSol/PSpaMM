@@ -9,11 +9,8 @@ import testsuite_generator as test_generator
 
 BASEDIR = 'build'
 
-SparseKernel = namedtuple('SparseKernel', 'name m n k lda ldb ldc alpha beta block_sizes mtx delta')
-DenseKernel = namedtuple('DenseKernel', 'name m n k lda ldb ldc alpha beta block_sizes delta')
-
-SparseKernelS = namedtuple('SparseKernelS', 'name m n k lda ldb ldc alpha beta block_sizes mtx delta')
-DenseKernelS = namedtuple('DenseKernelS', 'name m n k lda ldb ldc alpha beta block_sizes delta')
+SparseKernel = test_generator.SparseKernel
+DenseKernel = test_generator.DenseKernel
 
 setup_prefetching = """
 template <typename T>
@@ -39,10 +36,10 @@ def make(kernels, arch):
         arguments = ['pspamm-generator', str(kern.m), str(kern.n), str(kern.k), str(kern.lda),
                      str(kern.ldb), str(kern.ldc), str(kern.alpha), str(kern.beta)]
 
-        if isinstance(kern, SparseKernel) or isinstance(kern, SparseKernelS):
+        if isinstance(kern, SparseKernel):
             arguments += ['--mtx_filename', kern.mtx]
 
-        prec = 's' if isinstance(kern, SparseKernelS) or isinstance(kern, DenseKernelS) else 'd'
+        prec = 's' if kern.precision == Precision.SINGLE else 'd'
         arguments += ['--precision', prec]
         if prec == 's':
             include_single_prec = True
@@ -61,7 +58,7 @@ def make(kernels, arch):
                 veclen = int(arch[7:])
                 assert veclen % 128 == 0 and veclen <= 2048
                 reglen = veclen // 128
-                v_len = 2 * reglen if prec == 'd' else 4 * reglen
+                v_len = (16 // kern.precision.size()) * reglen
                 # this should be the same assertion as in ../scripts/max_arm_sve.py
                 bk = 1
                 # ceiling division
@@ -103,13 +100,13 @@ def make(kernels, arch):
             bm = bs[0]
             bn = bs[1]
 
-            prec = 's' if isinstance(kern, SparseKernelS) or isinstance(kern, DenseKernelS) else 'd'
+            prec = 's' if kern.precision == Precision.SINGLE else 'd'
 
             if arch.startswith("arm_sve"):
                 veclen = int(arch[7:])
                 assert veclen % 128 == 0 and veclen <= 2048
                 reglen = veclen // 128
-                v_len = 2 * reglen if prec == 'd' else 4 * reglen
+                v_len = (16 // kern.precision.size()) * reglen
                 # this should be the same assertion as in ../scripts/max_arm_sve.py
                 bk = 1
                 # ceiling division
@@ -120,12 +117,12 @@ def make(kernels, arch):
 
             name = kern.name + '_' + str(bm) + '_' + str(bn)
 
-            if isinstance(kern, SparseKernel) or isinstance(kern, SparseKernelS):
+            if isinstance(kern, SparseKernel):
                 mtx = kern.mtx
             else:
                 mtx = ""
             # for double precision: set prec to '' to conform to test_generator.function_definitions
-            prec = 'f' if isinstance(kern, SparseKernelS) or isinstance(kern, DenseKernelS) else ''
+            prec = 'f' if kern.precision == Precision.SINGLE else ''
 
             f.write("""
   {p}alpha = {alpha}; {p}beta = {beta}; ldb = {ldb};
