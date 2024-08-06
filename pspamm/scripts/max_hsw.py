@@ -21,4 +21,4 @@ def getBlocksize(m , n, bk, v_size=4):
 def HSW_condition(bm, bn, bk, v_size):
 	# ceiling division
 	vm = -(bm // -v_size)
-	return (bn + bk) * vm + bn * bk <= 16
+	return bn * vm + bn * bk + 1 <= 16
