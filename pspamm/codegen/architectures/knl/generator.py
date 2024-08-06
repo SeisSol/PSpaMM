@@ -35,13 +35,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
     v_len = 4
 
     def get_v_size(self):
-        if self.precision == Precision.DOUBLE:
-          return 2 * self.v_len
-        elif self.precision == Precision.SINGLE:
-          return 4 * self.v_len
-        elif self.precision == Precision.HALF:
-          return 8 * self.v_len
-        raise NotImplementedError
+        return (16 // self.precision.size()) * self.v_len
 
     def get_template(self):
         return Generator.template
@@ -50,11 +44,10 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         return False
 
     def has_masks(self):
-        return False # for now
+        return True
 
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
-        assert(bm % v_size == 0)
-        vm = bm//v_size
+        vm = self.ceil_div(bm, v_size)
         assert((bn+bk) * vm <= 32)  # Needs to fit in AVX512 xmm/ymm/zmm registers
 
         vmm = {
@@ -77,6 +70,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         additional_regs = [r(8)]
 
+        mask_regs = [mask(0)]
+
         reg_count = 0
 
         for i in range(1024, min(max(nnz * self.precision.value, m*k*self.precision.value, m*n*self.precision.value),8000), 2048):
@@ -89,8 +84,18 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         loop_reg = r(12)
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs, mask_regs
 
+    def init_mask(self, bm, v_size, tempreg, maskregs):
+        rest = bm % v_size
+        if rest == 0:
+            return block("")
+        else:
+            asm = block("Set mask register")
+            restval = (1 << rest) - 1
+            asm.add(mov(restval, tempreg))
+            asm.add(mov(tempreg, maskreg[0]))
+            return asm
 
     def bcst_alpha_beta(self,
                         alpha_reg: Register,
@@ -219,9 +224,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         asm = block("Block GEMM microkernel")
         bm,bk,aidx,apattern = A.get_block(A_ptr, to_A_block)
         bk,bn,bidx,bpattern = B.get_block(B_ptr, to_B_block)
-        assert(bm % v_size == 0)
 
-        mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size)
+        mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size, True)
         asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
 
         for Vmi in range(bm//v_size):

@@ -38,7 +38,6 @@ class Register_KNL(Register):
     def ugly(self):
         return "%%" + self.value
 
-
 class MemoryAddress_KNL(MemoryAddress):
     
     def __init__(self,
@@ -72,8 +71,8 @@ rdx = Register_KNL(AsmType.i64, "rdx")
 rdi = Register_KNL(AsmType.i64, "rdi")
 rsi = Register_KNL(AsmType.i64, "rsi")
 
-r   = lambda n: Register_KNL(AsmType.i64, "r"+str(n)) if n > 7 else gen_regs[n]
-xmm = lambda n: Register_KNL(AsmType.f64x2, "xmm"+str(n))
-ymm = lambda n: Register_KNL(AsmType.f64x4, "ymm"+str(n))
-zmm = lambda n: Register_KNL(AsmType.f64x8, "zmm"+str(n))
-
+r    = lambda n: Register_KNL(AsmType.i64, "r"+str(n)) if n > 7 else gen_regs[n]
+xmm  = lambda n: Register_KNL(AsmType.f64x2, "xmm"+str(n))
+ymm  = lambda n: Register_KNL(AsmType.f64x4, "ymm"+str(n))
+zmm  = lambda n: Register_KNL(AsmType.f64x8, "zmm"+str(n))
+mask = lambda n: Register_KNL(AsmType.i64, "k"+str(n))

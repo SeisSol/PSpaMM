@@ -13,6 +13,14 @@ class AbstractGenerator(ABC):
     def set_sparse(self):
         pass
 
+    # taken from https://stackoverflow.com/questions/14822184/is-there-a-ceiling-equivalent-of-operator-in-python
+    def ceil_div(self, n, d):
+        return -(n // -d)
+
+    @abstractmethod
+    def init_mask(self, bm, v_size, tempreg, maskreg):
+        pass
+
     @abstractmethod
     def use_broadcast(self):
         pass

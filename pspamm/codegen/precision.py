@@ -4,9 +4,19 @@ class Precision(Enum):
   DOUBLE = 8
   SINGLE = 4
   HALF = 2
+  BFLOAT16 = 2.1
 
   @classmethod
   def getCType(cls, precision):
-    ctype = {cls.DOUBLE: 'double', cls.SINGLE: 'float', cls.HALF: 'half'}
+    ctype = {cls.DOUBLE: 'double', cls.SINGLE: 'float', cls.HALF: 'uint16_t', cls.BFLOAT16: 'uint16_t'}
     return ctype[precision]
+
+  def size(self):
+    return {
+      self.DOUBLE: 8,
+      self.SINGLE: 4,
+      self.HALF: 2,
+      self.BFLOAT16: 2
+    }[self]
+    raise NotImplementedError()
 

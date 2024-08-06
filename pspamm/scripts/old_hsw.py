@@ -1,22 +1,22 @@
-def getBlocksize(m , n, bk):
+def getBlocksize(m , n, bk, v_size=4):
 
 	bm = m
 	bn = n
 	
-	if HSW_condition(bm, bn, bk):
+	if HSW_condition(bm, bn, bk, v_size):
 		return (bm, bn)
 
-	while not HSW_condition(bm, bn, bk):
-		bm, bn = lowerToNextDiv(m, n, bm, bn)
+	while not HSW_condition(bm, bn, bk, v_size):
+		bm, bn = lowerToNextDiv(m, n, bm, bn, v_size)
 
 	return (bm, bn)
 
 
-def lowerToNextDiv(m, n, bm, bn):
-	if bm > bn and bm > 4:
-		bm -= 4
+def lowerToNextDiv(m, n, bm, bn, v_size):
+	if bm > bn and bm > v_size:
+		bm -= v_size
 		while m % bm != 0:
-			bm -= 4
+			bm -= v_size
 	else:
 		bn -= 1
 		while n % bn != 0:
@@ -25,8 +25,7 @@ def lowerToNextDiv(m, n, bm, bn):
 	return bm, bn
 
 
-def HSW_condition(bm, bn, bk):
-	v_size = 4
+def HSW_condition(bm, bn, bk, v_size):
 	# ceiling division
 	vm = -(bm // -v_size)
 	return (bn + bk) * vm + bn * bk <= 16

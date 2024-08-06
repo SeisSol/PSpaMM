@@ -72,15 +72,11 @@ class Register_ARM(Register):
         #turns "Vn.2d" into "Dn"
         return (self.value.split(".")[0]).replace("v", "d")
 
-    @property
-    def ugly_1d(self):
-        return self.value.replace("2d", "1d")
-
 
 r = lambda n: Register_ARM(AsmType.i64, "x" + str(n))
 xzr = Register_ARM(AsmType.i64, "xzr")
 z = lambda n, prec: Register_ARM(AsmType.f64x8, "z" + str(n) + "." + prec)
-
+p = lambda n: Register_ARM(AsmType.i64, "p" + str(n))
 
 class MemoryAddress_ARM(MemoryAddress):
     @property

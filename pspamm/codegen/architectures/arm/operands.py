@@ -48,6 +48,18 @@ class Register_ARM(Register):
     @property
     def ugly(self):
         return self.value
+    
+    @property
+    def ugly_precision(self):
+        return self.value.split(".")[1]
+    
+    @property
+    def ugly_lsl_shift(self):
+        return {
+            "d": 3,
+            "s": 2,
+            "h": 1
+        }[self.ugly_precision]
 
     @property
     def clobbered(self):
@@ -61,14 +73,10 @@ class Register_ARM(Register):
     def ugly_scalar_1d(self):
         return (self.value.split(".")[0]).replace("v", "d")
 
-    @property
-    def ugly_1d(self):
-        return self.value.replace("2d", "1d")
-
 
 r = lambda n: Register_ARM(AsmType.i64, "x" + str(n))
 xzr = Register_ARM(AsmType.i64, "xzr")
-v = lambda n: Register_ARM(AsmType.f64x8, "v" + str(n) + ".2d")
+v = lambda n, prec: Register_ARM(AsmType.f64x8, "v" + str(n) + "." + prec)
 
 
 class MemoryAddress_ARM(MemoryAddress):

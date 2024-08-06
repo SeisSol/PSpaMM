@@ -20,10 +20,10 @@ class InlinePrinter(Visitor):
     def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
-        assert precision in [Precision.SINGLE, Precision.DOUBLE]
+        assert precision in (Precision.SINGLE, Precision.DOUBLE)
         self.precision = {
             Precision.DOUBLE: "d",
-            Precision.FLOAT: "s"
+            Precision.SINGLE: "s"
         }[precision]
 
     def show(self):

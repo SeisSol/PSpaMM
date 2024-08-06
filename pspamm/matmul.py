@@ -216,10 +216,9 @@ class MatMul:
         if not self.masks:
             assert(self.m % self.v_size == 0)
 
-        self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.alpha_reg, self.beta_reg, self.loop_reg, self.additional_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.nnz, self.m, self.n, self.k)
+        self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.alpha_reg, self.beta_reg, self.loop_reg, self.additional_regs, self.mask_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.nnz, self.m, self.n, self.k)
 
         self.alpha_bcst_reg, self.beta_bcst_reg = self.starting_regs[3], self.starting_regs[4]
-
 
         self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk, self.precision.value)
         self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.value, blocks, patterns,mtx_overhead)
@@ -342,6 +341,7 @@ class MatMul:
         asm = block("unrolled_{}x{}x{}".format(self.m,self.n,self.k),
             self.generator.bcst_alpha_beta(self.alpha_reg, self.beta_reg),
             self.generator.make_scaling_offsets(self.additional_regs, self.nnz),
+            self.generator.init_mask(self.bm, self.v_size, self.loop_reg, self.mask_regs),
             loop(self.loop_reg, 0, Bm, 1).body(*loopBody)
         )
 
@@ -354,6 +354,5 @@ class MatMul:
             self.C_regs = self.C_regs[0:self.bm // self.v_size, 0:self.bn]
             self.A.r = self.m
             asm.add(self.make_nk_unroll())
-
 
         return asm

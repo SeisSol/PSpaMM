@@ -20,16 +20,18 @@ class InlinePrinter(Visitor):
     def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
-        assert precision in [Precision.HALF, Precision.SINGLE, Precision.DOUBLE]
+        assert precision in (Precision.BFLOAT16, Precision.HALF, Precision.SINGLE, Precision.DOUBLE)
         self.precision = {
             Precision.DOUBLE: 'd',
             Precision.SINGLE: 's',
-            Precision.HALF: 'h'
+            Precision.HALF: 'h',
+            Precision.BFLOAT16: 'bf16'
         }[precision]
         self.broadcast_multiplier = {
             Precision.DOUBLE: 2,
             Precision.SINGLE: 4,
-            Precision.HALF: 8
+            Precision.HALF: 8,
+            Precision.BFLOAT16: 8
         }[precision]
 
     def show(self):
@@ -110,7 +112,10 @@ class InlinePrinter(Visitor):
             src_str = stmt.src.ugly
 
         if stmt.typ == AsmType.i64:
-            s = "movq {}, {}".format(src_str,stmt.dest.ugly)
+            if stmt.dest.ugly[0] == 'k':
+                s = "kmovq {}, {}".format(src_str,stmt.dest.ugly)
+            else:
+                s = "movq {}, {}".format(src_str,stmt.dest.ugly)
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
                 s = "vpxord {}, {}, {}".format(stmt.dest.ugly,stmt.dest.ugly,stmt.dest.ugly)

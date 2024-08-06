@@ -38,13 +38,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     v_len = 4 # vector register length: v_len * 128 bit
 
     def get_v_size(self):
-        if self.precision == Precision.DOUBLE:
-            return 2 * self.v_len # 128 bit == 2 x 64 bit (double)
-        elif self.precision == Precision.SINGLE:
-            return 4 * self.v_len # 128 bit == 4 x 32 bit (float)
-        elif self.precision == Precision.HALF:
-            return 8 * self.v_len # 128 bit == 8 x 16 bit (half)
-        raise NotImplementedError
+        return (16 // self.precision.size()) * self.v_len
 
     def get_precision(self):
         return self.precision
@@ -75,10 +69,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             s = "p{}/{}".format(num_trues - 1, suffix)
         return Register_ARM(AsmType.p64x8, s)
 
-    # taken from https://stackoverflow.com/questions/14822184/is-there-a-ceiling-equivalent-of-operator-in-python
-    def ceil_div(self, n, d):
-        return -(n // -d)
-
     # is called at most one time in matmul.py
     def set_sparse(self):
         self.is_sparse = True
@@ -88,8 +78,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         assert ((bn + bk) * vm + bn * bk <= 32)     # Needs to fit in SVE z registers
         prec = {
             Precision.DOUBLE: "d",
-            Precision.FLOAT: "s",
-            Precision.HALF: "h"
+            Precision.SINGLE: "s",
+            Precision.HALF: "h",
+            Precision.BFLOAT16: "h",
         }[self.get_precision()]
 
         # use max(vm, 1) in case bm < v_size, otherwise we get no A_regs/C_regs
@@ -107,9 +98,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         loop_reg = r(12)
 
+        mask_regs = [p(0), p(7)]
+
         self.init_registers(bm, v_size)
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs, mask_regs
 
     def bcst_alpha_beta(self,
                         alpha_reg: Register,
@@ -136,6 +129,16 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         asm = block("No register based scaling")
         return asm
 
+    def init_mask(self,
+                        bm: int,
+                        v_size: int,
+                        tempreg,
+                        maskreg
+                        ) -> Block:
+
+        asm = block("No register based scaling")
+        return asm
+
     def init_registers(self,
                        bm: int,
                        v_size: int
@@ -147,15 +150,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # determine the predicate suffix
         p_suffix = {
             Precision.DOUBLE: "d",
-            Precision.FLOAT: "s",
-            Precision.HALF: "h"
+            Precision.SINGLE: "s",
+            Precision.HALF: "h",
+            Precision.BFLOAT16: "h",
         }[self.get_precision()]
         # determine length of 'dup' registers
-        gen_reg = {
-            Precision.DOUBLE: "x",
-            Precision.FLOAT: "w",
-            Precision.HALF: "w"
-        }[self.get_precision()]
+        gen_reg = "w" if self.get_precision().size() <= 4 else "x"
         overhead_counter = 6
 
         comment = "//p7 denotes the 'all-true' predicate and, if given, p0 denotes the 'bm % v_size' predicate\n\t"
@@ -305,7 +305,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         bk, bn, bidx, bpattern = B.get_block(B_ptr, to_B_block)
 
         # tell sparse_mask() that we use sve
-        mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size, is_sve=True)
+        mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size, True)
         asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
 
         # x = 0;

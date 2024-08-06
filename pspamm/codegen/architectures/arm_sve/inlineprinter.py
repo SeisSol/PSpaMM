@@ -19,10 +19,9 @@ class InlinePrinter(Visitor):
         self.output = []
         self.stack = []
         self.precision = precision
-        if stmt.dest.ugly_precision == "d":
-            self.ugly_precision = "d"
-        else:
-            self.ugly_precision = "w"
+        self.ugly_precision = "w" if self.precision.size() <= 4 else "x"
+
+        assert precision in (Precision.BFLOAT16, Precision.HALF, Precision.SINGLE, Precision.DOUBLE)
 
     def show(self):
         print("\n".join(self.output))
@@ -69,8 +68,8 @@ class InlinePrinter(Visitor):
         # Used to broadcast a scalar register into a vector register
         b = stmt.bcast_src.ugly
         a = stmt.dest.ugly
-        # make sure the src register is a W register when using single precision
-        if self.precision == Precision.SINGLE:
+        # make sure the src register is a W register when using single/half precision
+        if self.precision.size() <= 4:
             b = "w" + b[1:]
         s = "dup {}, {}".format(a, b)
         self.addLine(s, stmt.comment)

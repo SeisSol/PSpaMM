@@ -44,21 +44,30 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
     def has_masks(self):
         return False
+    
+    def init_mask(self, bm, v_size, tempreg, maskregs):
+        return block()
 
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
         vm = bm//v_size
         assert((bn+bk) * vm + bn * bk <= 32)  # Needs to fit in NEON v registers
 
-        A_regs = Matrix([[v(vm*c + r) for c in range(bk)] for r in range(vm)])
-        B_regs = Matrix([[v(vm*bk + bn * r + c) for c in range(bn)] for r in range(bk)])
-        C_regs = Matrix([[v(32 - vm*bn + vm*c + r) for c in range(bn)]
+        prec = {
+            Precision.DOUBLE: "2D",
+            Precision.SINGLE: "4S",
+            Precision.HALF: "8H",
+        }[self.get_precision()]
+
+        A_regs = Matrix([[v(vm*c + r, prec) for c in range(bk)] for r in range(vm)])
+        B_regs = Matrix([[v(vm*bk + bn * r + c, prec) for c in range(bn)] for r in range(bk)])
+        C_regs = Matrix([[v(32 - vm*bn + vm*c + r, prec) for c in range(bn)]
                                                    for r in range(vm)])
 
         # get vector register number of the first vector in B_regs
         b_reg = vm*bk
-        alpha_reg = [v(b_reg), v(b_reg)]
-        beta_reg = [v(b_reg + 1), v(b_reg + 1)]
+        alpha_reg = [v(b_reg, prec), v(b_reg, prec)]
+        beta_reg = [v(b_reg + 1, prec), v(b_reg + 1, prec)]
 
 
         starting_regs = [r(0), r(1), r(2), r(3), r(4)]
@@ -67,7 +76,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         loop_reg = r(12)
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs, []
 
 
     def bcst_alpha_beta(self,

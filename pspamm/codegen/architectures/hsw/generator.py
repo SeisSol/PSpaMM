@@ -35,11 +35,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
     v_len = 2
 
     def get_v_size(self):
-        if self.precision == Precision.DOUBLE:
-          return 2 * self.v_len
-        elif self.precision == Precision.SINGLE:
-          return 4 * self.v_len
-        raise NotImplementedError
+        return (16 // self.precision.size()) * self.v_len
 
     def get_template(self):
         return Generator.template
@@ -49,6 +45,9 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
     def has_masks(self):
         return False
+
+    def init_mask(self, bm, v_size, tempreg, maskregs):
+        return block()
 
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
@@ -90,7 +89,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         loop_reg = r(12)
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs, []
 
 
     def bcst_alpha_beta(self,

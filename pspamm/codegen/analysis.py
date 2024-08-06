@@ -55,5 +55,3 @@ class Analyzer(Visitor):
             stmt.accept(self)
         self.stack.pop()
 
-
-
