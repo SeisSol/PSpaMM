@@ -4,6 +4,8 @@ def getBlocksize(m , n, bk, v_size=4):
 	bn = n
 	
 	if HSW_condition(bm, bn, bk, v_size):
+		while HSW_condition(bm, bn, bk+1, v_size):
+			bk += 1
 		return (bm, bn)
 
 	while not HSW_condition(bm, bn, bk, v_size):
