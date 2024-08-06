@@ -254,7 +254,7 @@ class MatMul:
 
         asm.add(self.generator.make_b_pointers(self.starting_regs[1], self.additional_regs, self.nnz))
 
-        def kernelN(asm, Bni, C_ptr):
+        def kernelN(asm, Bni, A_ptr, C_ptr):
             regs = self.C_regs
 
             if Bni + 1 == Bn and n_overhead > 0:
@@ -278,6 +278,9 @@ class MatMul:
                     to_B = Coords(right=Bni, down=Bki, absolute=True)
                     keep = self.B.has_nonzero_block(B_ptr, to_B)
                 else:
+                    # setting A_ptr, B_ptr here may be a bit too hacky...
+                    A_ptr = CursorLocation(Coords(right=Bki, absolute=True))
+                    B_ptr = CursorLocation(Coords(right=Bni, down=Bki, absolute=True))
                     to_A = Coords()
                     to_B = Coords()
                     keep = True
@@ -292,9 +295,11 @@ class MatMul:
                 loopblock = block("microkernel")
                 kernelK(loopblock, 0)
                 loopblock.add(self.B.move(B_ptr, Coords(down=1))[0])
-                loopblock.add(self.A.move(B_ptr, Coords(right=1))[0])
-                asm.add(loop(self.loop_regs[2], 0, Bk, 1, unroll=4).body(loopblock))
-                asm.add(self.A.move(B_ptr, Coords(right=1-Bk))[0])
+                loopblock.add(self.A.move(A_ptr, Coords(right=1))[0])
+                asm.add(loop(self.loop_regs[2], 0, Bk-1, 1, unroll=4).body(loopblock))
+                kernelK(asm, Bk-1)
+                asm.add(self.B.move(B_ptr, Coords(down=1-Bk))[0])
+                asm.add(self.A.move(A_ptr, Coords(right=1-Bk))[0])
 
             if self.alpha != 1.0:
                 store_block = block("")
@@ -338,10 +343,10 @@ class MatMul:
         else:
             if Bn > 1:
                 loopblock = block("microkernel")
-                kernelN(loopblock, 0, C_ptr)
+                kernelN(loopblock, 0, A_ptr, C_ptr)
+                loopblock.add(self.B.move(B_ptr, Coords(right=1))[0])
                 asm.add(loop(self.loop_regs[1], 0, Bn-1, 1).body(loopblock))
-                asm.add(self.B.move(B_ptr, Coords(right=1))[0])
-            kernelN(asm, Bn-1, C_ptr)
+            kernelN(asm, Bn-1, A_ptr, C_ptr)
             asm.add(self.B.move(B_ptr, Coords(right=1-Bn))[0])
 
         return asm
