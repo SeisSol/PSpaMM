@@ -74,9 +74,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         additional_regs = [r(11), xzr]
 
-        loop_reg = r(12)
+        loop_regs = [r(12), r(13), r(14)]
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs, []
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, []
 
 
     def bcst_alpha_beta(self,

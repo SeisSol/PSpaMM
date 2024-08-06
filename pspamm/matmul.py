@@ -290,7 +290,7 @@ class MatMul:
 
             if unroll:
                 for Bki in range(Bk):
-                    kernelK(asm, Bki)
+                    kernelK(asm, Bki, A_ptr, B_ptr)
             else:
                 loopblock = block("microkernel")
                 kernelK(loopblock, 0, A_ptr, B_ptr)

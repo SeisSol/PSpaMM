@@ -96,13 +96,13 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         additional_regs = [r(11), l("0.0"), r(10), r(8)]  # r10 used for scaling offsets
 
-        loop_reg = r(12)
+        loop_regs = [r(12), r(13), r(14)]
 
         mask_regs = [p(0), p(7)]
 
         self.init_registers(bm, v_size)
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs, mask_regs
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs
 
     def bcst_alpha_beta(self,
                         alpha_reg: Register,

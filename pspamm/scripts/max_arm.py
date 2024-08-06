@@ -13,7 +13,7 @@ def getBlocksize(m , n, bk, v_size=2):
 					bn = j
 
 	while ARM_condition(bm, bn, bk+1, v_size):
-        bk += 1
+		bk += 1
 
 	return (bm, bn, bk)
 
