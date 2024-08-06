@@ -20,12 +20,14 @@ class InlinePrinter(Visitor):
     def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
-        assert precision in [Precision.SINGLE, Precision.DOUBLE]
-        self.precision = 'd' if precision == Precision.DOUBLE else 's'
+        assert precision in (Precision.SINGLE, Precision.DOUBLE)
+        self.precision = {
+            Precision.DOUBLE: "d",
+            Precision.SINGLE: "s"
+        }[precision]
 
     def show(self):
         print("\n".join(self.output))
-
 
     def addLine(self, stmt: str, comment: str):
 
@@ -42,8 +44,6 @@ class InlinePrinter(Visitor):
             line += "// " + comment
 
         self.output.append(line)
-
-
 
     def visitFma(self, stmt: FmaStmt):
         b = stmt.bcast_src.ugly

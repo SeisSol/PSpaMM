@@ -32,36 +32,56 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
 }}}};
 """
+    v_len = 2
+
     def get_v_size(self):
-        if self.precision == Precision.DOUBLE:
-          return 4
-        elif self.precision == Precision.SINGLE:
-          return 8
-        raise NotImplementedError
+        return (16 // self.precision.size()) * self.v_len
 
     def get_template(self):
         return Generator.template
 
+    def use_broadcast(self):
+        return True
+
+    def has_masks(self):
+        return False
+
+    def init_mask(self, bm, v_size, tempreg, maskregs):
+        return block("")
+
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
         vm = bm//v_size
-        assert((bn + bk) * vm + bn * bk <= 16)  # Needs to fit in AVX/AVX2 ymm registers
 
-        A_regs = Matrix([[ymm(vm*c + r) for c in range(bk)] for r in range(vm)])
-        B_regs = Matrix([[ymm(vm*bk + bn * r + c) for c in range(bn)] for r in range(bk)])
-        C_regs = Matrix([[ymm(16 - vm*bn + vm*c + r) for c in range(bn)]
-                                                     for r in range(vm)])
-        print([[ymm(vm*c + r ).ugly for c in range(bk)] for r in range(vm)])
-        print([[ymm(vm*bk + bn * r + c).ugly for c in range(bn)] for r in range(bk)])
-        print([[ymm(16 - vm*bn + vm*c + r).ugly for c in range(bn)]
+        # Needs to fit in AVX/AVX2 ymm registers
+        if (bn + bk) * vm + bn * bk <= 16:
+            self.preloadA = True
+        else:
+            self.preloadA = False
+            assert(bn * vm + bn * bk + 1 <= 16)
+
+        vmm = {
+            1: xmm,
+            2: ymm
+        }[self.v_len]
+
+        if self.preloadA:
+            A_regs = Matrix([[vmm(vm*c + r) for c in range(bk)] for r in range(vm)])
+            Aoffset = vm*bk
+        else:
+            A_regs = Matrix([[vmm(0) for c in range(bk)] for r in range(vm)])
+            Aoffset = 1
+        
+        B_regs = Matrix([[vmm(Aoffset + bn * r + c) for c in range(bn)] for r in range(bk)])
+        C_regs = Matrix([[vmm(16 - vm*bn + vm*c + r) for c in range(bn)]
                                                      for r in range(vm)])
         starting_regs = [rdi, rsi, rdx, rbx, rcx]
 
-        b_reg = vm*bk
-        alpha_reg = [xmm(b_reg), ymm(b_reg)]
-        beta_reg = [xmm(b_reg + 1), ymm(b_reg + 1)]
+        b_reg = Aoffset
+        alpha_reg = [xmm(b_reg), vmm(b_reg)]
+        beta_reg = [xmm(b_reg + 1), vmm(b_reg + 1)]
 
-        available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax]
+        available_regs = [r(9),r(10),r(11),r(15),rax,r(13),r(14)]
 
         additional_regs = [r(8)]
 
@@ -75,9 +95,9 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
             additional_regs.append(available_regs[reg_count])
             reg_count += 1
 
-        loop_reg = r(12)
+        loop_regs = [r(12), r(13), r(14)]
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, []
 
 
     def bcst_alpha_beta(self,
@@ -172,6 +192,30 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                         asm.add(mov(addr, registers[ir,ic], True, comment))
         return asm
 
+    def move_register_single(self,
+                            cursor: Cursor,
+                            cursor_ptr: CursorLocation,
+                            block_offset: Coords,
+                            registers: Matrix[Register],
+                            v_size: int,
+                            additional_regs,
+                            ir,
+                            ic,
+                            mask: Matrix[bool] = None,
+                            store: bool = False,
+                            prefetching: str = None,
+                            load_offset: int = 0
+                           ) -> Block:
+
+        asm = block("")
+
+        if (mask is None) or (mask[ir,ic]):
+            cell_offset = Coords(down=ir*v_size, right=ic)
+            addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
+            addr.disp += self.precision.value * load_offset
+            asm.add(mov(addr, registers[ir,ic], True, comment))
+        return asm
+
     def make_zero_block(self, registers: Matrix[Register], additional_regs) -> Block:
 
         rows, cols = registers.shape
@@ -210,7 +254,10 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         assert(bm % v_size == 0)
 
         mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size)
-        asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
+        if self.preloadA:
+            asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
+        else:
+            asm.add(self.move_register_single(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, 0, 0, mask, store=False))
 
         bs = []
         bsv = []
@@ -231,6 +278,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         for Vmi in range(bm//v_size):
             for bki in range(bk):       # inside this k-block
+                if not self.preloadA and not (Vmi, bki) == (0,0):
+                    asm.add(self.move_register_single(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, Vmi, bki, mask, store=False))
                 for bni in range(bn):   # inside this n-block
                     to_cell = Coords(down=bki, right=bni)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):

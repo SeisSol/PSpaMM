@@ -20,7 +20,7 @@ class InlinePrinter(Visitor):
     def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
-        assert precision == Precision.DOUBLE
+        assert precision in (Precision.HALF, Precision.SINGLE, Precision.DOUBLE)
 
     def show(self):
         print("\n".join(self.output))

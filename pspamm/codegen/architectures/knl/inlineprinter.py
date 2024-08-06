@@ -20,8 +20,19 @@ class InlinePrinter(Visitor):
     def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
-        assert precision in [Precision.SINGLE, Precision.DOUBLE]
-        self.precision = 'd' if precision == Precision.DOUBLE else 's'
+        assert precision in (Precision.BFLOAT16, Precision.HALF, Precision.SINGLE, Precision.DOUBLE)
+        self.precision = {
+            Precision.DOUBLE: 'd',
+            Precision.SINGLE: 's',
+            Precision.HALF: 'h',
+            Precision.BFLOAT16: 'bf16'
+        }[precision]
+        self.broadcast_multiplier = {
+            Precision.DOUBLE: 2,
+            Precision.SINGLE: 4,
+            Precision.HALF: 8,
+            Precision.BFLOAT16: 8
+        }[precision]
 
     def show(self):
         print("\n".join(self.output))
@@ -49,12 +60,13 @@ class InlinePrinter(Visitor):
         b = stmt.bcast_src.ugly
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
+        regsize = stmt.add_dest.size() // 16
         if stmt.bcast:
-            s = "vfmadd231p{} {}%{{1to{}%}}, {}, {}".format(self.precision, b, 8 if self.precision == 'd' else 16, m, a)
+            s = "vfmadd231p{} {}%{{1to{}%}}, {}, {}".format(self.precision, b, regsize * self.broadcast_multiplier, m, a)
         else:
             if stmt.mult_src.typeinfo == AsmType.i64:
                 # in this case, m is a Register that points to alpha; manually format to be a memory address
-                s = "vfmadd231p{} 0({})%{{1to{}%}}, {}, {}".format(self.precision, m, 8 if self.precision == 'd' else 16, b, a)
+                s = "vfmadd231p{} 0({})%{{1to{}%}}, {}, {}".format(self.precision, m, regsize * self.broadcast_multiplier, b, a)
             else:
                 s = "vfmadd231p{} {}, {}, {}".format(self.precision, b,m,a)
         self.addLine(s, stmt.comment)
@@ -63,9 +75,10 @@ class InlinePrinter(Visitor):
         b = stmt.src.ugly
         m = stmt.mult_src.ugly
         a = stmt.dest.ugly
+        regsize = stmt.add_dest.size() // 16
         if stmt.mult_src.typeinfo == AsmType.i64:
             # in this case, m is a Register that points to alpha/beta; manually format to be a memory address
-            s = "vmulp{} 0({})%{{1to{}%}}, {}, {}".format(self.precision, m, 8 if self.precision == 'd' else 16, b, a)
+            s = "vmulp{} 0({})%{{1to{}%}}, {}, {}".format(self.precision, m, regsize * self.broadcast_multiplier, b, a)
         else:
             s = "vmulp{} {}, {}, {}".format(self.precision, b,m,a)
         self.addLine(s, stmt.comment)
@@ -99,7 +112,10 @@ class InlinePrinter(Visitor):
             src_str = stmt.src.ugly
 
         if stmt.typ == AsmType.i64:
-            s = "movq {}, {}".format(src_str,stmt.dest.ugly)
+            if stmt.dest.ugly[0] == 'k':
+                s = "kmovq {}, {}".format(src_str,stmt.dest.ugly)
+            else:
+                s = "movq {}, {}".format(src_str,stmt.dest.ugly)
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
                 s = "vpxord {}, {}, {}".format(stmt.dest.ugly,stmt.dest.ugly,stmt.dest.ugly)

@@ -7,8 +7,8 @@ import os.path
 
 BASEDIR = 'build'
 
-SparseKernel = namedtuple('SparseKernel', 'name m n k lda ldb ldc alpha beta block_sizes mtx delta')
-DenseKernel = namedtuple('DenseKernel', 'name m n k lda ldb ldc alpha beta block_sizes delta')
+SparseKernel = namedtuple('SparseKernel', 'name precision m n k lda ldb ldc alpha beta block_sizes mtx delta')
+DenseKernel = namedtuple('DenseKernel', 'name precision m n k lda ldb ldc alpha beta block_sizes delta')
 
 head_of_testsuite = """#include <fstream>
 #include <sstream>
