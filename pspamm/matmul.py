@@ -254,7 +254,7 @@ class MatMul:
 
         asm.add(self.generator.make_b_pointers(self.starting_regs[1], self.additional_regs, self.nnz))
 
-        def kernelN(asm, Bni, A_ptr, C_ptr):
+        def kernelN(asm, Bni, A_ptr, B_ptr, C_ptr):
             regs = self.C_regs
 
             if Bni + 1 == Bn and n_overhead > 0:
@@ -272,7 +272,7 @@ class MatMul:
             else:
                 asm.add(self.generator.make_zero_block(regs, self.additional_regs))
 
-            def kernelK(asm, Bki):
+            def kernelK(asm, Bki, A_ptr, B_ptr):
                 if unroll:
                     to_A = Coords(right=Bki)
                     to_B = Coords(right=Bni, down=Bki, absolute=True)
@@ -293,11 +293,11 @@ class MatMul:
                     kernelK(asm, Bki)
             else:
                 loopblock = block("microkernel")
-                kernelK(loopblock, 0)
+                kernelK(loopblock, 0, A_ptr, B_ptr)
                 loopblock.add(self.B.move(B_ptr, Coords(down=1))[0])
                 loopblock.add(self.A.move(A_ptr, Coords(right=1))[0])
                 asm.add(loop(self.loop_regs[2], 0, Bk-1, 1, unroll=4).body(loopblock))
-                kernelK(asm, Bk-1)
+                kernelK(asm, Bk-1, A_ptr, B_ptr)
                 asm.add(self.B.move(B_ptr, Coords(down=1-Bk))[0])
                 asm.add(self.A.move(A_ptr, Coords(right=1-Bk))[0])
 
@@ -339,14 +339,14 @@ class MatMul:
 
         if unroll:
             for Bni in range(0, Bn):
-                kernelN(asm, Bni, C_ptr)
+                kernelN(asm, Bni, A_ptr, B_ptr, C_ptr)
         else:
             if Bn > 1:
                 loopblock = block("microkernel")
-                kernelN(loopblock, 0, A_ptr, C_ptr)
+                kernelN(loopblock, 0, A_ptr, B_ptr, C_ptr)
                 loopblock.add(self.B.move(B_ptr, Coords(right=1))[0])
                 asm.add(loop(self.loop_regs[1], 0, Bn-1, 1).body(loopblock))
-            kernelN(asm, Bn-1, A_ptr, C_ptr)
+            kernelN(asm, Bn-1, A_ptr, B_ptr, C_ptr)
             asm.add(self.B.move(B_ptr, Coords(right=1-Bn))[0])
 
         return asm
