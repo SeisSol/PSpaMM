@@ -7,7 +7,7 @@ from pspamm.codegen.precision import *
 
 import pspamm.scripts.old_arm
 import pspamm.scripts.max_bn_knl
-import pspamm.scripts.max_bn_hsw
+import pspamm.scripts.max_hsw
 import pspamm.scripts.max_arm_sve
 
 from pspamm.cursors import *
@@ -128,11 +128,12 @@ class MatMul:
           arch = 'hsw'
 
         self.arch = arch
-        assert precision.lower() in ['h', 's', 'd']
+        assert precision.lower() in ['bf16', 'h', 's', 'd']
         self.precision = {
             'h' : Precision.HALF,
             's' : Precision.SINGLE,
-            'd' : Precision.DOUBLE
+            'd' : Precision.DOUBLE,
+            'bf16' : Precision.BFLOAT16
         }[precision.lower()]
 
         pspamm.architecture.init()
@@ -157,18 +158,17 @@ class MatMul:
 
         if bm == None or bn == None:
             if arch == 'knl':
-                (self.bm, self.bn) = pspamm.scripts.max_bn_knl.getBlocksize(m, n, bk, self.v_size)
+                (self.bm, self.bn, self.bk) = pspamm.scripts.max_bn_knl.getBlocksize(m, n, bk, self.v_size)
             elif arch == 'hsw':
-                (self.bm, self.bn) = pspamm.scripts.max_bn_hsw.getBlocksize(m, n, bk, self.v_size)
+                (self.bm, self.bn, self.bk) = pspamm.scripts.max_hsw.getBlocksize(m, n, bk, self.v_size)
             elif arch == 'arm':
-                (self.bm, self.bn) = pspamm.scripts.old_arm.getBlocksize(m, n, bk, self.v_size)
+                (self.bm, self.bn, self.bk) = pspamm.scripts.old_arm.getBlocksize(m, n, bk, self.v_size)
             elif arch == 'arm_sve':
-                (self.bm, self.bn) = pspamm.scripts.max_arm_sve.getBlocksize(m, n, bk, self.v_size)
+                (self.bm, self.bn, self.bk) = pspamm.scripts.max_arm_sve.getBlocksize(m, n, bk, self.v_size)
         else: 
             self.bm = bm
             self.bn = bn
-
-        self.bk = bk
+            self.bk = bk
 
         self.prefetching = prefetching
 

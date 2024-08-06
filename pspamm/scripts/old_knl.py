@@ -9,6 +9,9 @@ def getBlocksize(m , n, bk, v_size=8):
 	while not KNL_condition(bm, bn, bk, v_size):
 		bm, bn = lowerToNextDiv(m, n, bm, bn, v_size)
 
+	while KNL_condition(bm, bn, bk+1, v_size):
+		bk += 1
+
 	return (bm, bn)
 
 

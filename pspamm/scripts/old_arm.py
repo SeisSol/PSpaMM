@@ -9,7 +9,10 @@ def getBlocksize(m , n, bk, v_size=2):
 	while not ARM_condition(bm, bn, bk, v_size):
 		bm, bn = lowerToNextDiv(m, n, bm, bn, v_size)
 
-	return (bm, bn)
+	while ARM_condition(bm, bn, bk+1, v_size):
+		bk += 1
+
+	return (bm, bn, bk)
 
 
 def lowerToNextDiv(m, n, bm, bn, v_size):

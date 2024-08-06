@@ -7,7 +7,10 @@ def getBlocksize(m, n, bk, v_size=8):
 		if KNL_condition(bm, j, bk, v_size):
 			bn = j
 
-	return (bm, bn)
+	while KNL_condition(bm, bn, bk+1, v_size):
+		bk += 1
+
+	return (bm, bn, bk)
 
 
 def KNL_condition(bm, bn, bk, v_size):

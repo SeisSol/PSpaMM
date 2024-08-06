@@ -4,7 +4,7 @@ def getBlocksize(m , n, bk, v_size=2):
 	bn = 1
 	maxval = 0
 
-	for i in range(2, m+1, 2):
+	for i in range(v_size, m+1, v_size):
 		for j in range(1, n+1):
 			if ARM_condition(i, j, bk, v_size):
 				if i*j > maxval:
@@ -12,7 +12,10 @@ def getBlocksize(m , n, bk, v_size=2):
 					bm = i
 					bn = j
 
-	return (bm, bn)
+	while ARM_condition(bm, bn, bk+1, v_size):
+        bk += 1
+
+	return (bm, bn, bk)
 
 
 def ARM_condition(bm, bn, bk, v_size):

@@ -18,7 +18,10 @@ def getBlocksize(m, n, bk, v_size=2):
     if maxval == 0:
         raise RuntimeError("Could not find an appropriate block size. We suggest padding the matrix dimensions")
 
-    return (bm, bn)
+    while ARM_condition(bm, bn, bk+1, v_size):
+        bk += 1
+
+    return (bm, bn, bk)
 
 
 def ARM_condition(bm, bn, bk, v_size):

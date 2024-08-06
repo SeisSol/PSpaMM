@@ -9,6 +9,9 @@ def getBlocksize(m , n, bk, v_size=4):
 	while not HSW_condition(bm, bn, bk, v_size):
 		bm, bn = lowerToNextDiv(m, n, bm, bn, v_size)
 
+	while HSW_condition(bm, bn, bk+1, v_size):
+		bk += 1
+
 	return (bm, bn)
 
 
