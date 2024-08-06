@@ -77,7 +77,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                                                      for r in range(vm)])
         starting_regs = [rdi, rsi, rdx, rbx, rcx]
 
-        b_reg = vm*bk
+        b_reg = Aoffset
         alpha_reg = [xmm(b_reg), vmm(b_reg)]
         beta_reg = [xmm(b_reg + 1), vmm(b_reg + 1)]
 
