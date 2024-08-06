@@ -119,4 +119,14 @@ class DenseCursor(Cursor):
         pattern = cast(Matrix[bool], pattern)
         return BlockInfo(br, bc, index, pattern)
 
+    def has_nonzero_block(self, src: CursorLocation, dest_block: Coords) -> bool:
+        return True
+    
+    def has_nonzero_cell(self,
+                         src_loc: CursorLocation,
+                         dest_block: Coords,
+                         dest_cell: Coords) -> bool:
+        return True
 
+    def start(self) -> CursorLocation:
+        return CursorLocation()

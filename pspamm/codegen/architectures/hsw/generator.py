@@ -81,7 +81,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         alpha_reg = [xmm(b_reg), vmm(b_reg)]
         beta_reg = [xmm(b_reg + 1), vmm(b_reg + 1)]
 
-        available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax]
+        available_regs = [r(9),r(10),r(11),r(15),rax,r(13),r(14)]
 
         additional_regs = [r(8)]
 
@@ -95,9 +95,9 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
             additional_regs.append(available_regs[reg_count])
             reg_count += 1
 
-        loop_reg = r(12)
+        loop_regs = [r(12), r(13), r(14)]
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs, []
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, []
 
 
     def bcst_alpha_beta(self,
