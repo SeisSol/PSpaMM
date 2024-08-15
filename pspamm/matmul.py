@@ -180,17 +180,14 @@ class MatMul:
         self.output_overwrite = output_overwrite
 
         if ldb == 0:
-            pattern = Matrix.load(mtx_filename)
+            bpattern = Matrix.load(mtx_filename)
             if self.masks:
                 self.generator.set_sparse()
-        else:
-            mtx = numpy.zeros((k, n))
-            for i in range(k):
-                for j in range(n):
-                    mtx[i, j] = 1
-            pattern = Matrix(mtx)
-
-        blocks,patterns,mtx_overhead = decompose_pattern(self.k, self.n, pattern, self.bk, self.bn)
+        
+        if lda == 0:
+            apattern = Matrix.load(mtx_filename)
+            if self.masks:
+                self.generator.set_sparse()
 
         self.nnz = 0
         self.flop = 0
@@ -198,10 +195,9 @@ class MatMul:
         if ldb == 0:
             for i in range(n):
                 for j in range(k):
-                    if pattern[j,i]:
+                    if bpattern[j,i]:
                         self.nnz += 1
             self.flop = self.nnz * m * 2
-            self.nnz += sum(mtx_overhead)
         else:
             self.nnz = ldb * self.n
             self.flop = m * n * k * 2
@@ -220,9 +216,15 @@ class MatMul:
 
         self.alpha_bcst_reg, self.beta_bcst_reg = self.starting_regs[3], self.starting_regs[4]
 
-        self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk, self.precision.value)
+        if lda == 0:
+            blocks, patterns, mtx_overhead = decompose_pattern(self.m, self.k, apattern, self.bm, self.bk)
+            self.A = BlockCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk, self.precision.value, blocks, patterns, mtx_overhead)
+        else:
+            self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk, self.precision.value)
         if ldb == 0:
-            self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.value, blocks, patterns,mtx_overhead)
+            blocks, patterns, mtx_overhead = decompose_pattern(self.k, self.n, bpattern, self.bk, self.bn)
+            self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.value, blocks, patterns, mtx_overhead)
+            self.nnz += sum(mtx_overhead)
         else:
             self.B = DenseCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.value)
         self.C = DenseCursor("C", self.starting_regs[2], self.m, self.n, self.ldc, self.bm, self.bn, self.precision.value)
@@ -276,7 +278,7 @@ class MatMul:
                 if unroll:
                     to_A = Coords(right=Bki)
                     to_B = Coords(right=Bni, down=Bki, absolute=True)
-                    keep = self.B.has_nonzero_block(B_ptr, to_B)
+                    keep = self.B.has_nonzero_block(B_ptr, to_B) and self.A.has_nonzero_block(A_ptr, to_A)
                 else:
                     # setting A_ptr, B_ptr here may be a bit too hacky...
                     A_ptr = CursorLocation(Coords(right=Bki, absolute=True))
@@ -296,7 +298,7 @@ class MatMul:
                 kernelK(loopblock, 0, A_ptr, B_ptr)
                 loopblock.add(self.B.move(B_ptr, Coords(down=1))[0])
                 loopblock.add(self.A.move(A_ptr, Coords(right=1))[0])
-                asm.add(loop(self.loop_regs[2], 0, Bk-1, 1, unroll=4).body(loopblock))
+                asm.add(loop(self.loop_regs[2], 0, Bk-1, 1).body(loopblock))
                 kernelK(asm, Bk-1, A_ptr, B_ptr)
                 asm.add(self.B.move(B_ptr, Coords(down=1-Bk))[0])
                 asm.add(self.A.move(A_ptr, Coords(right=1-Bk))[0])

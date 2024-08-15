@@ -41,9 +41,17 @@ class Loop(Block):
         for _ in range(self.final_val % self.unroll):
             rest += onestep
         corrected_final_val = (self.final_val // self.unroll) * self.unroll
-        return [mov(self.initial_val, self.iteration_var, vector=False),
+
+        allcode = []
+        if corrected_final_val == self.initial_val + self.unroll:
+            allcode += body
+        elif corrected_final_val > self.initial_val:
+            allcode += [mov(self.initial_val, self.iteration_var, vector=False),
                 label(self.label)] + body + [cmp(corrected_final_val, self.iteration_var),
-                jump(self.label, backwards=True)] + rest
+                jump(self.label, backwards=True)]
+        allcode += rest
+
+        return allcode
 
     def body(self, *args):
         self.body_contents = block("Loop body", *args)
