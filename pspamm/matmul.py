@@ -298,7 +298,7 @@ class MatMul:
                 kernelK(loopblock, 0, A_ptr, B_ptr)
                 loopblock.add(self.B.move(B_ptr, Coords(down=1))[0])
                 loopblock.add(self.A.move(A_ptr, Coords(right=1))[0])
-                asm.add(loop(self.loop_regs[2], 0, Bk-1, 1).body(loopblock))
+                asm.add(loop(self.loop_regs[2], 0, Bk-1, 1, unroll=4).body(loopblock))
                 kernelK(asm, Bk-1, A_ptr, B_ptr)
                 asm.add(self.B.move(B_ptr, Coords(down=1-Bk))[0])
                 asm.add(self.A.move(A_ptr, Coords(right=1-Bk))[0])
