@@ -230,7 +230,7 @@ class MatMul:
         self.C = DenseCursor("C", self.starting_regs[2], self.m, self.n, self.ldc, self.bm, self.bn, self.precision.value)
         self.C_pf = DenseCursor("C_pf", prefetchReg, self.m, self.n, self.ldc, self.bm, self.bn, self.precision.value) if prefetchReg else None
 
-        self.unroll = ldb == 0
+        self.unroll = ldb == 0 or lda == 0
 
 
     def make_nk_unroll(self, unroll=True):
