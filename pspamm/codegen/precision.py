@@ -19,4 +19,10 @@ class Precision(Enum):
       self.BFLOAT16: 2
     }[self]
     raise NotImplementedError()
+  
+  def __repr__(self):
+    return self.getCType(self)
+
+  def __str__(self):
+    return self.getCType(self)
 

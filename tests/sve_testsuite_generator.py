@@ -6,6 +6,7 @@ import random
 import sys
 import os
 import testsuite_generator as test_generator
+from pspamm.codegen.precision import *
 
 BASEDIR = 'build'
 
@@ -30,8 +31,6 @@ def make(kernels, arch):
 
     f.write(test_generator.head_of_testsuite)
 
-    include_single_prec = False
-
     for kern in kernels:
         arguments = ['pspamm-generator', str(kern.m), str(kern.n), str(kern.k), str(kern.lda),
                      str(kern.ldb), str(kern.ldc), str(kern.alpha), str(kern.beta)]
@@ -41,8 +40,6 @@ def make(kernels, arch):
 
         prec = 's' if kern.precision == Precision.SINGLE else 'd'
         arguments += ['--precision', prec]
-        if prec == 's':
-            include_single_prec = True
 
         block_sizes = list(set(kern.block_sizes))
 
@@ -99,8 +96,6 @@ def make(kernels, arch):
         for bs in block_sizes:
             bm = bs[0]
             bn = bs[1]
-
-            prec = 's' if kern.precision == Precision.SINGLE else 'd'
 
             if arch.startswith("arm_sve"):
                 veclen = int(arch[7:])
