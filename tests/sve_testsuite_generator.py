@@ -46,6 +46,7 @@ def make(kernels, arch):
         for bs in block_sizes:
             bm = bs[0]
             bn = bs[1]
+            bk = bs[2] if len(bs) > 2 else 1
 
             if arch == "knl":
                 assert (bm % 8 == 0 and (bn + 1) * (bm / 8) <= 32)
@@ -64,18 +65,18 @@ def make(kernels, arch):
                     print(f'Skipping block size {bm}x{bn} for {arch}')
                     continue
 
-            name = kern.name + '_' + str(bm) + '_' + str(bn)
+            name = kern.name + '_' + str(bm) + '_' + str(bn) + '_' + str(bk)
 
             additional_args = ['--output_funcname', name, '--output_filename', os.path.join(BASEDIR, arch, name + '.h'),
                                '--output_overwrite']
-            additional_args += ['--bm', str(bm), '--bn', str(bn), '--arch', arch, '--prefetching', 'BL2viaC']
+            additional_args += ['--bm', str(bm), '--bn', str(bn), '--bk', str(bk), '--arch', arch, '--prefetching', 'BL2viaC']
 
             try:
                 subprocess.check_output(arguments + additional_args, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
 
-            f.write('#include "' + arch + '/' + kern.name + '_' + str(bm) + '_' + str(bn) + '.h"\n')
+            f.write('#include "' + arch + '/' + name + '.h"\n')
 
     f.write('\n')
     # necessary functions are defined in testsuite_generator.py
@@ -96,6 +97,7 @@ def make(kernels, arch):
         for bs in block_sizes:
             bm = bs[0]
             bn = bs[1]
+            bk = bs[2] if len(bs) > 2 else 1
 
             if arch.startswith("arm_sve"):
                 veclen = int(arch[7:])
@@ -110,7 +112,7 @@ def make(kernels, arch):
                     # print(f'Skipping block size {bm}x{bn} for {arch}')
                     continue
 
-            name = kern.name + '_' + str(bm) + '_' + str(bn)
+            name = kern.name + '_' + str(bm) + '_' + str(bn) + '_' + str(bk)
 
             if isinstance(kern, SparseKernel):
                 mtx = kern.mtx

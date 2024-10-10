@@ -232,17 +232,18 @@ def make(kernels, arch):
         for bs in block_sizes:
             bm = bs[0]
             bn = bs[1]
+            bk = bs[2] if len(bs) > 2 else 1
 
             if arch == "knl":
                 assert (bm % 8 == 0 and (bn + 1) * (bm / 8) <= 32)
             elif arch == "arm":
                 assert (bm % 2 == 0 and (bn + 1) * (bm / 2) + bn <= 32)
 
-            name = kern.name + '_' + str(bm) + '_' + str(bn)
+            name = kern.name + '_' + str(bm) + '_' + str(bn) + '_' + str(bk)
 
             additional_args = ['--output_funcname', name, '--output_filename', os.path.join(BASEDIR, arch, name + '.h'),
                                '--output_overwrite']
-            additional_args += ['--bm', str(bm), '--bn', str(bn), '--arch', arch]
+            additional_args += ['--bm', str(bm), '--bn', str(bn), '--bk', str(bk), '--arch', arch]
 
             try:
                 print(' '.join(arguments + additional_args))
@@ -250,7 +251,7 @@ def make(kernels, arch):
             except subprocess.CalledProcessError as e:
                 raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
 
-            f.write('#include "' + arch + '/' + kern.name + '_' + str(bm) + '_' + str(bn) + '.h"\n')
+            f.write('#include "' + arch + '/' + name + '.h"\n')
 
     f.write('\n')
 
@@ -264,7 +265,8 @@ def make(kernels, arch):
         for bs in block_sizes:
             bm = bs[0]
             bn = bs[1]
-            name = kern.name + '_' + str(bm) + '_' + str(bn)
+            bk = bs[2] if len(bs) > 2 else 1
+            name = kern.name + '_' + str(bm) + '_' + str(bn) + '_' + str(bk)
 
             if isinstance(kern, SparseKernel):
                 mtx = kern.mtx

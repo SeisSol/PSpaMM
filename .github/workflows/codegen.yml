@@ -159,6 +159,7 @@ jobs:
     needs: install-pspamm
     # include vector lengths for SVE manually (for now)
     strategy:
+      fail-fast: false
       matrix:
         vectorlen:
           - 128
