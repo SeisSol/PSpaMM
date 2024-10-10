@@ -32,9 +32,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 """
 
     def get_v_size(self):
-        if self.precision == Precision.DOUBLE:
-          return 2
-        raise NotImplementedError
+        return 16 // self.precision.size()
 
     def get_template(self):
         return Generator.template
@@ -137,7 +135,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     next_offset = [0, 0]
                     if ir+1 < rows:
                         next_offset = [1, 0]
-                    elif ic +1 < rows:
+                    elif ic +1 < cols:
                         next_offset = [0, 1]
 
                     addr_next, comment_next = cursor.look(cursor_ptr, block_offset, Coords(down=(ir+next_offset[0])*v_size, right=ic+next_offset[1]))
@@ -153,16 +151,16 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             addr.disp = 0
                         addr.base = additional_regs[0]
                 
-                if not skipflag:
-                    if store:
-                        asm.add(st(registers[ir,ic], addr, True, comment))
+                    if not skipflag:
+                        if store:
+                            asm.add(st(registers[ir,ic], addr, True, comment))
+                        else:
+                            asm.add(ld(addr, registers[ir,ic], True, comment))
                     else:
-                        asm.add(ld(addr, registers[ir,ic], True, comment))
-                else:
-                    if store:
-                        asm.add(st(registers[ir,ic], addr, True, comment, registers[ir+next_offset[0],ic+next_offset[1]]))
-                    else:
-                        asm.add(ld(addr, registers[ir,ic], True, comment, registers[ir+next_offset[0],ic+next_offset[1]]))
+                        if store:
+                            asm.add(st(registers[ir,ic], addr, True, comment, registers[ir+next_offset[0],ic+next_offset[1]]))
+                        else:
+                            asm.add(ld(addr, registers[ir,ic], True, comment, registers[ir+next_offset[0],ic+next_offset[1]]))
 
         return asm
 

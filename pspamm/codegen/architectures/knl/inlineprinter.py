@@ -54,7 +54,8 @@ class InlinePrinter(Visitor):
 
         self.output.append(line)
 
-
+    def maskformat(self, pred):
+        pass
 
     def visitFma(self, stmt: FmaStmt):
         b = stmt.bcast_src.ugly
@@ -75,7 +76,7 @@ class InlinePrinter(Visitor):
         b = stmt.src.ugly
         m = stmt.mult_src.ugly
         a = stmt.dest.ugly
-        regsize = stmt.add_dest.size() // 16
+        regsize = stmt.dest.size() // 16
         if stmt.mult_src.typeinfo == AsmType.i64:
             # in this case, m is a Register that points to alpha/beta; manually format to be a memory address
             s = "vmulp{} 0({})%{{1to{}%}}, {}, {}".format(self.precision, m, regsize * self.broadcast_multiplier, b, a)

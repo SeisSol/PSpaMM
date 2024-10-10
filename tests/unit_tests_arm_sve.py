@@ -16,6 +16,7 @@ blocksize_algs = [max_sve]
 v_size = lambda prec: (16 // prec.size()) * v_len
 v_size_d = v_size(Precision.DOUBLE)
 v_size_s = v_size(Precision.SINGLE)
+v_size_h = v_size(Precision.HALF)
 bitlen = v_len * 128
 kernels = []
 
@@ -67,13 +68,15 @@ kernels.append(generator.SparseKernel("sve_single_prec_test_S6", Precision.SINGL
 kernels.append(generator.SparseKernel("sve_single_prec_test_S7", Precision.SINGLE, 23, 23, 23, 23, 0, 23, 1.5, -0.66, [x.getBlocksize(23, 23, 1, v_size_s) for x in blocksize_algs], generator.generateMTX(23, 23, 52), delta_sp))
 kernels.append(generator.SparseKernel("sve_single_prec_test_S8", Precision.SINGLE, 23, 31, 13, 23, 0, 23, 2.0, 0.0, [x.getBlocksize(23, 31, 1, v_size_s) for x in blocksize_algs], generator.generateMTX(13, 31, 40), delta_sp))
 
-kernels.append(generator.DenseKernel("sve_half_prec_test_S1", Precision.HALF, 9, 9, 9, 9, 9, 9, 1.24, 0.87, [x.getBlocksize(9, 9, 1, v_size_s) for x in blocksize_algs], delta_sp))
-kernels.append(generator.DenseKernel("sve_half_prec_test_S2", Precision.HALF, 15, 15, 15, 15, 15, 15, -3.14, 6.28, [x.getBlocksize(15, 15, 1, v_size_s) for x in blocksize_algs], delta_sp))
-kernels.append(generator.DenseKernel("sve_half_prec_test_S3", Precision.HALF, 23, 23, 23, 23, 23, 23, 1.5, -0.66, [x.getBlocksize(23, 23, 1, v_size_s) for x in blocksize_algs], delta_sp))
-kernels.append(generator.DenseKernel("sve_half_prec_test_S4", Precision.HALF, 23, 31, 13, 23, 13, 23, 2.0, 0.0, [x.getBlocksize(23, 31, 1, v_size_s) for x in blocksize_algs], delta_sp))
-kernels.append(generator.SparseKernel("sve_half_prec_test_S5", Precision.HALF, 9, 9, 9, 9, 0, 9, 1.24, 0.87, [x.getBlocksize(9, 9, 1, v_size_s) for x in blocksize_algs], generator.generateMTX(9, 9, 8), delta_sp))
-kernels.append(generator.SparseKernel("sve_half_prec_test_S6", Precision.HALF, 15, 15, 15, 15, 0, 15, -3.14, 6.28, [x.getBlocksize(15, 15, 1, v_size_s) for x in blocksize_algs], generator.generateMTX(15, 15, 22), delta_sp))
-kernels.append(generator.SparseKernel("sve_half_prec_test_S7", Precision.HALF, 23, 23, 23, 23, 0, 23, 1.5, -0.66, [x.getBlocksize(23, 23, 1, v_size_s) for x in blocksize_algs], generator.generateMTX(23, 23, 52), delta_sp))
-kernels.append(generator.SparseKernel("sve_half_prec_test_S8", Precision.HALF, 23, 31, 13, 23, 0, 23, 2.0, 0.0, [x.getBlocksize(23, 31, 1, v_size_s) for x in blocksize_algs], generator.generateMTX(13, 31, 40), delta_sp))
+"""
+kernels.append(generator.DenseKernel("sve_half_prec_test_S1", Precision.HALF, 9, 9, 9, 9, 9, 9, 1.24, 0.87, [x.getBlocksize(9, 9, 1, v_size_h) for x in blocksize_algs], delta_sp))
+kernels.append(generator.DenseKernel("sve_half_prec_test_S2", Precision.HALF, 15, 15, 15, 15, 15, 15, -3.14, 6.28, [x.getBlocksize(15, 15, 1, v_size_h) for x in blocksize_algs], delta_sp))
+kernels.append(generator.DenseKernel("sve_half_prec_test_S3", Precision.HALF, 23, 23, 23, 23, 23, 23, 1.5, -0.66, [x.getBlocksize(23, 23, 1, v_size_h) for x in blocksize_algs], delta_sp))
+kernels.append(generator.DenseKernel("sve_half_prec_test_S4", Precision.HALF, 23, 31, 13, 23, 13, 23, 2.0, 0.0, [x.getBlocksize(23, 31, 1, v_size_h) for x in blocksize_algs], delta_sp))
+kernels.append(generator.SparseKernel("sve_half_prec_test_S5", Precision.HALF, 9, 9, 9, 9, 0, 9, 1.24, 0.87, [x.getBlocksize(9, 9, 1, v_size_h) for x in blocksize_algs], generator.generateMTX(9, 9, 8), delta_sp))
+kernels.append(generator.SparseKernel("sve_half_prec_test_S6", Precision.HALF, 15, 15, 15, 15, 0, 15, -3.14, 6.28, [x.getBlocksize(15, 15, 1, v_size_h) for x in blocksize_algs], generator.generateMTX(15, 15, 22), delta_sp))
+kernels.append(generator.SparseKernel("sve_half_prec_test_S7", Precision.HALF, 23, 23, 23, 23, 0, 23, 1.5, -0.66, [x.getBlocksize(23, 23, 1, v_size_h) for x in blocksize_algs], generator.generateMTX(23, 23, 52), delta_sp))
+kernels.append(generator.SparseKernel("sve_half_prec_test_S8", Precision.HALF, 23, 31, 13, 23, 0, 23, 2.0, 0.0, [x.getBlocksize(23, 31, 1, v_size_h) for x in blocksize_algs], generator.generateMTX(13, 31, 40), delta_sp))
+"""
 
 generator.make(kernels, f"arm_sve{bitlen}")

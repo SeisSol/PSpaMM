@@ -44,7 +44,14 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         return False
 
     def has_masks(self):
-        return True
+        return False # for now
+
+    def pred_n_trues(self, count, v_size, mode):
+        # a bit hacky at the moment (won't work for all masks)
+        if count < v_size and count > 0:
+            return mask(0)
+        else:
+            return None
 
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         vm = self.ceil_div(bm, v_size)
@@ -74,15 +81,15 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         reg_count = 0
 
-        for i in range(1024, min(max(nnz * self.precision.value, m*k*self.precision.value, m*n*self.precision.value),8000), 2048):
+        for i in range(1024, min(max(nnz * self.precision.size(), m*k*self.precision.size(), m*n*self.precision.size()),8000), 2048):
             additional_regs.append(available_regs[reg_count])
             reg_count += 1
 
-        for i in range(8192, min(nnz * self.precision.value, 33000), 8192):
+        for i in range(8192, min(nnz * self.precision.size(), 33000), 8192):
             additional_regs.append(available_regs[reg_count])
             reg_count += 1
 
-        loop_reg = [r(12), r(13), r(14)]
+        loop_regs = [r(12), r(13), r(14)]
 
         return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs
 
@@ -93,8 +100,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         else:
             asm = block("Set mask register")
             restval = (1 << rest) - 1
-            asm.add(mov(restval, tempreg))
-            asm.add(mov(tempreg, maskreg[0]))
+            asm.add(mov(restval, tempreg, False))
+            asm.add(mov(tempreg, maskregs[0], False))
             return asm
 
     def bcst_alpha_beta(self,
@@ -131,7 +138,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         reg_count = 5
 
-        for i in range(8192, min(nnz * self.precision.value, 33000), 8192):
+        for i in range(8192, min(nnz * self.precision.size(), 33000), 8192):
             asm.add(lea(B_reg, additional_regs[reg_count], i))
             reg_count += 1
         
@@ -180,7 +187,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                 if (mask is None) or (mask[ir,ic]):
                     cell_offset = Coords(down=ir*v_size, right=ic)
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
-                    addr.disp += self.precision.value * load_offset
+                    addr.disp += self.precision.size() * load_offset
                     if store:
                         asm.add(mov(registers[ir,ic], addr, True, comment))
                         if prefetching == 'BL2viaC':

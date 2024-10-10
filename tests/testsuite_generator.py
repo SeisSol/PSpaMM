@@ -4,6 +4,7 @@ import numpy as np
 import random
 import sys
 import os.path
+from pspamm.codegen.precision import *
 
 BASEDIR = 'build'
 
@@ -145,22 +146,20 @@ setup_main = """
 int main()
 {
   std::vector<std::tuple<std::string, int>> results;
-  std::tuple<double*, double*, double*, double*, double*> pointers;
-  int result;
-  
-  // A compiler related issue makes it necessary to store certain values in variables before using them
-  unsigned ldb;
-  double alpha; double beta;
 
 """
 
 setup_single_testcase = """
-  ldb = {ldb}; alpha = {alpha}; beta = {beta};
-  pointers = pre<double>({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
+{{
+  unsigned ldb = {ldb};
+  {precision} alpha = {alpha};
+  {precision} beta = {beta};
+  auto pointers = pre<{precision}>({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
   {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers), {alpha}, {beta}, nullptr);
-  result = post<double>({m}, {n}, {k}, {lda}, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.7f});
+  const auto result = post<{precision}>({m}, {n}, {k}, {lda}, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.7f});
   results.push_back(std::make_tuple("{name}", result));
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+}}
 """
 
 end_of_testsuite = """
@@ -219,6 +218,8 @@ def make(kernels, arch):
 
     f.write(head_of_testsuite)
 
+    testcases = []
+
     for kern in kernels:
 
         arguments = ['pspamm-generator', str(kern.m), str(kern.n), str(kern.k), str(kern.lda), str(kern.ldb),
@@ -227,17 +228,38 @@ def make(kernels, arch):
         if isinstance(kern, SparseKernel):
             arguments += ['--mtx_filename', kern.mtx]
 
-        block_sizes = list(set(kern.block_sizes))
+        prec = 's' if kern.precision == Precision.SINGLE else 'd'
+        arguments += ['--precision', prec]
+
+        block_sizes = list(set(bs if len(bs) > 2 else (bs[0], bs[1], 1) for bs in kern.block_sizes))
 
         for bs in block_sizes:
             bm = bs[0]
             bn = bs[1]
-            bk = bs[2] if len(bs) > 2 else 1
+            bk = bs[2]
 
-            if arch == "knl":
-                assert (bm % 8 == 0 and (bn + 1) * (bm / 8) <= 32)
-            elif arch == "arm":
-                assert (bm % 2 == 0 and (bn + 1) * (bm / 2) + bn <= 32)
+            veclen = int(arch[3:]) if arch[3:] != '' else 128
+            assert veclen % 128 == 0
+            reglen = veclen // 128
+            v_len = (16 // kern.precision.size()) * reglen
+            # this should be the same assertion as in ../scripts/max_arm_sve.py
+            # ceiling division
+            vm = -(bm // -v_len)
+            v_size = v_len
+
+            if arch.startswith("knl"):
+              print(f'{bn} {bk} {vm} {bm} {v_size}')
+              if not ((bn+bk) * vm <= 32) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
+                print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
+                continue
+            elif arch.startswith("hsw"):
+              if not ((bn+bk) * vm + bn * bk <= 16) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
+                print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
+                continue
+            elif arch.startswith("arm"):
+              if not ((bn+bk) * vm + bn * bk <= 32) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
+                print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
+                continue
 
             name = kern.name + '_' + str(bm) + '_' + str(bn) + '_' + str(bk)
 
@@ -253,28 +275,24 @@ def make(kernels, arch):
 
             f.write('#include "' + arch + '/' + name + '.h"\n')
 
-    f.write('\n')
-
-    f.write(function_definitions)
-    f.write(setup_main)
-
-    for kern in kernels:
-
-        block_sizes = list(set(kern.block_sizes))
-
-        for bs in block_sizes:
-            bm = bs[0]
-            bn = bs[1]
-            bk = bs[2] if len(bs) > 2 else 1
-            name = kern.name + '_' + str(bm) + '_' + str(bn) + '_' + str(bk)
-
             if isinstance(kern, SparseKernel):
                 mtx = kern.mtx
             else:
                 mtx = ""
 
-            f.write(setup_single_testcase.format(
+            testcases += [
+              setup_single_testcase.format(
                 m=kern.m, n=kern.n, k=kern.k, lda=kern.lda, ldb=kern.ldb, ldc=kern.ldc, alpha=kern.alpha,
-                beta=kern.beta, mtx=mtx, delta=kern.delta, name=name, sparse=2 if kern.ldb == 0 else 1))
+                beta=kern.beta, mtx=mtx, delta=kern.delta, name=name, sparse=2 if kern.ldb == 0 else 1,
+                precision=kern.precision.ctype())
+            ]
+
+    f.write('\n')
+
+    f.write(function_definitions)
+    f.write(setup_main)
+
+    for testcase in testcases:
+      f.write(testcase)
 
     f.write(end_of_testsuite)

@@ -230,7 +230,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
                     # addr = base "pointer" + relative offset in bytes
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
-                    addr.disp += self.precision.value * load_offset
+                    addr.disp += self.precision.size() * load_offset
 
                     # count how many elements we have processed between last step and this step
                     cont_counter = ((addr.disp - prev_disp) // mul_vl)
@@ -313,7 +313,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         cur11 = -1000
         Vm = max(self.ceil_div(bm, v_size), 1)
 
-        multiple = self.precision.value
+        multiple = self.precision.size()
         # for ld1rw (single prec): immediate offset is multiple of 4 in range of 0 to 252
         # for ld1rd (double prec): immediate offset is multiple of 8 in range of 0 to 504
         # in both cases: instruction encodes the immediate offset within 6 bits

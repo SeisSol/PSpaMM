@@ -218,17 +218,18 @@ class MatMul:
 
         if lda == 0:
             blocks, patterns, mtx_overhead = decompose_pattern(self.m, self.k, apattern, self.bm, self.bk)
-            self.A = BlockCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk, self.precision.value, blocks, patterns, mtx_overhead)
-        else:
-            self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk, self.precision.value)
-        if ldb == 0:
-            blocks, patterns, mtx_overhead = decompose_pattern(self.k, self.n, bpattern, self.bk, self.bn)
-            self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.value, blocks, patterns, mtx_overhead)
+            self.A = BlockCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk, self.precision.size(), blocks, patterns, mtx_overhead)
             self.nnz += sum(mtx_overhead)
         else:
-            self.B = DenseCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.value)
-        self.C = DenseCursor("C", self.starting_regs[2], self.m, self.n, self.ldc, self.bm, self.bn, self.precision.value)
-        self.C_pf = DenseCursor("C_pf", prefetchReg, self.m, self.n, self.ldc, self.bm, self.bn, self.precision.value) if prefetchReg else None
+            self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk, self.precision.size())
+        if ldb == 0:
+            blocks, patterns, mtx_overhead = decompose_pattern(self.k, self.n, bpattern, self.bk, self.bn)
+            self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.size(), blocks, patterns, mtx_overhead)
+            self.nnz += sum(mtx_overhead)
+        else:
+            self.B = DenseCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.size())
+        self.C = DenseCursor("C", self.starting_regs[2], self.m, self.n, self.ldc, self.bm, self.bn, self.precision.size())
+        self.C_pf = DenseCursor("C_pf", prefetchReg, self.m, self.n, self.ldc, self.bm, self.bn, self.precision.size()) if prefetchReg else None
 
         self.unroll = ldb == 0 or lda == 0
 

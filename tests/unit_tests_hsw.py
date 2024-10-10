@@ -30,6 +30,7 @@ for precision in (Precision.SINGLE, Precision.DOUBLE):
     kernels.append(generator.DenseKernel(f"hsw_only_test13_{precision}", precision, 8, 1, 1, 16, 1, 56, 0.0, 123.0, [(8, 1)] + [x.getBlocksize(8, 1, 2) for x in blocksize_algs], 0.0000001))
     kernels.append(generator.DenseKernel(f"hsw_only_test14_{precision}", precision, 8, 24, 40, 8, 41, 8, 2.0, 1.0, [] + [x.getBlocksize(8, 24, 2) for x in blocksize_algs], 0.0000001))
 
-generator.make(kernels, "hsw")
+for arch in ('hsw256', 'hsw128'):
+    generator.make(kernels, arch)
 
 

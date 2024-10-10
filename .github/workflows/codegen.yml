@@ -69,12 +69,14 @@ jobs:
       - name: pspamm-tests-compile
         run: |
           cd tests/
-          g++ -static -mavx512f build/hsw_testsuite.cpp -o build/hsw-test
+          g++ -static -mavx2 build/hsw256_testsuite.cpp -o build/hsw256-test
+          g++ -static -mavx2 build/hsw128_testsuite.cpp -o build/hsw128-test
       
       - name: pspamm-tests-run
         run: |
           cd tests/
-          qemu-x86_64-static -cpu Haswell build/hsw-test
+          qemu-x86_64-static -cpu Haswell build/hsw256-test
+          qemu-x86_64-static -cpu Haswell build/hsw128-test
 
   pspamm-codegen-avx512-no-run:
     name: pspamm-codegen-avx512-no-run
@@ -107,13 +109,17 @@ jobs:
       - name: pspamm-tests-compile
         run: |
           cd tests/
-          g++ -static -mavx512f build/knl_testsuite.cpp -o build/knl-test
+          g++ -static -mavx512f build/knl512_testsuite.cpp -o build/knl512-test
+          g++ -static -mavx512f build/knl256_testsuite.cpp -o build/knl256-test
+          g++ -static -mavx512f build/knl128_testsuite.cpp -o build/knl128-test
       
       # disabled, since qemu doesn't support AVX512F (yet) with of Ubuntu 24.04
       # - name: pspamm-tests-run
       #   run: |
       #     cd tests/
-      #     qemu-x86_64-static -cpu Skylake-Server build/knl-test
+      #     qemu-x86_64-static -cpu Skylake-Server build/knl512-test
+      #     qemu-x86_64-static -cpu Skylake-Server build/knl256-test
+      #     qemu-x86_64-static -cpu Skylake-Server build/knl128-test
 
   pspamm-codegen-aarch64:
     name: pspamm-codegen-aarch64

@@ -31,6 +31,8 @@ def make(kernels, arch):
 
     f.write(test_generator.head_of_testsuite)
 
+    testcases = []
+
     for kern in kernels:
         arguments = ['pspamm-generator', str(kern.m), str(kern.n), str(kern.k), str(kern.lda),
                      str(kern.ldb), str(kern.ldc), str(kern.alpha), str(kern.beta)]
@@ -41,12 +43,12 @@ def make(kernels, arch):
         prec = 's' if kern.precision == Precision.SINGLE else 'd'
         arguments += ['--precision', prec]
 
-        block_sizes = list(set(kern.block_sizes))
+        block_sizes = list(set(bs if len(bs) > 2 else (bs[0], bs[1], 1) for bs in kern.block_sizes))
 
         for bs in block_sizes:
             bm = bs[0]
             bn = bs[1]
-            bk = bs[2] if len(bs) > 2 else 1
+            bk = bs[2]
 
             if arch == "knl":
                 assert (bm % 8 == 0 and (bn + 1) * (bm / 8) <= 32)
@@ -58,11 +60,10 @@ def make(kernels, arch):
                 reglen = veclen // 128
                 v_len = (16 // kern.precision.size()) * reglen
                 # this should be the same assertion as in ../scripts/max_arm_sve.py
-                bk = 1
                 # ceiling division
-                vm = -(bm // -v_len)  
+                vm = -(bm // -v_len)
                 if not ((bn + bk) * vm + bn * bk <= 32):
-                    print(f'Skipping block size {bm}x{bn} for {arch}')
+                    print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
                     continue
 
             name = kern.name + '_' + str(bm) + '_' + str(bn) + '_' + str(bk)
@@ -78,58 +79,38 @@ def make(kernels, arch):
 
             f.write('#include "' + arch + '/' + name + '.h"\n')
 
+            if isinstance(kern, SparseKernel):
+                mtx = kern.mtx
+            else:
+                mtx = ""
+            
+            prec2 = 'f' if kern.precision == Precision.SINGLE else ''
+
+            testcases += [
+                """
+{{
+  unsigned ldb = {ldb};
+  {T} alpha = {alpha};
+  {T} beta = {beta};
+  {T}* prefetch = nullptr;
+  auto pointers = pre<{T}>({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
+  setup_prefetch(prefetch, std::get<3>(pointers), {n}, {ldc});
+  {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers), alpha, beta, prefetch);
+  const auto result = post<{T}>({m}, {n}, {k}, {lda}, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.7f});
+  results.push_back(std::make_tuple("{name}", result));
+  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers)); free(prefetch);
+}}
+""".format(m=kern.m, n=kern.n, k=kern.k, lda=kern.lda, ldb=kern.ldb, ldc=kern.ldc, alpha=kern.alpha, beta=kern.beta,
+           mtx=mtx, delta=kern.delta, name=name, sparse=2 if kern.ldb == 0 else 1, p=prec2, T=kern.precision.ctype())
+            ]
+
     f.write('\n')
     # necessary functions are defined in testsuite_generator.py
     f.write(test_generator.function_definitions)
     f.write(setup_prefetching)
     f.write(test_generator.setup_main)
-    # add variable declarations for single precision test cases
-    f.write("""  std::tuple<float*, float*, float*, float*, float*> fpointers;
-  float falpha; float fbeta;
-  double* prefetch;
-  float* fprefetch;
-  """)
   
-    for kern in kernels:
-
-        block_sizes = list(set(kern.block_sizes))
-
-        for bs in block_sizes:
-            bm = bs[0]
-            bn = bs[1]
-            bk = bs[2] if len(bs) > 2 else 1
-
-            if arch.startswith("arm_sve"):
-                veclen = int(arch[7:])
-                assert veclen % 128 == 0 and veclen <= 2048
-                reglen = veclen // 128
-                v_len = (16 // kern.precision.size()) * reglen
-                # this should be the same assertion as in ../scripts/max_arm_sve.py
-                bk = 1
-                # ceiling division
-                vm = -( bm // -v_len)
-                if not ((bn + bk) * vm + bn * bk <= 32):
-                    # print(f'Skipping block size {bm}x{bn} for {arch}')
-                    continue
-
-            name = kern.name + '_' + str(bm) + '_' + str(bn) + '_' + str(bk)
-
-            if isinstance(kern, SparseKernel):
-                mtx = kern.mtx
-            else:
-                mtx = ""
-            # for double precision: set prec to '' to conform to test_generator.function_definitions
-            prec = 'f' if kern.precision == Precision.SINGLE else ''
-
-            f.write("""
-  {p}alpha = {alpha}; {p}beta = {beta}; ldb = {ldb};
-  {p}pointers = pre<{T}>({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
-  setup_prefetch({p}prefetch, std::get<3>({p}pointers), {n}, {ldc});
-  {name}(std::get<0>({p}pointers), std::get<{sparse}>({p}pointers), std::get<3>({p}pointers), {p}alpha, {p}beta, {p}prefetch);
-  result = post<{T}>({m}, {n}, {k}, {lda}, &ldb, {ldc}, &{p}alpha, &{p}beta, std::get<0>({p}pointers), std::get<1>({p}pointers), std::get<3>({p}pointers), std::get<4>({p}pointers), {delta:.7f});
-  results.push_back(std::make_tuple("{name}", result));
-  free(std::get<0>({p}pointers)); free(std::get<1>({p}pointers)); free(std::get<2>({p}pointers)); free(std::get<3>({p}pointers)); free(std::get<4>({p}pointers)); free({p}prefetch);
-""".format(m=kern.m, n=kern.n, k=kern.k, lda=kern.lda, ldb=kern.ldb, ldc=kern.ldc, alpha=kern.alpha, beta=kern.beta,
-           mtx=mtx, delta=kern.delta, name=name, sparse=2 if kern.ldb == 0 else 1, p=prec, T="float" if prec == 'f' else "double"))
+    for testcase in testcases:
+        f.write(testcase)
 
     f.write(test_generator.end_of_testsuite)

@@ -87,11 +87,11 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         reg_count = 0
 
-        for i in range(1024, min(max(nnz * self.precision.value, m*k*self.precision.value, m*n*self.precision.value),8000), 2048):
+        for i in range(1024, min(max(nnz * self.precision.size(), m*k*self.precision.size(), m*n*self.precision.size()),8000), 2048):
             additional_regs.append(available_regs[reg_count])
             reg_count += 1
 
-        for i in range(8192, min(nnz * self.precision.value, 33000), 8192):
+        for i in range(8192, min(nnz * self.precision.size(), 33000), 8192):
             additional_regs.append(available_regs[reg_count])
             reg_count += 1
 
@@ -134,7 +134,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         reg_count = 5
 
-        for i in range(8192, min(nnz * self.precision.value, 33000), 8192):
+        for i in range(8192, min(nnz * self.precision.size(), 33000), 8192):
             asm.add(lea(B_reg, additional_regs[reg_count], i))
             reg_count += 1
         
@@ -183,7 +183,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                 if (mask is None) or (mask[ir,ic]):
                     cell_offset = Coords(down=ir*v_size, right=ic)
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
-                    addr.disp += self.precision.value * load_offset
+                    addr.disp += self.precision.size() * load_offset
                     if store:
                         asm.add(mov(registers[ir,ic], addr, True, comment))
                         if prefetching == 'BL2viaC':
@@ -212,7 +212,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         if (mask is None) or (mask[ir,ic]):
             cell_offset = Coords(down=ir*v_size, right=ic)
             addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
-            addr.disp += self.precision.value * load_offset
+            addr.disp += self.precision.size() * load_offset
             asm.add(mov(addr, registers[ir,ic], True, comment))
         return asm
 

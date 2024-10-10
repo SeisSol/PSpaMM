@@ -10,6 +10,9 @@ class Precision(Enum):
   def getCType(cls, precision):
     ctype = {cls.DOUBLE: 'double', cls.SINGLE: 'float', cls.HALF: 'uint16_t', cls.BFLOAT16: 'uint16_t'}
     return ctype[precision]
+  
+  def ctype(self):
+    return self.getCType(self)
 
   def size(self):
     return {
