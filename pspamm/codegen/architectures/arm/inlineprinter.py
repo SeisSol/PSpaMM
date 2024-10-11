@@ -20,6 +20,7 @@ class InlinePrinter(Visitor):
     def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
+        self.precision = precision
         assert precision in (Precision.HALF, Precision.SINGLE, Precision.DOUBLE)
 
     def show(self):
@@ -49,69 +50,71 @@ class InlinePrinter(Visitor):
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
         if stmt.bcast:
-            s = "fmla {}, {}, {}[0]".format(a,m,b)
+            s = f"fmla {a}, {m}, {b}[0]"
         else:
-            s = "fmla {}, {}, {}".format(a,m,b)
+            s = f"fmla {a}, {m}, {b}"
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
         b = stmt.src.ugly
         m = stmt.mult_src.ugly
         a = stmt.dest.ugly
-        s = "fmul {}, {}, {}".format(a,m,b)
+        s = f"fmul {a}, {m}, {b}"
         self.addLine(s, stmt.comment)
 
     def visitBcst(self, stmt: BcstStmt):
-        b = stmt.bcast_src.ugly
+        b = stmt.bcast_src.ugly if self.precision == Precision.DOUBLE else stmt.bcast_src.ugly_b32
         a = stmt.dest.ugly
-        s = "dup {}, {}".format(a, b)
+        s = f"dup {a}, {b}"
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):
         if isinstance(stmt.src, Constant) and (stmt.src.value > 4095 or stmt.src.value < -4095):
             if (stmt.src.value >> 16) & 0xFFFF > 0 and stmt.src.value < 0:
                 s = "mov x11, #-1"
-                s1 = "movk x11, #{}".format((stmt.src.value) & 0xFFFF)
-                val = ((stmt.src.value >> 16) & 0xFFFF)
-                s2 = "movk x11, #{}, lsl #16".format(val)
+                val1 = (stmt.src.value) & 0xFFFF
+                s1 = f"movk x11, #{val1}"
+                val2 = ((stmt.src.value >> 16) & 0xFFFF)
+                s2 = f"movk x11, #{val2}, lsl #16"
 
                 self.addLine(s, "")
                 self.addLine(s1, "load lower 16 bit of immediate that requires more than 16 bit")
                 self.addLine(s2, "load upper 16 bit of immediate that requires more than 16 bit")
 
             elif (stmt.src.value >> 16) & 0xFFFF:
-                s1 = "mov x11, #{}".format((stmt.src.value) & 0xFFFF)
-                val = ((stmt.src.value >> 16) & 0xFFFF)
-                s2 = "movk x11, #{}, lsl #16".format(val)
+                val1 = (stmt.src.value) & 0xFFFF
+                s1 = f"mov x11, #{val1}"
+                val2 = ((stmt.src.value >> 16) & 0xFFFF)
+                s2 = f"movk x11, #{val2}, lsl #16"
                 self.addLine(s1, "load lower 16 bit of immediate that requires more than 16 bit")
                 self.addLine(s2, "load upper 16 bit of immediate that requires more than 16 bit")
             else:
-                s = "mov x11, {}".format(stmt.src.ugly)
+                s = f"mov x11, {stmt.src.ugly}"
                 self.addLine(s, "load lower 16 bit of immediate ")
 
             if stmt.dest.ugly != "x11":
-                s = "add {}, {}, x11".format(stmt.dest.ugly,stmt.dest.ugly)
+                s = f"add {stmt.dest.ugly}, {stmt.dest.ugly}, x11"
                 self.addLine(s, stmt.comment)
             if stmt.additional is not None:
-                s = "add {}, {}, {}".format(stmt.dest.ugly,stmt.dest.ugly,stmt.additional.ugly)
+                s = f"add {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.additional.ugly}"
                 self.addLine(s, stmt.comment)
         else:
             if stmt.additional is not None:
-                s = "add {}, {}, {}".format(stmt.dest.ugly,stmt.additional.ugly,stmt.src.ugly)
+                s = f"add {stmt.dest.ugly}, {stmt.additional.ugly}, {stmt.src.ugly}"
             else:
-                s = "add {}, {}, {}".format(stmt.dest.ugly,stmt.dest.ugly,stmt.src.ugly)
+                s = f"add {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.src.ugly}"
             self.addLine(s, stmt.comment)
 
     def visitLabel(self, stmt: LabelStmt):
-        s = "{}:".format(stmt.label.ugly)
+        s = f"{stmt.label.ugly}:"
         self.addLine(s, stmt.comment)
 
     def visitCmp(self, stmt: CmpStmt):
-        s = "cmp {}, {}".format(stmt.rhs.ugly,stmt.lhs.ugly)
+        s = f"cmp {stmt.rhs.ugly}, {stmt.lhs.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitJump(self, stmt: JumpStmt):
-        s = "b.lo {}".format(stmt.destination.ugly)
+        s = f"b.lo {stmt.destination.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitMov(self, stmt: MovStmt):
@@ -120,9 +123,9 @@ class InlinePrinter(Visitor):
         else:
             src_str = stmt.src.ugly
         if stmt.typ == AsmType.f64x8:
-            s = "fmov {}, {}".format(stmt.dest.ugly_scalar_1d,src_str)
+            s = f"fmov {stmt.dest.ugly_scalar_1d}, {src_str}"
         else:
-            s = "mov {}, {}".format(stmt.dest.ugly,src_str)
+            s = f"mov {stmt.dest.ugly}, {src_str}"
         self.addLine(s, stmt.comment)
 
 
@@ -133,12 +136,12 @@ class InlinePrinter(Visitor):
             src_str = stmt.src.ugly
 
         if stmt.typ == AsmType.i64:
-            s = "add {}, {}, {}".format(stmt.dest.ugly,stmt.dest.ugly,src_str)
+            s = f"add {stmt.dest.ugly}, {stmt.dest.ugly}, {src_str}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if stmt.dest2 is not None:
-                s = "ldp {}, {}, {}".format(stmt.dest.ugly_scalar,stmt.dest2.ugly_scalar,src_str)
+                s = f"ldp {stmt.dest.ugly_scalar}, {stmt.dest2.ugly_scalar}, {src_str}"
             else:
-                s = "ldr {}, {}".format(stmt.dest.ugly_scalar,src_str)
+                s = f"ldr {stmt.dest.ugly_scalar}, {src_str}"
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
@@ -151,12 +154,12 @@ class InlinePrinter(Visitor):
             src_str = stmt.src.ugly
 
         if stmt.typ == AsmType.i64:
-            s = "add {}, {}, {}".format(stmt.dest.ugly,stmt.dest.ugly,src_str)
+            s = f"add {stmt.dest.ugly}, {stmt.dest.ugly}, {src_str}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if stmt.src2 is not None:
-                s = "stp {}, {}, {}".format(stmt.src.ugly_scalar,stmt.src2.ugly_scalar,stmt.dest.ugly)
+                s = f"stp {stmt.src.ugly_scalar}, {stmt.src2.ugly_scalar}, {stmt.dest.ugly}"
             else:
-                s = "str {}, {}".format(stmt.src.ugly_scalar,stmt.dest.ugly)
+                s = f"str {stmt.src.ugly_scalar}, {stmt.dest.ugly}"
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)

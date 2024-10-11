@@ -52,9 +52,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         assert((bn+bk) * vm + bn * bk <= 32)  # Needs to fit in NEON v registers
 
         prec = {
-            Precision.DOUBLE: "2D",
-            Precision.SINGLE: "4S",
-            Precision.HALF: "8H",
+            Precision.DOUBLE: "2d",
+            Precision.SINGLE: "4s",
+            Precision.HALF: "8h",
         }[self.get_precision()]
 
         A_regs = Matrix([[v(vm*c + r, prec) for c in range(bk)] for r in range(vm)])

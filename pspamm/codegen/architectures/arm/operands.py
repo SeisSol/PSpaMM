@@ -63,7 +63,8 @@ class Register_ARM(Register):
 
     @property
     def clobbered(self):
-        return (self.value.split(".")[0]).replace("x", "r")
+        # removed [this comment should stay here for now---in case there's some compiler expecting it]: .replace("x", "r")
+        return (self.value.split(".")[0])
 
     @property
     def ugly_scalar(self):
@@ -72,6 +73,10 @@ class Register_ARM(Register):
     @property
     def ugly_scalar_1d(self):
         return (self.value.split(".")[0]).replace("v", "d")
+    
+    @property
+    def ugly_b32(self):
+        return (self.value.split(".")[0]).replace("x", "w")
 
 
 r = lambda n: Register_ARM(AsmType.i64, "x" + str(n))

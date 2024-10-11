@@ -76,3 +76,8 @@ xmm  = lambda n: Register_KNL(AsmType.f64x2, "xmm"+str(n))
 ymm  = lambda n: Register_KNL(AsmType.f64x4, "ymm"+str(n))
 zmm  = lambda n: Register_KNL(AsmType.f64x8, "zmm"+str(n))
 mask = lambda n: Register_KNL(AsmType.i64, "k"+str(n))
+
+class Predicate:
+    def __init__(self, register: Register_KNL, zero: bool):
+        self.register = register
+        self.zero = zero

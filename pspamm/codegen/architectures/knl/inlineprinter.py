@@ -21,7 +21,8 @@ class InlinePrinter(Visitor):
         self.output = []
         self.stack = []
         assert precision in (Precision.BFLOAT16, Precision.HALF, Precision.SINGLE, Precision.DOUBLE)
-        self.precision = {
+        self.precision = precision
+        self.psuffix = {
             Precision.DOUBLE: 'd',
             Precision.SINGLE: 's',
             Precision.HALF: 'h',
@@ -55,83 +56,101 @@ class InlinePrinter(Visitor):
         self.output.append(line)
 
     def maskformat(self, pred):
-        pass
+        if pred is None:
+            return ''
+        elif pred.zero:
+            return f'{{{pred.register.ugly}}}{{z}}'
+        else:
+            return f'{{{pred.register.ugly}}}'
 
     def visitFma(self, stmt: FmaStmt):
+        mask = self.maskformat(stmt.pred)
         b = stmt.bcast_src.ugly
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
         regsize = stmt.add_dest.size() // 16
+        extent = regsize * self.broadcast_multiplier
         if stmt.bcast:
-            s = "vfmadd231p{} {}%{{1to{}%}}, {}, {}".format(self.precision, b, regsize * self.broadcast_multiplier, m, a)
+            s = f"vfmadd231p{self.psuffix} {b}%{{1to{extent}%}} {mask}, {m}, {a}"
         else:
             if stmt.mult_src.typeinfo == AsmType.i64:
                 # in this case, m is a Register that points to alpha; manually format to be a memory address
-                s = "vfmadd231p{} 0({})%{{1to{}%}}, {}, {}".format(self.precision, m, regsize * self.broadcast_multiplier, b, a)
+                s = f"vfmadd231p{self.psuffix} 0({m})%{{1to{extent}%}} {mask}, {b}, {a}"
             else:
-                s = "vfmadd231p{} {}, {}, {}".format(self.precision, b,m,a)
+                s = f"vfmadd231p{self.psuffix} {b} {mask}, {m}, {a}"
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
+        mask = self.maskformat(stmt.pred)
         b = stmt.src.ugly
         m = stmt.mult_src.ugly
         a = stmt.dest.ugly
         regsize = stmt.dest.size() // 16
+        extent = regsize * self.broadcast_multiplier
         if stmt.mult_src.typeinfo == AsmType.i64:
             # in this case, m is a Register that points to alpha/beta; manually format to be a memory address
-            s = "vmulp{} 0({})%{{1to{}%}}, {}, {}".format(self.precision, m, regsize * self.broadcast_multiplier, b, a)
+            s = f"vmulp{self.psuffix} 0({m})%{{1to{extent}%}} {mask}, {b}, {a}"
         else:
-            s = "vmulp{} {}, {}, {}".format(self.precision, b,m,a)
+            s = f"vmulp{self.psuffix} {b} {mask}, {m}, {a}"
         self.addLine(s, stmt.comment)
 
     def visitBcst(self, stmt: BcstStmt):
+        mask = self.maskformat(stmt.pred)
         b = stmt.bcast_src.ugly
         a = stmt.dest.ugly
-        s = "vbroadcasts{} {}, {}".format(self.precision, b,a)
+        regsize = stmt.dest.size()
+        instruction = "vmovddup" if self.precision == Precision.DOUBLE and regsize == 16 else f"vbroadcasts{self.psuffix}"
+        s = f"{instruction} {b} {mask}, {a}"
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):
-        s = "addq {}, {}".format(stmt.src.ugly,stmt.dest.ugly)
+        mask = self.maskformat(stmt.pred)
+        s = f"addq {stmt.src.ugly} {mask}, {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitLabel(self, stmt: LabelStmt):
-        s = "{}:".format(stmt.label.ugly)
+        s = f"{stmt.label.ugly}:"
         self.addLine(s, stmt.comment)
 
     def visitCmp(self, stmt: CmpStmt):
-        s = "cmp {}, {}".format(stmt.lhs.ugly,stmt.rhs.ugly)
+        mask = self.maskformat(stmt.pred)
+        s = f"cmp {stmt.lhs.ugly} {mask}, {stmt.rhs.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitJump(self, stmt: JumpStmt):
-        s = "jl {}".format(stmt.destination.ugly)
+        s = f"jl {stmt.destination.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitMov(self, stmt: MovStmt):
+        mask = self.maskformat(stmt.pred)
+
         if isinstance(stmt.src, Label):
             src_str = "$" + stmt.src.ugly
         else:
             src_str = stmt.src.ugly
 
         if stmt.typ == AsmType.i64:
+            assert(stmt.pred == None)
             if stmt.dest.ugly[0] == 'k':
-                s = "kmovq {}, {}".format(src_str,stmt.dest.ugly)
+                s = f"kmovq {src_str}, {stmt.dest.ugly}"
             else:
-                s = "movq {}, {}".format(src_str,stmt.dest.ugly)
+                s = f"movq {src_str}, {stmt.dest.ugly}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
-                s = "vpxord {}, {}, {}".format(stmt.dest.ugly,stmt.dest.ugly,stmt.dest.ugly)
+                s = f"vpxord {stmt.dest.ugly} {mask}, {stmt.dest.ugly}, {stmt.dest.ugly}"
             else:
-                s = "vmovup{} {}, {}".format(self.precision, src_str,stmt.dest.ugly)
+                s = f"vmovup{self.psuffix} {src_str} {mask}, {stmt.dest.ugly}"
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
 
     def visitLea(self, stmt: LeaStmt):
-        s = "leaq {}({}), {}".format(stmt.offset,stmt.src.ugly,stmt.dest.ugly)
+        mask = self.maskformat(stmt.pred)
+        s = f"leaq {stmt.offset}({stmt.src.ugly}) {mask}, {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitPrefetch(self, stmt: PrefetchStmt):
-        s = "prefetcht1 {}".format(stmt.dest.ugly)
+        s = f"prefetcht1 {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitBlock(self, block: Block):

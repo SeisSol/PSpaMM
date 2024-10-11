@@ -29,6 +29,7 @@ class MovStmt(AsmStmt):
     dest = None
     typ = None
     aligned = False
+    pred = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitMov(self)
@@ -39,6 +40,7 @@ class LeaStmt(AsmStmt):
     offset = None
     typ = None
     aligned = False
+    pred = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitLea(self)
@@ -105,6 +107,7 @@ class MulStmt(AsmStmt):
 class BcstStmt(AsmStmt):
     bcast_src = None
     dest = None
+    pred = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitBcst(self)
@@ -114,6 +117,7 @@ class AddStmt(AsmStmt):
     dest = None
     typ = None
     additional = None
+    pred = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitAdd(self)
@@ -121,6 +125,7 @@ class AddStmt(AsmStmt):
 class CmpStmt(AsmStmt):
     lhs = None
     rhs = None
+    pred = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitCmp(self)
