@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sve_testsuite_generator as generator
+import testsuite_generator as generator
 
 import pspamm.scripts.max_arm_sve as max_sve
 from pspamm.codegen.precision import *

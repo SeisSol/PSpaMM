@@ -51,6 +51,12 @@ void gemm_ref(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, un
 }
 
 template <typename T>
+void setup_prefetch(T*& prefetch, T* matrix, unsigned n, unsigned ldc) {
+ posix_memalign(reinterpret_cast<void **>(&prefetch), 64, ldc*n*sizeof(T));
+ std::memcpy(prefetch, matrix, ldc*n*sizeof(T));
+}
+
+template <typename T>
 std::tuple<T*, T*, T*, T*, T*> pre(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, std::string MTX) {
 
   if(LDB == 0)
@@ -154,7 +160,9 @@ setup_single_testcase = """
   unsigned ldb = {ldb};
   {precision} alpha = {alpha};
   {precision} beta = {beta};
+  {precision}* prefetch = nullptr;
   auto pointers = pre<{precision}>({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
+  setup_prefetch(prefetch, std::get<3>(pointers), {n}, {ldc});
   {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers), {alpha}, {beta}, nullptr);
   const auto result = post<{precision}>({m}, {n}, {k}, {lda}, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.7f});
   results.push_back(std::make_tuple("{name}", result));
@@ -238,7 +246,10 @@ def make(kernels, arch):
             bn = bs[1]
             bk = bs[2]
 
-            veclen = int(arch[3:]) if arch[3:] != '' else 128
+            if arch.startswith("arm_sve"):
+              veclen = int(arch[7:]) if arch[7:] != '' else 128
+            else:
+              veclen = int(arch[3:]) if arch[3:] != '' else 128
             assert veclen % 128 == 0
             reglen = veclen // 128
             v_len = (16 // kern.precision.size()) * reglen
@@ -254,6 +265,10 @@ def make(kernels, arch):
                 continue
             elif arch.startswith("hsw"):
               if not ((bn+bk) * vm + bn * bk <= 16) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
+                print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
+                continue
+            elif arch.startswith("arm_sve"):
+              if not ((bn+bk) * vm + bn * bk <= 32):
                 print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
                 continue
             elif arch.startswith("arm"):
