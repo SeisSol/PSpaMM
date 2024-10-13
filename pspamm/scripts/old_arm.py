@@ -4,12 +4,17 @@ def getBlocksize(m , n, bk, v_size=2):
 	bn = n
 	
 	if ARM_condition(bm, bn, bk, v_size):
-		return (bm, bn)
+		while ARM_condition(bm, bn, bk+1, v_size):
+			bk += 1
+		return (bm, bn, bk)
 
 	while not ARM_condition(bm, bn, bk, v_size):
 		bm, bn = lowerToNextDiv(m, n, bm, bn, v_size)
 
-	return (bm, bn)
+	while ARM_condition(bm, bn, bk+1, v_size):
+		bk += 1
+
+	return (bm, bn, bk)
 
 
 def lowerToNextDiv(m, n, bm, bn, v_size):
@@ -28,4 +33,4 @@ def lowerToNextDiv(m, n, bm, bn, v_size):
 def ARM_condition(bm, bn, bk, v_size):
   # ceiling division
   vm = -(bm // -v_size)
-  return (bn+bk) * vm + bn <= 32
+  return (bn+bk) * vm + bn*bk <= 32
