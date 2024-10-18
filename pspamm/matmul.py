@@ -202,10 +202,6 @@ class MatMul:
             self.nnz = ldb * self.n
             self.flop = m * n * k * 2
 
-        #if prefetching is not None:
-        #    prefetchReg = self.generator.init_prefetching(self.prefetching)
-        #else:
-        #    prefetchReg = None
         prefetchReg = self.generator.init_prefetching(self.prefetching)
 
         # if matrices are always padded to multiple of v_size, we can remove the if-part and execute the assert for SVE too

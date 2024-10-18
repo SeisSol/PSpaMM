@@ -26,7 +26,13 @@ class InlinePrinter(Visitor):
             Precision.DOUBLE: 'd',
             Precision.SINGLE: 's',
             Precision.HALF: 'h',
-            Precision.BFLOAT16: 'bf16'
+            Precision.BFLOAT16: 'h'
+        }[precision]
+        self.alupsuffix = {
+            Precision.DOUBLE: 'pd',
+            Precision.SINGLE: 'ps',
+            Precision.HALF: 'ph',
+            Precision.BFLOAT16: 'nepbf16'
         }[precision]
         self.broadcast_multiplier = {
             Precision.DOUBLE: 2,
@@ -71,13 +77,13 @@ class InlinePrinter(Visitor):
         regsize = stmt.add_dest.size() // 16
         extent = regsize * self.broadcast_multiplier
         if stmt.bcast:
-            s = f"vfmadd231p{self.psuffix} {b}%{{1to{extent}%}} {mask}, {m}, {a}"
+            s = f"vfmadd231{self.alupsuffix} {b}%{{1to{extent}%}} {mask}, {m}, {a}"
         else:
             if stmt.mult_src.typeinfo == AsmType.i64:
                 # in this case, m is a Register that points to alpha; manually format to be a memory address
-                s = f"vfmadd231p{self.psuffix} 0({m})%{{1to{extent}%}} {mask}, {b}, {a}"
+                s = f"vfmadd231{self.alupsuffix} 0({m})%{{1to{extent}%}} {mask}, {b}, {a}"
             else:
-                s = f"vfmadd231p{self.psuffix} {b} {mask}, {m}, {a}"
+                s = f"vfmadd231{self.alupsuffix} {b} {mask}, {m}, {a}"
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
@@ -89,9 +95,9 @@ class InlinePrinter(Visitor):
         extent = regsize * self.broadcast_multiplier
         if stmt.mult_src.typeinfo == AsmType.i64:
             # in this case, m is a Register that points to alpha/beta; manually format to be a memory address
-            s = f"vmulp{self.psuffix} 0({m})%{{1to{extent}%}} {mask}, {b}, {a}"
+            s = f"vmul{self.alupsuffix} 0({m})%{{1to{extent}%}} {mask}, {b}, {a}"
         else:
-            s = f"vmulp{self.psuffix} {b} {mask}, {m}, {a}"
+            s = f"vmul{self.alupsuffix} {b} {mask}, {m}, {a}"
         self.addLine(s, stmt.comment)
 
     def visitBcst(self, stmt: BcstStmt):
@@ -99,13 +105,18 @@ class InlinePrinter(Visitor):
         b = stmt.bcast_src.ugly
         a = stmt.dest.ugly
         regsize = stmt.dest.size()
-        instruction = "vmovddup" if self.precision == Precision.DOUBLE and regsize == 16 else f"vbroadcasts{self.psuffix}"
+        if self.precision == Precision.HALF or self.precision == Precision.BFLOAT16:
+            instruction = 'vpbroadcastw'
+        elif self.precision == Precision.DOUBLE and regsize == 16:
+            instruction = 'vmovddup'
+        else:
+            instruction = f"vbroadcasts{self.psuffix}"
         s = f"{instruction} {b} {mask}, {a}"
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):
-        mask = self.maskformat(stmt.pred)
-        s = f"addq {stmt.src.ugly} {mask}, {stmt.dest.ugly}"
+        # only used for scalar addition right now
+        s = f"addq {stmt.src.ugly}, {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitLabel(self, stmt: LabelStmt):
@@ -139,7 +150,7 @@ class InlinePrinter(Visitor):
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
                 s = f"vpxord {stmt.dest.ugly} {mask}, {stmt.dest.ugly}, {stmt.dest.ugly}"
             else:
-                s = f"vmovup{self.psuffix} {src_str} {mask}, {stmt.dest.ugly}"
+                s = f"vmovupd {src_str} {mask}, {stmt.dest.ugly}"
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
