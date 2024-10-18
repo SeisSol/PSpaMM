@@ -43,6 +43,32 @@ class Register(Operand):
     def __init__(self, typeinfo, value) -> None:
         self.typeinfo = typeinfo
         self.value = str(value)
+    
+    def size(self):
+        if self.typeinfo == AsmType.i8:
+            return 1
+        if self.typeinfo == AsmType.i16:
+            return 2
+        if self.typeinfo == AsmType.i32:
+            return 4
+        if self.typeinfo == AsmType.i64:
+            return 8
+        if self.typeinfo == AsmType.f32:
+            return 4
+        if self.typeinfo == AsmType.f64:
+            return 8
+        if self.typeinfo == AsmType.f32x4:
+            return 16
+        if self.typeinfo == AsmType.f32x8:
+            return 32
+        if self.typeinfo == AsmType.f32x16:
+            return 64
+        if self.typeinfo == AsmType.f64x2:
+            return 16
+        if self.typeinfo == AsmType.f64x4:
+            return 32
+        if self.typeinfo == AsmType.f64x8:
+            return 64
 
     @property
     def ugly(self):

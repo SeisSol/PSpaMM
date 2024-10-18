@@ -32,36 +32,49 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 """
 
     def get_v_size(self):
-        if self.precision == Precision.DOUBLE:
-          return 2
-        raise NotImplementedError
+        return 16 // self.precision.size()
 
     def get_template(self):
         return Generator.template
+
+    def use_broadcast(self):
+        return True
+
+    def has_masks(self):
+        return False
+    
+    def init_mask(self, bm, v_size, tempreg, maskregs):
+        return block("")
 
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
         vm = bm//v_size
         assert((bn+bk) * vm + bn * bk <= 32)  # Needs to fit in NEON v registers
 
-        A_regs = Matrix([[v(vm*c + r) for c in range(bk)] for r in range(vm)])
-        B_regs = Matrix([[v(vm*bk + bn * r + c) for c in range(bn)] for r in range(bk)])
-        C_regs = Matrix([[v(32 - vm*bn + vm*c + r) for c in range(bn)]
+        prec = {
+            Precision.DOUBLE: "2d",
+            Precision.SINGLE: "4s",
+            Precision.HALF: "8h",
+        }[self.get_precision()]
+
+        A_regs = Matrix([[v(vm*c + r, prec) for c in range(bk)] for r in range(vm)])
+        B_regs = Matrix([[v(vm*bk + bn * r + c, prec) for c in range(bn)] for r in range(bk)])
+        C_regs = Matrix([[v(32 - vm*bn + vm*c + r, prec) for c in range(bn)]
                                                    for r in range(vm)])
 
         # get vector register number of the first vector in B_regs
         b_reg = vm*bk
-        alpha_reg = [v(b_reg), v(b_reg)]
-        beta_reg = [v(b_reg + 1), v(b_reg + 1)]
+        alpha_reg = [v(b_reg, prec), v(b_reg, prec)]
+        beta_reg = [v(b_reg + 1, prec), v(b_reg + 1, prec)]
 
 
         starting_regs = [r(0), r(1), r(2), r(3), r(4)]
 
         additional_regs = [r(11), xzr]
 
-        loop_reg = r(12)
+        loop_regs = [r(12), r(13), r(14)]
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, []
 
 
     def bcst_alpha_beta(self,
@@ -122,7 +135,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     next_offset = [0, 0]
                     if ir+1 < rows:
                         next_offset = [1, 0]
-                    elif ic +1 < rows:
+                    elif ic +1 < cols:
                         next_offset = [0, 1]
 
                     addr_next, comment_next = cursor.look(cursor_ptr, block_offset, Coords(down=(ir+next_offset[0])*v_size, right=ic+next_offset[1]))
@@ -138,16 +151,16 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             addr.disp = 0
                         addr.base = additional_regs[0]
                 
-                if not skipflag:
-                    if store:
-                        asm.add(st(registers[ir,ic], addr, True, comment))
+                    if not skipflag:
+                        if store:
+                            asm.add(st(registers[ir,ic], addr, True, comment))
+                        else:
+                            asm.add(ld(addr, registers[ir,ic], True, comment))
                     else:
-                        asm.add(ld(addr, registers[ir,ic], True, comment))
-                else:
-                    if store:
-                        asm.add(st(registers[ir,ic], addr, True, comment, registers[ir+next_offset[0],ic+next_offset[1]]))
-                    else:
-                        asm.add(ld(addr, registers[ir,ic], True, comment, registers[ir+next_offset[0],ic+next_offset[1]]))
+                        if store:
+                            asm.add(st(registers[ir,ic], addr, True, comment, registers[ir+next_offset[0],ic+next_offset[1]]))
+                        else:
+                            asm.add(ld(addr, registers[ir,ic], True, comment, registers[ir+next_offset[0],ic+next_offset[1]]))
 
         return asm
 
