@@ -16,7 +16,8 @@ head_of_testsuite = """#include <fstream>
 #include <vector>
 #include <cstring>
 #include <cmath>
-#include <stdio.h>
+#include <cstdio>
+#include <iostream>
 #include <tuple>
 
 
@@ -139,6 +140,7 @@ int post(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned* LDB, unsign
       // we use the relative error instead of the absolute error because of an issue we found for sparse single precision 
       // kernels presumably due to limited precision of floats
       if(std::abs((C[i + j * LDC] - Cref[i + j * LDC])) / Cref[i + j * LDC] > DELTA) {
+        std::cout << i << " " << j << " " << C[i + j * LDC] << " " << Cref[i + j * LDC] << std::endl;
         return 0;
       }
     }
