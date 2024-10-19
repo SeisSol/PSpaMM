@@ -126,6 +126,10 @@ class MatMul:
             assert v_len_bits in (128, 256)
             v_len_regs = v_len_bits // 128
           arch = 'hsw'
+        
+        if arch.startswith('arm'):
+          # only 128 supported
+          arch = 'arm'
 
         self.arch = arch
         assert precision.lower() in ['bf16', 'h', 's', 'd']
@@ -140,6 +144,7 @@ class MatMul:
         pspamm.architecture.arch = arch
         pspamm.architecture.Generator = pspamm.architecture.get_class("pspamm.codegen.architectures." + arch + ".generator").Generator
         pspamm.architecture.operands = pspamm.architecture.get_class("pspamm.codegen.architectures." + arch + ".operands")
+        pspamm.architecture.blocksize = pspamm.architecture.get_class("pspamm.codegen.architectures." + arch + ".blocksize").Default
 
         self.generator = pspamm.architecture.Generator(self.precision)
 
@@ -158,13 +163,13 @@ class MatMul:
 
         if bm == None or bn == None:
             if arch == 'knl':
-                (self.bm, self.bn, self.bk) = pspamm.scripts.max_bn_knl.getBlocksize(m, n, bk, self.v_size, self.precision)
+                (self.bm, self.bn, self.bk) = pspamm.architecture.blocksize.getBlocksize(m, n, bk, self.v_size, self.precision)
             elif arch == 'hsw':
-                (self.bm, self.bn, self.bk) = pspamm.scripts.max_hsw.getBlocksize(m, n, bk, self.v_size, self.precision)
+                (self.bm, self.bn, self.bk) = pspamm.architecture.blocksize.getBlocksize(m, n, bk, self.v_size, self.precision)
             elif arch == 'arm':
-                (self.bm, self.bn, self.bk) = pspamm.scripts.old_arm.getBlocksize(m, n, bk, self.v_size, self.precision)
+                (self.bm, self.bn, self.bk) = pspamm.architecture.blocksize.getBlocksize(m, n, bk, self.v_size, self.precision)
             elif arch == 'arm_sve':
-                (self.bm, self.bn, self.bk) = pspamm.scripts.max_arm_sve.getBlocksize(m, n, bk, self.v_size, self.precision)
+                (self.bm, self.bn, self.bk) = pspamm.architecture.blocksize.getBlocksize(m, n, bk, self.v_size, self.precision)
         else: 
             self.bm = bm
             self.bn = bn
