@@ -1,4 +1,4 @@
-def getBlocksize(m, n, bk, v_size=2):
+def getBlocksize(m, n, bk, v_size, prec):
     # v_size default is 2, however for SVE that parameter will always be larger
     bm = 2
     bn = 1
