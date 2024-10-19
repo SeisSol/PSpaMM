@@ -64,7 +64,8 @@ jobs:
       - name: pspamm-tests-generate
         run: |
           cd tests/
-          python unit_tests_hsw.py
+          python unit_test.py hsw256
+          python unit_test.py hsw128
       
       - name: pspamm-tests-compile
         run: |
@@ -104,7 +105,9 @@ jobs:
       - name: pspamm-tests-generate
         run: |
           cd tests/
-          python unit_tests_knl.py
+          python unit_test.py knl512
+          python unit_test.py knl256
+          python unit_test.py knl128
       
       - name: pspamm-tests-compile
         run: |
@@ -147,17 +150,17 @@ jobs:
       - name: pspamm-tests-generate
         run: |
           cd tests/
-          python unit_tests_arm.py
+          python unit_test.py arm128
       
       - name: pspamm-tests-compile
         run: |
           cd tests/
-          aarch64-linux-gnu-g++ -static -march=armv8.2-a build/arm_testsuite.cpp -o build/arm-test
+          aarch64-linux-gnu-g++ -static -march=armv8.2-a build/arm128_testsuite.cpp -o build/arm128-test
       
       - name: pspamm-tests-run
         run: |
           cd tests/
-          qemu-aarch64-static -cpu max build/arm-test
+          qemu-aarch64-static -cpu max build/arm128-test
 
   pspamm-codegen-armsve:
     name: pspamm-codegen-armsve
@@ -195,7 +198,7 @@ jobs:
       - name: pspamm-tests-generate
         run: |
           cd tests/
-          python unit_tests_arm_sve.py ${{matrix.vectorlen}}
+          python unit_test.py arm_sve${{matrix.vectorlen}}
       
       - name: pspamm-tests-compile
         run: |

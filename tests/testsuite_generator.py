@@ -278,7 +278,7 @@ def make(kernels, arch):
                 print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
                 continue
 
-            name = kern.name + '_' + str(bm) + '_' + str(bn) + '_' + str(bk)
+            name = f'{kern.name}_{kern.precision}_{bm}_{bn}_{bk}'
 
             additional_args = ['--output_funcname', name, '--output_filename', os.path.join(BASEDIR, arch, name + '.h'),
                                '--output_overwrite']
