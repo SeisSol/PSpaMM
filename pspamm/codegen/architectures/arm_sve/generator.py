@@ -75,7 +75,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
     def make_reg_blocks(self, bm: int, bn: int, bk: int, v_size: int, nnz: int, m: int, n: int, k: int):
         vm = self.ceil_div(bm, v_size)                  # vm can be 0 if bm < v_size -> makes ceil_div necessary
+
+        # k-broadcasting only works in 128-bit lanes
+        elem128 = 16 // self.get_precision().size()
+        vk = -(bk // -elem128)
         assert ((bn + bk) * vm + bn * bk <= 32)     # Needs to fit in SVE z registers
+
         prec = {
             Precision.DOUBLE: "d",
             Precision.SINGLE: "s",
@@ -100,7 +105,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         mask_regs = [p(0), p(7)]
 
-        self.init_registers(bm, v_size)
+        self.init_registers(bm, bk, v_size)
 
         return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs
 
@@ -141,10 +146,13 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
     def init_registers(self,
                        bm: int,
+                       bk: int,
                        v_size: int
                        ) -> None:
 
         bmmod = bm % v_size
+        elem128 = 16 // self.get_precision().size()
+        bkmod = bk % elem128
 
         eol = "\\n\\t"                          # define the "end of line" sequence for easy assembly
         # determine the predicate suffix
@@ -158,20 +166,24 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         gen_reg = "w" if self.get_precision().size() <= 4 else "x"
         overhead_counter = 6
 
-        comment = "//p7 denotes the 'all-true' predicate and, if given, p0 denotes the 'bm % v_size' predicate\n\t"
+        comment = "// p7 denotes the 'all-true' predicate\n\t"
+        comment += "// if given, p0 denotes the 'bm % v_size' predicate\n\t"
+        # comment += "// if given, p1 denotes the 'bk % elem128' predicate\n\t"
         # specification for ptrue: https://developer.arm.com/documentation/ddi0596/2021-12/SVE-Instructions/PTRUE--Initialise-predicate-from-named-constraint-
         # search for 'DecodePredCount' for the explanation of how the pattern in 'ptrue p{d}.{suffix}, #pattern' is decoded:
         # https://developer.arm.com/documentation/ddi0596/2020-12/Shared-Pseudocode/AArch64-Functions?lang=en#impl-aarch64.DecodePredCount.2
         # 'ptrue' doesnt work for initialising overhead predicate when using single precision -> see valid patterns from above
         # overhead = "\"ptrue p0.{suffix}, #{overhead}{eol}\"\n\t" if bm != 0 else ""    # define overhead predicate
-        overhead = "\"mov {gen_reg}{overhead_counter}, #{overhead}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bmmod != 0 else ""
+        overhead_m = "\"mov {gen_reg}{overhead_counter}, #{overhead_m}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bmmod != 0 else ""
+        overhead_k = "" #"\"mov {gen_reg}{overhead_counter}, #{overhead_k}{eol}\"\n\t\"whilelo p1.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bkmod != 0 else ""
         all_true = "\"ptrue p7.{suffix}, #31{eol}\""                             # define all true predicate
-        init_registers = (comment + overhead + all_true).format(suffix=p_suffix,
-                                                                gen_reg=gen_reg,
-                                                                overhead_counter=overhead_counter,
-                                                                v_size=v_size,
-                                                                overhead=bmmod,
-                                                                eol=eol)
+        init_registers = (comment + overhead_m + overhead_k + all_true).format(suffix=p_suffix,
+                                                                        gen_reg=gen_reg,
+                                                                        overhead_counter=overhead_counter,
+                                                                        v_size=v_size,
+                                                                        overhead_m=bmmod,
+                                                                        overhead_k=bkmod,
+                                                                        eol=eol)
 
         # since .format() doesn't allow partial formatting, we need to re-include the
         # placeholders that are replaced at the end of generating a kernel
