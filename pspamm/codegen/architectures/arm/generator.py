@@ -133,7 +133,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 if (mask is None) or (mask[ir,ic]):
                     cell_offset = Coords(down=ir*v_size, right=ic)
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
-                    addr.disp += 8 * load_offset
+                    addr.disp += self.precision.size() * load_offset
                     next_offset = [0, 0]
                     if ir+1 < rows:
                         next_offset = [1, 0]
@@ -141,8 +141,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         next_offset = [0, 1]
 
                     addr_next, comment_next = cursor.look(cursor_ptr, block_offset, Coords(down=(ir+next_offset[0])*v_size, right=ic+next_offset[1]))
-                    addr_next.disp += 8 * load_offset
-                    if addr_next.disp == addr.disp + 8 * v_size:
+                    addr_next.disp += self.precision.size() * load_offset
+                    if addr_next.disp == addr.disp + 16:
                         skipflag = True
                     if addr.disp > 255:
                         if(addr.disp - cur11 > 0 and addr.disp - cur11 < 256):
@@ -151,6 +151,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             asm.add(add(addr.disp, additional_regs[0], "", addr.base))
                             cur11 = addr.disp
                             addr.disp = 0
+                        addr.base = additional_regs[0]
+                    if skipflag and addr.disp % 16 != 0:
+                        asm.add(add(addr.disp, additional_regs[0], "", addr.base))
+                        cur11 = addr.disp
+                        addr.disp = 0
                         addr.base = additional_regs[0]
                 
                     if not skipflag:
@@ -208,7 +213,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size)
         asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
 
-        x = 0;
         bs = []
         cur11 = -1000
         for Vmi in range(bm//v_size):
