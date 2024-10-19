@@ -168,11 +168,13 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
                 addr.disp = addr.disp % 1024
             else:
+                # TODO: not 100%ly sure about this code here...
                 large_offset = addr.disp // 1024
 
                 basereg, load = regcache.get(large_offset)
                 if load:
-                    asm.add(mov(c(large_offset * 1024), basereg, False))
+                    asm.add(mov(addr.base, basereg, False))
+                    asm.add(add(c(large_offset * 1024), basereg))
 
                 addr.base = basereg
                 addr.disp = addr.disp % 1024
