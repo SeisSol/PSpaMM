@@ -5,7 +5,7 @@ from pspamm.codegen.ast import *
 from pspamm.codegen.sugar import *
 from pspamm.codegen.generator import *
 from pspamm.codegen.precision import *
-
+from pspamm.codegen.regcache import *
 
 class Generator(AbstractGenerator):
     template = """
@@ -73,7 +73,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         alpha_reg = [rbx, rbx]
         beta_reg = [rcx, rcx]
 
-        available_regs = [r(9),r(10),r(11),r(15),rax,r(13),r(14)]
+        available_regs = [r(9),r(10),r(11),r(15),rax] # ,r(13),r(14)
 
         additional_regs = [r(8)]
 
@@ -81,11 +81,15 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         reg_count = 0
 
+        self.spontaneous_scaling = False
         for i in range(1024, min(max(nnz * self.precision.size(), m*k*self.precision.size(), m*n*self.precision.size()),8000), 2048):
             additional_regs.append(available_regs[reg_count])
             reg_count += 1
 
         for i in range(8192, min(nnz * self.precision.size(), 33000), 8192):
+            if reg_count == len(available_regs):
+                self.spontaneous_scaling = True
+                break
             additional_regs.append(available_regs[reg_count])
             reg_count += 1
 
@@ -123,8 +127,9 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         asm = block("Optimize usage of offsets when accessing B Matrix")
 
-        for i in range(1, min(len(additional_regs), 5)):
-            asm.add(mov(c(1024 + (i-1) * 2048), additional_regs[i], False))
+        if not self.spontaneous_scaling:
+            for i in range(1, min(len(additional_regs), 5)):
+                asm.add(mov(c(1024 + (i-1) * 2048), additional_regs[i], False))
         
         return asm
 
@@ -136,34 +141,45 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         asm = block("Optimize usage of offsets when accessing B Matrix")
 
-        reg_count = 5
+        if not self.spontaneous_scaling:
+            reg_count = 5
 
-        for i in range(8192, min(nnz * self.precision.size(), 33000), 8192):
-            asm.add(lea(B_reg, additional_regs[reg_count], i))
-            reg_count += 1
+            for i in range(8192, min(nnz * self.precision.size(), 33000), 8192):
+                asm.add(lea(B_reg, additional_regs[reg_count], i))
+                reg_count += 1
         
         return asm
 
 
-    def reg_based_scaling(self, addr: MemoryAddress, additional_regs: List[Register], with_index: bool):
-        if addr.disp >= 1024 and ((addr.disp < 32768 and with_index) or addr.disp < 8192):
-            scaling_and_register = {
-                1: (1, 1),
-                2: (2, 1),
-                3: (1, 2),
-                4: (4, 1),
-                5: (1, 3),
-                6: (2, 2),
-                7: (1, 4)
-            }
-            if addr.disp % 8192 >= 1024:
-                addr.scaling, reg = scaling_and_register[ (addr.disp % 8192) // 1024 ]
-                addr.index = additional_regs[reg]
+    def reg_based_scaling(self, regcache, asm, addr: MemoryAddress, additional_regs: List[Register], with_index: bool):
+        if addr.disp >= 1024:
+            if ((addr.disp < 32768 and with_index) or addr.disp < 8192) and not self.spontaneous_scaling:
+                scaling_and_register = {
+                    1: (1, 1),
+                    2: (2, 1),
+                    3: (1, 2),
+                    4: (4, 1),
+                    5: (1, 3),
+                    6: (2, 2),
+                    7: (1, 4)
+                }
+                if addr.disp % 8192 >= 1024:
+                    addr.scaling, reg = scaling_and_register[ (addr.disp % 8192) // 1024 ]
+                    addr.index = additional_regs[reg]
 
-            if addr.disp >= 8192:
-                addr.base = additional_regs[addr.disp // 8192 + 4]
+                if addr.disp >= 8192 and not self.spontaneous_scaling:
+                    addr.base = additional_regs[addr.disp // 8192 + 4]
 
-            addr.disp = addr.disp % 1024
+                addr.disp = addr.disp % 1024
+            else:
+                large_offset = addr.disp // 1024
+
+                basereg, load = regcache.get(large_offset)
+                if load:
+                    asm.add(mov(c(large_offset * 1024), basereg, False))
+
+                addr.base = basereg
+                addr.disp = addr.disp % 1024
 
     def move_register_block(self,
                             cursor: Cursor,
@@ -232,6 +248,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         bm,bk,aidx,apattern = A.get_block(A_ptr, to_A_block)
         bk,bn,bidx,bpattern = B.get_block(B_ptr, to_B_block)
 
+        regcache = RegisterCache(additional_regs)
+
         mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size, True)
         asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
 
@@ -241,7 +259,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                     to_cell = Coords(down=bki, right=bni)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
-                        self.reg_based_scaling(B_addr, additional_regs, True)
+                        self.reg_based_scaling(regcache, asm, B_addr, additional_regs, True)
                         comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*v_size,Vmi*v_size+v_size,bni,Vmi*v_size,Vmi*v_size+v_size,bki,B_comment)
                         asm.add(fma(B_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=0))
         return asm

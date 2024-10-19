@@ -40,6 +40,7 @@ kernels = []
 
 for precision, delta in zip((Precision.SINGLE, Precision.DOUBLE), (delta_sp, delta_dp)):
     v_size = v_size_fun(precision)
+    kernels.append(generator.DenseKernel("testlarge", precision, 40, 100, 100, 100, 100, 100, 2.5, 1.0, [(8, 5), (8,2)] + [x.getBlocksize(10, 10, 1, v_size, precision) for x in blocksize_algs], delta))
     kernels.append(generator.SparseKernel("test1", precision, 8, 56, 56, 8, 0, 8, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(8, 56, 2, v_size, precision) for x in blocksize_algs], generator.generateMTX(56, 56, 30), delta))
     kernels.append(generator.DenseKernel("test2", precision, 8, 40, 40, 8, 40, 8, 2.5, 1.0, [(8, 5), (8,2)] + [x.getBlocksize(8, 40, 2, v_size, precision) for x in blocksize_algs], delta))
     kernels.append(generator.DenseKernel("test3", precision, 8, 56, 56, 8, 56, 8, 1.0, 5.0, [(8, 3), (8, 5)] + [x.getBlocksize(8, 56, 2, v_size, precision) for x in blocksize_algs], delta))
