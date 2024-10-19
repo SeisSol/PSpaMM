@@ -65,9 +65,9 @@ class InlinePrinter(Visitor):
         if pred is None:
             return ''
         elif pred.zero:
-            return f'{{{pred.register.ugly}}}{{z}}'
+            return f'{{{{{pred.register.ugly}}}}}{{{{z}}}}'
         else:
-            return f'{{{pred.register.ugly}}}'
+            return f'{{{{{pred.register.ugly}}}}}'
 
     def visitFma(self, stmt: FmaStmt):
         mask = self.maskformat(stmt.pred)
@@ -155,7 +155,10 @@ class InlinePrinter(Visitor):
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
                 s = f"vpxord {stmt.dest.ugly} {mask}, {stmt.dest.ugly}, {stmt.dest.ugly}"
             else:
-                s = f"vmovupd {src_str} {mask}, {stmt.dest.ugly}"
+                if isinstance(stmt.src, MemoryAddress):
+                    s = f"vmovupd {src_str}, {stmt.dest.ugly} {mask}"
+                else:
+                    s = f"vmovupd {src_str} {mask}, {stmt.dest.ugly}"
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
