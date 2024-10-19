@@ -83,7 +83,10 @@ class InlinePrinter(Visitor):
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):
-        if isinstance(stmt.src, Constant) and (stmt.src.value > 4095 or stmt.src.value < -4095):
+        if isinstance(stmt.src, Constant) and stmt.src.value == 0:
+            # avoid 0 instructions
+            return
+        if isinstance(stmt.src, Constant) and (stmt.src.value > 4095 or stmt.src.value < -4095):            
             # This condition is probably related to immediate values being restricted to 12 bits for add instructions
             # https://developer.arm.com/documentation/dui0802/a/A64-General-Instructions/ADD--immediate-
             # https://developer.arm.com/documentation/ddi0596/2020-12/Base-Instructions/ADD--immediate---Add--immediate--

@@ -75,6 +75,9 @@ class InlinePrinter(Visitor):
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):
+        if isinstance(stmt.src, Constant) and stmt.src.value == 0:
+            # avoid 0 instructions
+            return
         s = f"addq {stmt.src.ugly}, {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 

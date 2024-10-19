@@ -69,6 +69,9 @@ class InlinePrinter(Visitor):
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):
+        if isinstance(stmt.src, Constant) and stmt.src.value == 0:
+            # avoid 0 instructions
+            return
         if isinstance(stmt.src, Constant) and (stmt.src.value > 4095 or stmt.src.value < -4095):
             if (stmt.src.value >> 16) & 0xFFFF > 0 and stmt.src.value < 0:
                 s = "mov x11, #-1"
