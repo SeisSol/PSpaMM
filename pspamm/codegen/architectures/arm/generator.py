@@ -51,7 +51,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         vm = bm//v_size
         elem128 = 16 // self.get_precision().size()
         vk = -(bk // -elem128)
-        assert((bn+bk) * vm + bn * bk <= 32)  # Needs to fit in NEON v registers
+        assert((bn+bk) * vm + bn * vk <= 32)  # Needs to fit in NEON v registers
 
         prec = {
             Precision.DOUBLE: "2d",
@@ -60,7 +60,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         }[self.get_precision()]
 
         A_regs = Matrix([[v(vm*c + r, prec) for c in range(bk)] for r in range(vm)])
-        B_regs = Matrix([[v(vm*bk + bn * r + c, prec) for c in range(bn)] for r in range(bk)])
+        B_regs = Matrix([[v(vm*bk + bn * r + c, prec) for c in range(bn)] for r in range(vk)])
         C_regs = Matrix([[v(32 - vm*bn + vm*c + r, prec) for c in range(bn)]
                                                    for r in range(vm)])
 
@@ -213,15 +213,19 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size)
         asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
 
+        elem128 = 16 // self.get_precision().size()
+        vk = -(bk // -elem128)
+
         bs = []
         cur11 = -1000
         for Vmi in range(bm//v_size):
             for bki in range(bk):       # inside this k-block
                 for bni in range(bn):   # inside this n-block
                     to_cell = Coords(down=bki, right=bni)
+                    bki_reg = bki // elem128
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
-                        if B_regs[bki, bni] not in bs:
+                        if B_regs[bki_reg, bni] not in bs:
                             if B_cell_addr.disp > 255:
                                 if(B_cell_addr.disp - cur11 > 0 and B_cell_addr.disp - cur11 < 256):
                                     B_cell_addr.disp = B_cell_addr.disp - cur11
@@ -232,17 +236,23 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
                                 B_cell_addr.base = additional_regs[0]
                   
-                            asm.add(ld(B_cell_addr, B_regs[bki, bni], True, B_comment))
-                            bs.append(B_regs[bki, bni])
+                            asm.add(ld(B_cell_addr, B_regs[bki_reg, bni], True, B_comment))
+                            bs.append(B_regs[bki_reg, bni])
 
         for Vmi in range(bm//v_size):
+            # TODO: 
+            cell_indices = {}
             for bki in range(bk):       # inside this k-block
                 for bni in range(bn):   # inside this n-block
                     to_cell = Coords(down=bki, right=bni)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
                         comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*v_size, Vmi*v_size+v_size, bni, Vmi*v_size, Vmi*v_size+v_size, bki, B_comment)
-                        asm.add(fma(B_regs[bki, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=0))
+                        bki_reg = bki // elem128
+                        if (bki_reg, bni) not in cell_indices:
+                            cell_indices[(bki_reg, bni)] = 0
+                        asm.add(fma(B_regs[bki_reg, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=cell_indices[(bki_reg, bni)]))
+                        cell_indices[(bki_reg, bni)] += 1
         return asm
 
 

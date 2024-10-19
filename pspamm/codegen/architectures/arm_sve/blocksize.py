@@ -66,7 +66,7 @@ class MaxK:
         # ceiling division
         vm = -(bm // -v_size)
         vk = -(bk // -elem128)
-        return (bn + vk) * vm + bn*vk <= 32
+        return (bn + bk) * vm + bn*vk <= 32
 
     def tileable(cls, m, bm):
         return m % bm == 0

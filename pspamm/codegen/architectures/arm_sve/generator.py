@@ -300,8 +300,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                          v_size: int,
                          additional_regs,
                          to_A_block: Coords = Coords(),
-                         to_B_block: Coords = Coords(),
-                         is_B: bool = True
+                         to_B_block: Coords = Coords()
                          ) -> Block:
 
         """ make_microkernel generates a GEMM microkernel for two blocks using the outer-product formulation.
@@ -324,6 +323,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         bs = []
         cur11 = -1000
         Vm = max(self.ceil_div(bm, v_size), 1)
+
+        elem128 = 16 // self.get_precision().size()
+        vk = -(bk // -elem128)
 
         multiple = self.precision.size()
         # for ld1rw (single prec): immediate offset is multiple of 4 in range of 0 to 252
@@ -349,7 +351,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                                     B_cell_addr.disp = 0
 
                                 B_cell_addr.base = additional_regs[0]
-                            asm.add(ld(B_cell_addr, B_regs[bki, bni], True, B_comment, pred=p_zeroing, is_B=is_B))
+                            
+                            asm.add(ld(B_cell_addr, B_regs[bki, bni], True, B_comment, pred=p_zeroing, is_B=True))
                             bs.append(B_regs[bki, bni])
 
         for Vmi in range(Vm):
@@ -362,6 +365,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                         B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
                         comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi * v_size, end_index, bni, Vmi * v_size,
                                                                          end_index, bki, B_comment)
+                        
+                        bki_reg = bki // elem128
+                        bki_sub = bki % elem128
                         asm.add(fma(B_regs[bki, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, pred=p_merging, bcast=None))
         return asm
 
