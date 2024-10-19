@@ -110,7 +110,7 @@ for precision, delta in zip((Precision.SINGLE, Precision.DOUBLE), (delta_sp, del
     kernels.append(generator.SparseKernel("sve_mixed_test5", precision, 8, 8, 8, 10, 0, 8, 3.0, -0.9, [(2, 2), (4, 4)] + [x.getBlocksize(8, 8, 1, v_size, precision) for x in blocksize_algs], generator.generateMTX(8, 8, 6), delta_dp))
     kernels.append(generator.DenseKernel("sve_mixed_test6", precision, 8, 8, 8, 10, 8, 8, 3.0, -0.9, [(2, 2), (4, 4)] + [x.getBlocksize(8, 8, 1, v_size, precision) for x in blocksize_algs], delta_dp))
 
-    kernels.append(generator.DenseKernel("sve_test3", precision, 4, 4, 4, 4, 4, 4, 2.0, 2.0, [(4, 4)], delta_dp))
+    kernels.append(generator.DenseKernel("sve_test4", precision, 4, 4, 4, 4, 4, 4, 2.0, 2.0, [(4, 4)], delta_dp))
 
     kernels.append(generator.SparseKernel("sve_test1", precision, 8, 56, 56, 8, 0, 8, 1.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(8, 56, 1, v_size, precision) for x in blocksize_algs], generator.generateMTX(56, 56, 30), delta_dp))
     kernels.append(generator.DenseKernel("sve_test2", precision, 8, 40, 40, 8, 40, 8, 3.0, 2.0, [(8, 5), (8,2)] + [x.getBlocksize(8, 40, 1, v_size, precision) for x in blocksize_algs], delta_dp))
