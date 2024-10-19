@@ -58,12 +58,14 @@ class Max:
 
         return (bm, bn, bk)
 
-    def cls.HSW_condition(cls, bm, bn, bk, v_size):
+    @classmethod
+    def HSW_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
         return (bn + bk) * vm + bn * bk <= 16
 
-    def cls.HSW_condition_extended(cls, bm, bn, bk, v_size):
+    @classmethod
+    def HSW_condition_extended(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
         return bn * vm + bn * bk + 1 <= 16
