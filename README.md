@@ -1,7 +1,10 @@
-# Code Generator for Sparse Matrix Multiplication
-Generates inline-Assembly for sparse Matrix Multiplication.
+# PSpaMM
+A Code Generator For Small Sparse (and Dense) Matrix Multiplications.
 
-Currently Intel Xeon Phi 'Knights Landing' (AVX512), Haswell/Zen2 (AVX2), and ARM Cortex-A53 (ARMv8) are supported.
+Currently supported:
+
+* x86_64: AVX2, AVX512/AVX10.1
+* ARM/AARCH64: NEON, SVE (128,256,512,1024,2048 bit)
 
 ## Installation
 
