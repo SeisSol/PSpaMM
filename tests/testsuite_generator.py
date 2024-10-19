@@ -265,8 +265,7 @@ def make(kernels, arch):
             v_size = v_len
 
             if arch.startswith("knl"):
-              print(f'{bn} {bk} {vm} {bm} {v_size}')
-              if not ((bn+bk) * vm <= 32) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
+              if not ((bn+bk) * vm <= 32):
                 print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
                 continue
             elif arch.startswith("hsw"):

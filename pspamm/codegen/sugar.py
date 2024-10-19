@@ -58,11 +58,12 @@ def jump(label: str, backwards=True):
     stmt.destination = pspamm.architecture.operands.l(label)
     return stmt
 
-def mov(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None):
+def mov(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, pred = None):
     stmt = MovStmt()
     stmt.src = src if isinstance(src, Operand) else pspamm.architecture.operands.c(src)
     stmt.dest = dest
     stmt.comment = comment
+    stmt.pred = pred
     if vector:
         stmt.aligned = True
         stmt.typ = AsmType.f64x8

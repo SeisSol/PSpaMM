@@ -146,7 +146,8 @@ class InlinePrinter(Visitor):
 
         if stmt.typ == AsmType.i64:
             assert(stmt.pred == None)
-            if stmt.dest.ugly[0] == 'k':
+            # FIXME: no hack
+            if stmt.dest.ugly[2] == 'k':
                 s = f"kmovq {src_str}, {stmt.dest.ugly}"
             else:
                 s = f"movq {src_str}, {stmt.dest.ugly}"

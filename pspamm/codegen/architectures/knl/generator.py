@@ -44,12 +44,12 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         return False
 
     def has_masks(self):
-        return False # for now
+        return True # for now
 
     def pred_n_trues(self, count, v_size, mode):
         # a bit hacky at the moment (won't work for all masks)
         if count < v_size and count > 0:
-            return mask(0)
+            return Predicate(mask(0), mode=='z')
         else:
             return None
 
@@ -198,18 +198,23 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         action = "Store" if store else "Load"
         asm = block("{} {} register block @ {}".format(action,cursor.name,block_offset))
 
+        b_row, _, _, _ = cursor.get_block(cursor_ptr, block_offset)
+
         for ic in range(cols):
             for ir in range(rows):
                 if (mask is None) or (mask[ir,ic]):
                     cell_offset = Coords(down=ir*v_size, right=ic)
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
                     addr.disp += self.precision.size() * load_offset
+
+                    processed = ir * v_size
+                    p = self.pred_n_trues(b_row - processed, v_size, 'z')
                     if store:
-                        asm.add(mov(registers[ir,ic], addr, True, comment))
+                        asm.add(mov(registers[ir,ic], addr, True, comment, pred=p))
                         if prefetching == 'BL2viaC':
                             asm.add(prefetch(mem(additional_regs[0], addr.disp)))
                     else:
-                        asm.add(mov(addr, registers[ir,ic], True, comment))
+                        asm.add(mov(addr, registers[ir,ic], True, comment, pred=p))
         return asm
 
     def make_zero_block(self, registers: Matrix[Register], additional_regs) -> Block:
