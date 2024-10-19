@@ -3,7 +3,6 @@
 import testsuite_generator as generator
 from importlib import import_module
 
-import pspamm.scripts
 from pspamm.codegen.precision import *
 
 import sys

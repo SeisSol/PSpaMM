@@ -5,11 +5,6 @@ from pspamm.codegen.sugar import *
 from pspamm.codegen.forms import *
 from pspamm.codegen.precision import *
 
-import pspamm.scripts.old_arm
-import pspamm.scripts.max_bn_knl
-import pspamm.scripts.max_hsw
-import pspamm.scripts.max_arm_sve
-
 from pspamm.cursors import *
 
 import pspamm.architecture
