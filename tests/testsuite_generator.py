@@ -13,12 +13,14 @@ DenseKernel = namedtuple('DenseKernel', 'name precision m n k lda ldb ldc alpha 
 
 head_of_testsuite = """#include <fstream>
 #include <sstream>
+#include <string>
 #include <vector>
 #include <cstring>
 #include <cmath>
 #include <cstdio>
 #include <iostream>
 #include <tuple>
+#include <iomanip>
 
 
 long long pspamm_num_total_flops = 0;
@@ -128,32 +130,43 @@ std::tuple<T*, T*, T*, T*, T*> pre(unsigned M, unsigned N, unsigned K, unsigned 
 }
 
 template <typename T>
-int post(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned* LDB, unsigned LDC, T* ALPHA, T* BETA, T* A, T* B, T* C, T* Cref, T DELTA) {
+bool post(const std::string& name, unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned* LDB, unsigned LDC, T* ALPHA, T* BETA, T* A, T* B, T* C, T* Cref, T DELTA) {
 
   if(*LDB == 0)
     *LDB = K;
 
   gemm_ref(M, N, K, LDA, *LDB, LDC, *ALPHA, *BETA, A, B, Cref);
-    
+  
+  bool failed = false;
+  double diffAbsMax = 0;
+  double diffRelMax = 0;
   for(int i = 0; i < M; i++) {
     for(int j = 0; j < N; j++) {
       // we use the relative error instead of the absolute error because of an issue we found for sparse single precision 
       // kernels presumably due to limited precision of floats
-      if(std::abs((C[i + j * LDC] - Cref[i + j * LDC])) / Cref[i + j * LDC] > DELTA) {
-        std::cout << i << " " << j << " " << C[i + j * LDC] << " " << Cref[i + j * LDC] << std::endl;
-        return 0;
-      }
+      const double diffAbs = std::abs((static_cast<double>(C[i + j * LDC]) - static_cast<double>(Cref[i + j * LDC])));
+      const double diffRel = diffAbs / static_cast<double>(Cref[i + j * LDC]);
+
+      diffAbsMax = std::max(diffAbs, diffAbsMax);
+      diffRelMax = std::max(diffRel, diffRelMax);
+
+      failed |= diffRel > DELTA;
     }
   }
 
-  return 1;
+  const std::string resultString = failed ? "fail" : "success";
+
+  std::cout << std::scientific << name << ": " << resultString << " (abs: " << diffAbsMax << ", rel: " << diffRelMax << ")" << std::endl;
+
+  return !failed;
 }
 """
 
 setup_main = """
 int main()
 {
-  std::vector<std::tuple<std::string, int>> results;
+  int results = 0;
+  int correct = 0;
 
 """
 
@@ -166,31 +179,22 @@ setup_single_testcase = """
   auto pointers = pre<{precision}>({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
   setup_prefetch(prefetch, std::get<3>(pointers), {n}, {ldc});
   {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers), {alpha}, {beta}, nullptr);
-  const auto result = post<{precision}>({m}, {n}, {k}, {lda}, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.7f});
-  results.push_back(std::make_tuple("{name}", result));
+  const auto result = post<{precision}>(\"{name}\", {m}, {n}, {k}, {lda}, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.15e});
+  
+  if (result) {{
+    ++correct;
+  }}
+  ++results;
+
   free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
 }}
 """
 
 end_of_testsuite = """
 
-  int correct = 0;
-  for(int i = 0; i < results.size(); i++)
-  {
-    if(std::get<1>(results[i]))
-    {
-      ++correct;
-      printf("%s succeeded.\\n", (std::get<0>(results[i])).c_str());
-    }
-    else
-    {
-      printf("%s failed!\\n", (std::get<0>(results[i])).c_str());
-    }
-  }
+  std::cout << correct << " out of " << results << " succeeded." << std::endl;
 
-  printf("\\n%i out of %lu test successful!\\n", correct, results.size());
-
-  return correct == results.size() ? 0 : 1;
+  return correct == results ? 0 : 1;
 }
 """
 

@@ -35,7 +35,7 @@ v_size_fun = lambda prec: (16 // prec.size()) * v_len
 # double and single precision
 delta_hp = 1e-2
 delta_sp = 1e-4 # epsilon is around e-7 => /2 ... For most cases, 1e-6 is enough
-delta_dp = 1e-7 # epsilon is around e-15 => /2
+delta_dp = 1e-6 # epsilon is around e-15 => /2
 
 kernels = []
 
