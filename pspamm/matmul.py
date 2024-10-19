@@ -122,7 +122,7 @@ class MatMul:
             v_len_regs = v_len_bits // 128
           arch = 'hsw'
         
-        if arch.startswith('arm'):
+        if arch.startswith('arm') and not arch.startswith('arm_sve'):
           # only 128 supported
           arch = 'arm'
 
