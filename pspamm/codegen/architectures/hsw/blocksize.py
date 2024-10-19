@@ -38,6 +38,7 @@ class Old:
         return (bn + bk) * vm + bn * bk <= 16
 
 class Max:
+    @classmethod
     def getBlocksize(cls, m, n, bk, v_size, prec):
         bm = 4
         bn = 1
