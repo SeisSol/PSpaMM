@@ -25,13 +25,13 @@ class Max:
 
         return (bm, bn, bk)
 
-
+    @classmethod
     def ARM_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)  
         return (bn + bk) * vm + bn*bk <= 32
 
-
+    @classmethod
     def tileable(cls, m, bm):
         return m % bm == 0
 
