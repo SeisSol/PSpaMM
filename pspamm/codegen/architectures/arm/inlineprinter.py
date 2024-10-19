@@ -49,8 +49,8 @@ class InlinePrinter(Visitor):
         b = stmt.bcast_src.ugly
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
-        if stmt.bcast:
-            s = f"fmla {a}, {m}, {b}[0]"
+        if stmt.bcast is not None:
+            s = f"fmla {a}, {m}, {b}[{stmt.bcast}]"
         else:
             s = f"fmla {a}, {m}, {b}"
         self.addLine(s, stmt.comment)

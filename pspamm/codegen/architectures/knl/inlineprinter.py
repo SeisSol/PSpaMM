@@ -76,7 +76,7 @@ class InlinePrinter(Visitor):
         a = stmt.add_dest.ugly
         regsize = stmt.add_dest.size() // 16
         extent = regsize * self.broadcast_multiplier
-        if stmt.bcast:
+        if stmt.bcast is not None:
             s = f"vfmadd231{self.alupsuffix} {b}%{{1to{extent}%}} {mask}, {m}, {a}"
         else:
             if stmt.mult_src.typeinfo == AsmType.i64:

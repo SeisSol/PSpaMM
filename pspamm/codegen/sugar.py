@@ -19,7 +19,7 @@ def label(name: str):
     stmt.label = pspamm.architecture.operands.l(name)
     return stmt
 
-def fma(bcast_src: Register, mult_src: Register, add_dest: Register, comment: str = None, bcast: bool = True, pred: Register = None):
+def fma(bcast_src: Register, mult_src: Register, add_dest: Register, comment: str = None, bcast: Union[int, None] = None, pred: Register = None):
     stmt = FmaStmt()
     stmt.bcast_src = bcast_src
     stmt.mult_src = mult_src
