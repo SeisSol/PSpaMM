@@ -80,7 +80,7 @@ def lea(src: Register, dest: Operand, offset: int, comment:str = None):
     stmt.comment = comment
     return stmt
 
-def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, dest2: Operand = None, pred: Register = None, is_B: bool = False, scalar_offs: bool = False, add_reg: AsmType.i64 = None):
+def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, dest2: Operand = None, pred: Register = None, is_B: bool = False, scalar_offs: bool = False, add_reg: AsmType.i64 = None, sub128: bool = False):
     stmt = LoadStmt()
     stmt.src = src if isinstance(src, Operand) else pspamm.architecture.operands.c(src)
     stmt.dest = dest
@@ -94,7 +94,10 @@ def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None
 
     if vector:
         stmt.aligned = True
-        stmt.typ = AsmType.f64x8
+        if sub128:
+            stmt.typ = AsmType.f64x2
+        else:
+            stmt.typ = AsmType.f64x8
     else:
         stmt.aligned = False
         stmt.typ = AsmType.i64

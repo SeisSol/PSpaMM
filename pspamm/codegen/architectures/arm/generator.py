@@ -240,7 +240,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             bs.append(B_regs[bki_reg, bni])
 
         for Vmi in range(bm//v_size):
-            # TODO: 
+            # TODO: refactor cell_indices into the cursors/blocks
             cell_indices = {}
             for bki in range(bk):       # inside this k-block
                 for bni in range(bn):   # inside this n-block

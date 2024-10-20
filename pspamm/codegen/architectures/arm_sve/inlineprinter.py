@@ -52,7 +52,8 @@ class InlinePrinter(Visitor):
         a = stmt.add_dest.ugly
         p = self.p_string(stmt.pred)
         if stmt.bcast is not None:
-            s = f"fmla {a}, {p}{m}, {b}[{stmt.bcast}]"
+            # NOTE: ignores predicate
+            s = f"fmla {a}, {m}, {b}[{stmt.bcast}]"
         else:
             s = f"fmla {a}, {p}{m}, {b}"
 
@@ -152,10 +153,16 @@ class InlinePrinter(Visitor):
     def visitLoad(self, stmt: LoadStmt):
         if isinstance(stmt.src, Label):
             src_str = "#" + stmt.src.ugly
-        elif stmt.src.ugly_offset != "0" and stmt.scalar_offs:
+        elif (stmt.src.ugly_offset != "0" and stmt.scalar_offs):
             self.addLine(f"mov {stmt.add_reg.ugly}, #{stmt.src.ugly_offset}", f"move immediate offset into {stmt.add_reg.ugly}")
             # TODO: adapt ugly_lsl_shift to account for possible single precision instead of double precision
             src_str = f"[{stmt.src.ugly_base}, {stmt.add_reg.ugly}, LSL #{stmt.dest.ugly_lsl_shift}]"
+        elif stmt.typ == AsmType.f64x4 or stmt.typ == AsmType.f64x2:
+            # (note: the 128-bit and 256-bit broadcasts need the following more rudimentary format here)
+            if stmt.src.ugly_offset == '0':
+                src_str = f"[{stmt.src.ugly_base}]"
+            else:
+                src_str = f"[{stmt.src.ugly_base}, #{stmt.src.ugly_offset}]"
         else:
             src_str = stmt.src.ugly if not stmt.is_B else stmt.src.ugly_no_vl_scaling
 
@@ -169,6 +176,10 @@ class InlinePrinter(Visitor):
                 s = f"ld1r{prec} {stmt.dest.ugly}, {p}{src_str}"
             else:
                 s = f"ld1{prec} {stmt.dest.ugly}, {p}{src_str}"
+        elif stmt.typ == AsmType.f64x4 and stmt.aligned:
+            s = f"ld1ro{prec} {stmt.dest.ugly}, {p}{src_str}"
+        elif stmt.typ == AsmType.f64x2 and stmt.aligned:
+            s = f"ld1rq{prec} {stmt.dest.ugly}, {p}{src_str}"
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
@@ -180,6 +191,7 @@ class InlinePrinter(Visitor):
             self.addLine(f"mov {stmt.add_reg.ugly}, #{stmt.dest.ugly_offset}",
                          f"move immediate offset into {stmt.add_reg.ugly}")
             # TODO: adapt ugly_lsl_shift to account for possible single precision instead of double precision
+            regsize = stmt.add_dest.size() // 16
             dest_str = f"[{stmt.dest.ugly_base}, {stmt.add_reg.ugly}, LSL #{stmt.src.ugly_lsl_shift}]"
         else:
             dest_str = stmt.dest.ugly
