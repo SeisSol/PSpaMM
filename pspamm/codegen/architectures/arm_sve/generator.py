@@ -121,7 +121,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         mask_regs = [p(0), p(7)]
 
-        self.init_registers(bm, bk, v_size)
+        self.init_registers(bm, k, bk, v_size, nnz)
 
         return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs
 
@@ -162,13 +162,16 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
     def init_registers(self,
                        bm: int,
+                       k: int,
                        bk: int,
-                       v_size: int
+                       v_size: int,
+                       nnz: int
                        ) -> None:
 
         bmmod = bm % v_size
         elem128 = 16 // self.get_precision().size()
-        bkmod = bk % elem128
+        bkmod = bk % elem128 if self.inline_broadcast else 0
+        kmod = (k % bk) % elem128 if self.inline_broadcast else 0
 
         eol = "\\n\\t"                          # define the "end of line" sequence for easy assembly
         # determine the predicate suffix
@@ -184,22 +187,32 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         comment = "// p7 denotes the 'all-true' predicate\n\t"
         comment += "// if given, p0 denotes the 'bm % v_size' predicate\n\t"
-        # comment += "// if given, p1 denotes the 'bk % elem128' predicate\n\t"
+        comment += "// if given, p1 denotes the 'bk % elem128' predicate\n\t"
+        comment += "// if given, p2 denotes the 'k % elem128' predicate\n\t"
+
+        self.has_k_overhead = kmod != 0
+        self.has_bk_overhead = bkmod != 0
+        self.has_nnz_overhead = nnz % elem128 != 0
+
         # specification for ptrue: https://developer.arm.com/documentation/ddi0596/2021-12/SVE-Instructions/PTRUE--Initialise-predicate-from-named-constraint-
         # search for 'DecodePredCount' for the explanation of how the pattern in 'ptrue p{d}.{suffix}, #pattern' is decoded:
         # https://developer.arm.com/documentation/ddi0596/2020-12/Shared-Pseudocode/AArch64-Functions?lang=en#impl-aarch64.DecodePredCount.2
         # 'ptrue' doesnt work for initialising overhead predicate when using single precision -> see valid patterns from above
         # overhead = "\"ptrue p0.{suffix}, #{overhead}{eol}\"\n\t" if bm != 0 else ""    # define overhead predicate
         overhead_m = "\"mov {gen_reg}{overhead_counter}, #{overhead_m}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bmmod != 0 else ""
-        overhead_k = "" # "\"mov {gen_reg}{overhead_counter}, #{overhead_k}{eol}\"\n\t\"whilelo p1.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bkmod != 0 else ""
+        overhead_bk = "\"mov {gen_reg}{overhead_counter}, #{overhead_bk}{eol}\"\n\t\"whilelo p1.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if self.has_bk_overhead else ""
+        overhead_k = "\"mov {gen_reg}{overhead_counter}, #{overhead_k}{eol}\"\n\t\"whilelo p2.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if self.has_k_overhead else ""
+        overhead_nnz = "\"mov {gen_reg}{overhead_counter}, #{overhead_nnz}{eol}\"\n\t\"whilelo p3.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if self.has_nnz_overhead else ""
         all_true = "\"ptrue p7.{suffix}, #31{eol}\""                             # define all true predicate
-        init_registers = (comment + overhead_m + overhead_k + all_true).format(suffix=p_suffix,
-                                                                        gen_reg=gen_reg,
-                                                                        overhead_counter=overhead_counter,
-                                                                        v_size=v_size,
-                                                                        overhead_m=bmmod,
-                                                                        overhead_k=bkmod,
-                                                                        eol=eol)
+        init_registers = (comment + overhead_m + overhead_bk + overhead_k + overhead_nnz + all_true).format(suffix=p_suffix,
+                                                                                            gen_reg=gen_reg,
+                                                                                            overhead_counter=overhead_counter,
+                                                                                            v_size=v_size,
+                                                                                            overhead_m=bmmod,
+                                                                                            overhead_bk=bkmod,
+                                                                                            overhead_k=kmod,
+                                                                                            overhead_nnz=nnz % elem128,
+                                                                                            eol=eol)
 
         # since .format() doesn't allow partial formatting, we need to re-include the
         # placeholders that are replaced at the end of generating a kernel
@@ -340,9 +353,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         cur11 = -1000
         Vm = max(self.ceil_div(bm, v_size), 1)
 
-        elem128 = 16 // self.get_precision().size()
-        vk = -(bk // -elem128)
-
         multiple = self.precision.size()
         # for ld1rw (single prec): immediate offset is multiple of 4 in range of 0 to 252
         # for ld1rd (double prec): immediate offset is multiple of 8 in range of 0 to 504
@@ -350,12 +360,26 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         if not self.inline_broadcast:
             max_offs = (2 ** 6 - 1) * multiple
             divider = 1
+            elem128 = 1
+            vk = bk
+            preg = 'p7/z'
+            preg_last = 'p7/z'
         else:
             max_offs = 127
             divider = 16
+            elem128 = 16 // self.get_precision().size()
+            vk = -(bk // -elem128)
+
+            #if isinstance(B, DenseCursor):
+            #    preg = 'p1/z' if self.has_bk_overhead else 'p7/z'
+            #    preg_last = 'p2/z' if self.has_k_overhead else preg
+            #else:
+            #    preg = 'p7/z'
+            #    preg_last = 'p7/z'
+            preg = 'p7/z'
+            preg_last = 'p7/z'
         for Vmi in range(Vm):
             # set to all v_size predicates to true, we want to replicate a B element into a whole vector
-            p_zeroing = self.pred_n_trues(v_size, v_size, "z")
             for bki in range(bk):  # inside this k-block
                 bki_reg = bki // elem128
                 for bni in range(bn):  # inside this n-block
@@ -363,6 +387,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
                         if B_regs[bki_reg, bni] not in bs:
+                            p_zeroing = Register_ARM(AsmType.p64x8, preg_last) if bki_reg + 1 == vk else Register_ARM(AsmType.p64x8, preg)
+
                             # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
                             if B_cell_addr.disp > max_offs or B_cell_addr.disp % divider != 0:
                                 moved = B_cell_addr.disp - cur11
