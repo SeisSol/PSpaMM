@@ -18,10 +18,10 @@ archprec = parsedarch.group('prec')
 blocksize = import_module("pspamm.codegen.architectures." + archname + ".blocksize")
 
 scripts = {
-    "arm": lambda blocksize: [blocksize.Old, blocksize.Max],
-    "arm_sve": lambda blocksize: [blocksize.Max],
-    "knl": lambda blocksize: [blocksize.Old, blocksize.Max, blocksize.MaxBn],
-    "hsw": lambda blocksize: [blocksize.Old, blocksize.Max],
+    "arm": lambda blocksize: [blocksize.Old, blocksize.Max, blocksize.MaxK, blocksize.Cube],
+    "arm_sve": lambda blocksize: [blocksize.Max, blocksize.MaxK, blocksize.Cube],
+    "knl": lambda blocksize: [blocksize.Old, blocksize.Max, blocksize.MaxBn, blocksize.CubeBn],
+    "hsw": lambda blocksize: [blocksize.Old, blocksize.Max, blocksize.Cube],
 }
 
 blocksize_algs = scripts[archname](blocksize) + [blocksize.Default]

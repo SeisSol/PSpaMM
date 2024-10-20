@@ -263,6 +263,7 @@ def make(kernels, arch):
             # ceiling division
             vm = -(bm // -v_len)
             v_size = v_len
+            elem128 = (16 // kern.precision.size())
 
             if arch.startswith("knl"):
               if not ((bn+bk) * vm <= 32):
@@ -273,11 +274,15 @@ def make(kernels, arch):
                 print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
                 continue
             elif arch.startswith("arm_sve"):
-              if not ((bn+bk) * vm + bn * bk <= 32):
+              vkext = -(bk // -elem128)
+              isvkext = bn*vkext < 16 if elem128 == 2 else bn*vkext < 8
+              vk = vkext if isvkext else bk
+              if not ((bn+bk) * vm + bn * vk <= 32):
                 print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
                 continue
             elif arch.startswith("arm"):
-              if not ((bn+bk) * vm + bn * bk <= 32) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
+              vk = -(bk // -elem128)
+              if not ((bn+bk) * vm + bn * vk <= 32) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
                 print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
                 continue
 
