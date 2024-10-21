@@ -380,9 +380,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             preg_last = 'p7/z'
         for Vmi in range(Vm):
             # set to all v_size predicates to true, we want to replicate a B element into a whole vector
-            for bki in range(bk):  # inside this k-block
-                bki_reg = bki // elem128
-                for bni in range(bn):  # inside this n-block
+            for bni in range(bn):  # inside this n-block
+                for bki in range(bk):  # inside this k-block
+                    bki_reg = bki // elem128
                     to_cell = Coords(down=bki, right=bni)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)

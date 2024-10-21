@@ -282,8 +282,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         bs = []
         bsv = []
         for Vmi in range(bm//v_size):
-            for bki in range(bk):       # inside this k-block
-                for bni in range(bn):   # inside this n-block
+            for bni in range(bn):   # inside this n-block
+                for bki in range(bk):       # inside this k-block
                     to_cell = Coords(down=bki, right=bni)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)

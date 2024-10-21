@@ -219,8 +219,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         bs = []
         cur11 = -1000
         for Vmi in range(bm//v_size):
-            for bki in range(bk):       # inside this k-block
-                for bni in range(bn):   # inside this n-block
+            for bni in range(bn):   # inside this n-block
+                for bki in range(bk):       # inside this k-block
                     to_cell = Coords(down=bki, right=bni)
                     bki_reg = bki // elem128
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
