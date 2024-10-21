@@ -19,7 +19,7 @@ def label(name: str):
     stmt.label = pspamm.architecture.operands.l(name)
     return stmt
 
-def fma(bcast_src: Register, mult_src: Register, add_dest: Register, comment: str = None, bcast: bool = True, pred: Register = None):
+def fma(bcast_src: Register, mult_src: Register, add_dest: Register, comment: str = None, bcast: Union[int, None] = None, pred: Register = None):
     stmt = FmaStmt()
     stmt.bcast_src = bcast_src
     stmt.mult_src = mult_src
@@ -58,11 +58,12 @@ def jump(label: str, backwards=True):
     stmt.destination = pspamm.architecture.operands.l(label)
     return stmt
 
-def mov(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None):
+def mov(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, pred = None):
     stmt = MovStmt()
     stmt.src = src if isinstance(src, Operand) else pspamm.architecture.operands.c(src)
     stmt.dest = dest
     stmt.comment = comment
+    stmt.pred = pred
     if vector:
         stmt.aligned = True
         stmt.typ = AsmType.f64x8
@@ -79,7 +80,7 @@ def lea(src: Register, dest: Operand, offset: int, comment:str = None):
     stmt.comment = comment
     return stmt
 
-def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, dest2: Operand = None, pred: Register = None, is_B: bool = False, scalar_offs: bool = False, add_reg: AsmType.i64 = None):
+def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, dest2: Operand = None, pred: Register = None, is_B: bool = False, scalar_offs: bool = False, add_reg: AsmType.i64 = None, sub128: bool = False):
     stmt = LoadStmt()
     stmt.src = src if isinstance(src, Operand) else pspamm.architecture.operands.c(src)
     stmt.dest = dest
@@ -93,7 +94,10 @@ def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None
 
     if vector:
         stmt.aligned = True
-        stmt.typ = AsmType.f64x8
+        if sub128:
+            stmt.typ = AsmType.f64x2
+        else:
+            stmt.typ = AsmType.f64x8
     else:
         stmt.aligned = False
         stmt.typ = AsmType.i64

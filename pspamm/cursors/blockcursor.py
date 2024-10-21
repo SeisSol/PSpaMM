@@ -194,7 +194,7 @@ def sparse_mask(A_regs: Matrix[Register],
            B_ptr: CursorLocation,
            B_block_offset: Coords,
            v_size: int,
-           is_sve: bool = False
+           has_mask: bool = False
           ) -> Matrix[bool]:
 
     Vr, Vc = A_regs.shape
@@ -202,7 +202,7 @@ def sparse_mask(A_regs: Matrix[Register],
     A_br, A_bc, A_idx, A_pat = A.get_block(A_ptr, A_block_offset)
     B_br, B_bc, B_idx, B_pat = B.get_block(B_ptr, B_block_offset)
 
-    if not is_sve:
+    if not has_mask:
         assert (Vr * v_size == A_br)    # bm must tile m exactly for now in NEON and AVX512
     assert(Vc >= A_bc)                  # Matrix block must fit in register block
     assert(A_bc == B_br)                # Matrix blocks are compatible

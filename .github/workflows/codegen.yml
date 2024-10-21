@@ -64,17 +64,20 @@ jobs:
       - name: pspamm-tests-generate
         run: |
           cd tests/
-          python unit_tests_hsw.py
+          python unit_test.py hsw256
+          python unit_test.py hsw128
       
       - name: pspamm-tests-compile
         run: |
           cd tests/
-          g++ -static -mavx512f build/hsw_testsuite.cpp -o build/hsw-test
+          g++ -static -mavx2 build/hsw256_testsuite.cpp -o build/hsw256-test
+          g++ -static -mavx2 build/hsw128_testsuite.cpp -o build/hsw128-test
       
       - name: pspamm-tests-run
         run: |
           cd tests/
-          qemu-x86_64-static -cpu Haswell build/hsw-test
+          qemu-x86_64-static -cpu Haswell build/hsw256-test
+          qemu-x86_64-static -cpu Haswell build/hsw128-test
 
   pspamm-codegen-avx512-no-run:
     name: pspamm-codegen-avx512-no-run
@@ -102,18 +105,24 @@ jobs:
       - name: pspamm-tests-generate
         run: |
           cd tests/
-          python unit_tests_knl.py
+          python unit_test.py knl512
+          python unit_test.py knl256
+          python unit_test.py knl128
       
       - name: pspamm-tests-compile
         run: |
           cd tests/
-          g++ -static -mavx512f build/knl_testsuite.cpp -o build/knl-test
+          g++ -static -mavx512f build/knl512_testsuite.cpp -o build/knl512-test
+          g++ -static -mavx512f build/knl256_testsuite.cpp -o build/knl256-test
+          g++ -static -mavx512f build/knl128_testsuite.cpp -o build/knl128-test
       
       # disabled, since qemu doesn't support AVX512F (yet) with of Ubuntu 24.04
       # - name: pspamm-tests-run
       #   run: |
       #     cd tests/
-      #     qemu-x86_64-static -cpu Skylake-Server build/knl-test
+      #     qemu-x86_64-static -cpu Skylake-Server build/knl512-test
+      #     qemu-x86_64-static -cpu Skylake-Server build/knl256-test
+      #     qemu-x86_64-static -cpu Skylake-Server build/knl128-test
 
   pspamm-codegen-aarch64:
     name: pspamm-codegen-aarch64
@@ -141,17 +150,17 @@ jobs:
       - name: pspamm-tests-generate
         run: |
           cd tests/
-          python unit_tests_arm.py
+          python unit_test.py arm128
       
       - name: pspamm-tests-compile
         run: |
           cd tests/
-          aarch64-linux-gnu-g++ -static -march=armv8.2-a build/arm_testsuite.cpp -o build/arm-test
+          aarch64-linux-gnu-g++ -static -march=armv8.2-a build/arm128_testsuite.cpp -o build/arm128-test
       
       - name: pspamm-tests-run
         run: |
           cd tests/
-          qemu-aarch64-static -cpu max build/arm-test
+          qemu-aarch64-static -cpu max build/arm128-test
 
   pspamm-codegen-armsve:
     name: pspamm-codegen-armsve
@@ -159,6 +168,7 @@ jobs:
     needs: install-pspamm
     # include vector lengths for SVE manually (for now)
     strategy:
+      fail-fast: false
       matrix:
         vectorlen:
           - 128
@@ -188,7 +198,7 @@ jobs:
       - name: pspamm-tests-generate
         run: |
           cd tests/
-          python unit_tests_arm_sve.py ${{matrix.vectorlen}}
+          python unit_test.py arm_sve${{matrix.vectorlen}}
       
       - name: pspamm-tests-compile
         run: |
