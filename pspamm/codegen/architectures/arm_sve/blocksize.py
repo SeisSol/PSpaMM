@@ -46,7 +46,7 @@ class MaxK:
         elem128 = 16 // prec.size()
 
         for i in range(1, m + 1, 1):
-            next_multiple = -(i // -v_size)
+            next_multiple = -(i // -v_size) * v_size
             for j in range(1, n + 1):
                 if cls.ARM_condition(next_multiple, j, bk, v_size, elem128) and cls.tileable(m, i):
                     if i * j >= maxval:
@@ -86,7 +86,7 @@ class Cube:
         elem128 = 16 // prec.size()
 
         for i in range(1, m + 1, 1):
-            next_multiple = -(i // -v_size)
+            next_multiple = -(i // -v_size) * v_size
             for j in range(1, n + 1):
                 for k in range(1, 200):
                     if cls.ARM_condition(next_multiple, j, k, v_size, elem128) and cls.tileable(m, i):
