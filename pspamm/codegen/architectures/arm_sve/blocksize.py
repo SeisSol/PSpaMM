@@ -114,4 +114,4 @@ class Cube:
     def tileable(cls, m, bm):
         return m % bm == 0
 
-Default = Max
+Default = MaxK

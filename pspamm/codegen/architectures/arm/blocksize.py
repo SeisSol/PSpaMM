@@ -122,4 +122,4 @@ class Cube:
         vk = -(bk // -elem128)
         return (bn+bk) * vm + bn*vk <= 32
 
-Default = Max
+Default = MaxK

@@ -84,7 +84,7 @@ class Cube:
                     # can be replaced by cls.HSW_condition_extended here
                     # (but that seemed to be slower in the end)
                     if cls.HSW_condition(i, j, bk, v_size):
-                        if i*j*k > maxval and (cls.HSW_condition(i, j, k, v_size) or j > 1):
+                        if i*j*k >= maxval and (cls.HSW_condition(i, j, k, v_size) or j > 1):
                             maxval = i*j*k
                             bm = i
                             bn = j

@@ -103,7 +103,7 @@ class CubeBn:
         for j in range(1, n+1):
             for k in range(1, 200):
                 if cls.KNL_condition(bm, j, k, v_size):
-                    if j*k > maxval:
+                    if j*k >= maxval:
                         maxval = j*k
                         bn = j
                         bk = k
