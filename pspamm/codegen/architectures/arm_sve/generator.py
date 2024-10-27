@@ -273,12 +273,15 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
                     addr.disp += self.precision.size() * load_offset
 
-                    # count how many elements we have processed between last step and this step
-                    cont_counter = ((addr.disp - prev_disp) // mul_vl)
-                    larger_max_offset = cont_counter > max_mem_ins_mult
+                    offset = addr.disp - prev_disp
 
-                    if larger_max_offset or (prev_overhead and addr.disp > 0):
-                        offset_comment = "disp > {}".format(max_offset) if larger_max_offset else "previous mem. instr. used p0"
+                    # count how many elements we have processed between last step and this step
+                    cont_counter = (offset // mul_vl)
+                    larger_max_offset = cont_counter > max_mem_ins_mult
+                    non_dividing_offset = offset % mul_vl != 0
+
+                    if larger_max_offset or (prev_overhead and addr.disp > 0) or non_dividing_offset:
+                        offset_comment = f"disp > {max_offset}" if larger_max_offset else ("disp % VL != 0" if non_dividing_offset else "previous mem. instr. used p0")
                         asm.add(add(addr.disp, additional_regs[0], offset_comment, addr.base))
                         prev_disp = addr.disp
                         addr.base = additional_regs[0]
