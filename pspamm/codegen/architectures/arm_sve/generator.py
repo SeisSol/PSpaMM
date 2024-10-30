@@ -280,6 +280,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             for ir in range(rows):
                 if (mask is None) or (mask[ir, ic]):
                     processed = ir * process_size
+                    if processed >= b_row:
+                        continue
                     p = self.pred_n_trues(min(b_row - processed, process_size), v_size) if not is_B else self.pred_n_trues(process_size, v_size)
                     p_zeroing = self.pred_n_trues(min(b_row - processed, process_size), v_size, "z") if not is_B else self.pred_n_trues(process_size, v_size, "z")
                     cell_offset = Coords(down=ir * v_size, right=ic)

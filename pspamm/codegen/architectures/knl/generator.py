@@ -222,6 +222,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                     addr.disp += self.precision.size() * load_offset
 
                     processed = ir * process_size
+                    if processed >= b_row:
+                        continue
                     p = self.pred_n_trues(min(process_size, b_row - processed), v_size, 'm')
                     if store:
                         asm.add(mov(registers[ir,ic], addr, True, comment, pred=p))
