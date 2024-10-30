@@ -183,11 +183,17 @@ class MatMul:
             bpattern = Matrix.load(mtx_filename)
             if self.masks:
                 self.generator.set_sparse()
+        else:
+            assert self.k <= ldb
         
         if lda == 0:
             apattern = Matrix.load(mtx_filename)
             if self.masks:
                 self.generator.set_sparse()
+        else:
+            assert self.m <= lda
+        
+        assert self.m <= ldc
 
         self.nnz = 0
         self.flop = 0
@@ -286,7 +292,7 @@ class MatMul:
 
                 if keep:
                     asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.v_size, self.additional_regs, to_A, to_B))
-
+            
             if unroll:
                 for Bki in range(Bk):
                     kernelK(asm, Bki, A_ptr, B_ptr)
@@ -376,13 +382,14 @@ class MatMul:
             loop(self.loop_regs[0], 0, Bm, 1).body(*loopBody)
         )
 
-        vm_overhead = (self.m % self.bm) // self.v_size
+        m_overhead = self.m % self.bm
+        vm_overhead = -(m_overhead // -self.v_size)
 
         if vm_overhead > 0:
             self.m = self.m % self.bm
             self.bm = self.m % self.bm
-            self.A_regs = self.A_regs[0:self.bm // self.v_size, 0:self.bk]
-            self.C_regs = self.C_regs[0:self.bm // self.v_size, 0:self.bn]
+            self.A_regs = self.A_regs[0:vm_overhead, 0:self.bk]
+            self.C_regs = self.C_regs[0:vm_overhead, 0:self.bn]
             self.A.r = self.m
             asm.add(self.make_nk_unroll(self.unroll))
 
