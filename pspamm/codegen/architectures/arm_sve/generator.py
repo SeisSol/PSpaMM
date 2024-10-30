@@ -36,6 +36,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     prefetch_count = 0
     is_sparse = False
     v_len = 4 # vector register length: v_len * 128 bit
+    predicates = {}
 
     def get_v_size(self):
         return (16 // self.precision.size()) * self.v_len
@@ -61,12 +62,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         assert (suffix == "m" or suffix == "z" or suffix is None)
 
         # we only use p7 or p0 as predicates (1 == p0, 8 == p7)
-        num_trues = 8 if num_trues >= v_size else 1
+        index = 7 if num_trues >= v_size else self.predicates[num_trues]
 
         if suffix is None:
-            s = "p{}".format(num_trues - 1)
+            s = f"p{index}"
         else:
-            s = "p{}/{}".format(num_trues - 1, suffix)
+            s = f"p{index}/{suffix}"
         return Register_ARM(AsmType.p64x8, s)
 
     # is called at most one time in matmul.py
@@ -121,7 +122,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         mask_regs = [p(0), p(7)]
 
-        self.init_registers(bm, k, bk, v_size, nnz)
+        self.init_registers(m, bm, k, bk, v_size, nnz)
 
         return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs
 
@@ -161,6 +162,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         return asm
 
     def init_registers(self,
+                       m: int,
                        bm: int,
                        k: int,
                        bk: int,
@@ -172,6 +174,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         elem128 = 16 // self.get_precision().size()
         bkmod = bk % elem128 if self.inline_broadcast else 0
         kmod = (k % bk) % elem128 if self.inline_broadcast else 0
+        mmod = (m % bm) % v_size
 
         eol = "\\n\\t"                          # define the "end of line" sequence for easy assembly
         # determine the predicate suffix
@@ -189,6 +192,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         comment += "// if given, p0 denotes the 'bm % v_size' predicate\n\t"
         comment += "// if given, p1 denotes the 'bk % elem128' predicate\n\t"
         comment += "// if given, p2 denotes the 'k % elem128' predicate\n\t"
+        comment += "// if given, p4 denotes the 'k % v_size' predicate\n\t"
 
         self.has_k_overhead = kmod != 0
         self.has_bk_overhead = bkmod != 0
@@ -199,20 +203,28 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # https://developer.arm.com/documentation/ddi0596/2020-12/Shared-Pseudocode/AArch64-Functions?lang=en#impl-aarch64.DecodePredCount.2
         # 'ptrue' doesnt work for initialising overhead predicate when using single precision -> see valid patterns from above
         # overhead = "\"ptrue p0.{suffix}, #{overhead}{eol}\"\n\t" if bm != 0 else ""    # define overhead predicate
-        overhead_m = "\"mov {gen_reg}{overhead_counter}, #{overhead_m}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bmmod != 0 else ""
+        overhead_bm = "\"mov {gen_reg}{overhead_counter}, #{overhead_bm}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bmmod != 0 else ""
         overhead_bk = "\"mov {gen_reg}{overhead_counter}, #{overhead_bk}{eol}\"\n\t\"whilelo p1.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if self.has_bk_overhead else ""
         overhead_k = "\"mov {gen_reg}{overhead_counter}, #{overhead_k}{eol}\"\n\t\"whilelo p2.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if self.has_k_overhead else ""
         overhead_nnz = "\"mov {gen_reg}{overhead_counter}, #{overhead_nnz}{eol}\"\n\t\"whilelo p3.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if self.has_nnz_overhead else ""
+        overhead_m = "\"mov {gen_reg}{overhead_counter}, #{overhead_m}{eol}\"\n\t\"whilelo p4.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if mmod != 0 else ""
         all_true = "\"ptrue p7.{suffix}, #31{eol}\""                             # define all true predicate
-        init_registers = (comment + overhead_m + overhead_bk + overhead_k + overhead_nnz + all_true).format(suffix=p_suffix,
+        init_registers = (comment + overhead_bm + overhead_bk + overhead_k + overhead_nnz + overhead_m + all_true).format(suffix=p_suffix,
                                                                                             gen_reg=gen_reg,
                                                                                             overhead_counter=overhead_counter,
                                                                                             v_size=v_size,
-                                                                                            overhead_m=bmmod,
+                                                                                            overhead_bm=bmmod,
                                                                                             overhead_bk=bkmod,
                                                                                             overhead_k=kmod,
+                                                                                            overhead_m=mmod,
                                                                                             overhead_nnz=nnz % elem128,
                                                                                             eol=eol)
+
+        self.predicates[v_size] = 7
+        if bmmod != 0: self.predicates[bmmod] = 0
+        if bkmod != 0: self.predicates[bkmod] = 1
+        if kmod != 0: self.predicates[kmod] = 2
+        if mmod != 0: self.predicates[mmod] = 4
 
         # since .format() doesn't allow partial formatting, we need to re-include the
         # placeholders that are replaced at the end of generating a kernel
@@ -261,12 +273,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # this gives us the base register of 'cursor' irrespective of the dummy offset we use
         prev_base = cursor.look(cursor_ptr, block_offset, Coords(down=0, right=0))[0].base
 
+        process_size = min(v_size, cursor.br)
+
         for ic in range(cols):
             for ir in range(rows):
                 if (mask is None) or (mask[ir, ic]):
-                    processed = ir * v_size
-                    p = self.pred_n_trues(b_row - processed, v_size) if not is_B else self.pred_n_trues(v_size, v_size)
-                    p_zeroing = self.pred_n_trues(b_row - processed, v_size, "z") if not is_B else self.pred_n_trues(v_size, v_size, "z")
+                    processed = ir * process_size
+                    p = self.pred_n_trues(min(b_row - processed, process_size), v_size) if not is_B else self.pred_n_trues(process_size, v_size)
+                    p_zeroing = self.pred_n_trues(min(b_row - processed, process_size), v_size, "z") if not is_B else self.pred_n_trues(process_size, v_size, "z")
                     cell_offset = Coords(down=ir * v_size, right=ic)
 
                     # addr = base "pointer" + relative offset in bytes
@@ -365,22 +379,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             divider = 1
             elem128 = 1
             vk = bk
-            preg = 'p7/z'
-            preg_last = 'p7/z'
         else:
             max_offs = 127
             divider = 16
             elem128 = 16 // self.get_precision().size()
             vk = -(bk // -elem128)
 
-            #if isinstance(B, DenseCursor):
-            #    preg = 'p1/z' if self.has_bk_overhead else 'p7/z'
-            #    preg_last = 'p2/z' if self.has_k_overhead else preg
-            #else:
-            #    preg = 'p7/z'
-            #    preg_last = 'p7/z'
-            preg = 'p7/z'
-            preg_last = 'p7/z'
+        preg = self.pred_n_trues(elem128, elem128, 'z')
+        preg_last = preg if bk % elem128 == 0 else self.pred_n_trues(bk % elem128, elem128, 'z')
         for Vmi in range(Vm):
             # set to all v_size predicates to true, we want to replicate a B element into a whole vector
             for bni in range(bn):  # inside this n-block
@@ -390,7 +396,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
                         B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
                         if B_regs[bki_reg, bni] not in bs:
-                            p_zeroing = Register_ARM(AsmType.p64x8, preg_last) if bki_reg + 1 == vk else Register_ARM(AsmType.p64x8, preg)
+                            p_zeroing = preg_last if bki_reg + 1 == vk else preg
 
                             # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
                             if B_cell_addr.disp > max_offs or B_cell_addr.disp % divider != 0:
