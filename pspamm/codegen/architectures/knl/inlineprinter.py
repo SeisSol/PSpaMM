@@ -65,9 +65,9 @@ class InlinePrinter(Visitor):
         if pred is None:
             return ''
         elif pred.zero:
-            return f'{{{{{pred.register.ugly}}}}}{{{{z}}}}'
+            return f'%{{{pred.register.ugly}%}}%{{z%}}'
         else:
-            return f'{{{{{pred.register.ugly}}}}}'
+            return f'%{{{pred.register.ugly}%}}'
 
     def visitFma(self, stmt: FmaStmt):
         mask = self.maskformat(stmt.pred)
@@ -77,13 +77,13 @@ class InlinePrinter(Visitor):
         regsize = stmt.add_dest.size() // 16
         extent = regsize * self.broadcast_multiplier
         if stmt.bcast is not None:
-            s = f"vfmadd231{self.alupsuffix} {b}%{{1to{extent}%}} {mask}, {m}, {a}"
+            s = f"vfmadd231{self.alupsuffix} {b}%{{1to{extent}%}}, {m}, {a} {mask}"
         else:
             if stmt.mult_src.typeinfo == AsmType.i64:
                 # in this case, m is a Register that points to alpha; manually format to be a memory address
-                s = f"vfmadd231{self.alupsuffix} 0({m})%{{1to{extent}%}} {mask}, {b}, {a}"
+                s = f"vfmadd231{self.alupsuffix} 0({m})%{{1to{extent}%}}, {b}, {a} {mask}"
             else:
-                s = f"vfmadd231{self.alupsuffix} {b} {mask}, {m}, {a}"
+                s = f"vfmadd231{self.alupsuffix} {b}, {m}, {a} {mask}"
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
@@ -95,9 +95,9 @@ class InlinePrinter(Visitor):
         extent = regsize * self.broadcast_multiplier
         if stmt.mult_src.typeinfo == AsmType.i64:
             # in this case, m is a Register that points to alpha/beta; manually format to be a memory address
-            s = f"vmul{self.alupsuffix} 0({m})%{{1to{extent}%}} {mask}, {b}, {a}"
+            s = f"vmul{self.alupsuffix} 0({m})%{{1to{extent}%}}, {b}, {a} {mask}"
         else:
-            s = f"vmul{self.alupsuffix} {b} {mask}, {m}, {a}"
+            s = f"vmul{self.alupsuffix} {b}, {m}, {a} {mask}"
         self.addLine(s, stmt.comment)
 
     def visitBcst(self, stmt: BcstStmt):
@@ -111,7 +111,7 @@ class InlinePrinter(Visitor):
             instruction = 'vmovddup'
         else:
             instruction = f"vbroadcasts{self.psuffix}"
-        s = f"{instruction} {b} {mask}, {a}"
+        s = f"{instruction} {b}, {a} {mask}"
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):
@@ -129,7 +129,7 @@ class InlinePrinter(Visitor):
 
     def visitCmp(self, stmt: CmpStmt):
         mask = self.maskformat(stmt.pred)
-        s = f"cmp {stmt.lhs.ugly} {mask}, {stmt.rhs.ugly}"
+        s = f"cmp {stmt.lhs.ugly}, {stmt.rhs.ugly} {mask}"
         self.addLine(s, stmt.comment)
 
     def visitJump(self, stmt: JumpStmt):
@@ -153,19 +153,16 @@ class InlinePrinter(Visitor):
                 s = f"movq {src_str}, {stmt.dest.ugly}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
-                s = f"vpxord {stmt.dest.ugly} {mask}, {stmt.dest.ugly}, {stmt.dest.ugly}"
+                s = f"vpxord {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly} {mask}"
             else:
-                if isinstance(stmt.src, MemoryAddress):
-                    s = f"vmovupd {src_str}, {stmt.dest.ugly} {mask}"
-                else:
-                    s = f"vmovupd {src_str} {mask}, {stmt.dest.ugly}"
+                s = f"vmovupd {src_str}, {stmt.dest.ugly} {mask}"
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
 
     def visitLea(self, stmt: LeaStmt):
         mask = self.maskformat(stmt.pred)
-        s = f"leaq {stmt.offset}({stmt.src.ugly}) {mask}, {stmt.dest.ugly}"
+        s = f"leaq {stmt.offset}({stmt.src.ugly}), {stmt.dest.ugly} {mask}"
         self.addLine(s, stmt.comment)
 
     def visitPrefetch(self, stmt: PrefetchStmt):

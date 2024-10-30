@@ -378,7 +378,7 @@ class MatMul:
         asm = block("unrolled_{}x{}x{}".format(self.m,self.n,self.k),
             self.generator.bcst_alpha_beta(self.alpha_reg, self.beta_reg),
             self.generator.make_scaling_offsets(self.additional_regs, self.nnz),
-            self.generator.init_mask(self.bm, self.v_size, self.loop_regs[0], self.mask_regs),
+            self.generator.init_mask(self.m, self.bm, self.v_size, self.loop_regs[0], self.mask_regs),
             loop(self.loop_regs[0], 0, Bm, 1).body(*loopBody)
         )
 

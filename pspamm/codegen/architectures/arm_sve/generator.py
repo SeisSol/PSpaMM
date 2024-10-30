@@ -152,6 +152,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         return asm
 
     def init_mask(self,
+                        m: int,
                         bm: int,
                         v_size: int,
                         tempreg,

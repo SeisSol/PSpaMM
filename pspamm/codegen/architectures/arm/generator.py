@@ -43,7 +43,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     def has_masks(self):
         return False
     
-    def init_mask(self, bm, v_size, tempreg, maskregs):
+    def init_mask(self, m, bm, v_size, tempreg, maskregs):
         return block("")
 
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):

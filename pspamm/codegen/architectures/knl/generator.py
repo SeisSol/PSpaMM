@@ -33,6 +33,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 }}}};
 """
     v_len = 4
+    predicates = {0:mask(0)}
 
     def get_v_size(self):
         return (16 // self.precision.size()) * self.v_len
@@ -48,8 +49,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
     def pred_n_trues(self, count, v_size, mode):
         # a bit hacky at the moment (won't work for all masks)
-        if count < v_size and count > 0:
-            return Predicate(mask(0), mode=='z')
+        if count < v_size:
+            return Predicate(self.predicates[count], mode=='z')
         else:
             return None
 
@@ -77,7 +78,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         additional_regs = [r(8)]
 
-        mask_regs = [mask(0)]
+        mask_regs = [mask(1), mask(2)]
 
         reg_count = 0
 
@@ -95,17 +96,30 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         loop_regs = [r(12), r(13), r(14)]
 
+        # FIXME: a bit hacky to have the mask setup here
+        rest = bm % v_size
+        rest2 = (m % bm) % v_size
+        self.predicates[rest] = mask(1)
+        self.predicates[rest2] = mask(2)
+        self.predicates[0] = mask(0)
+
         return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs
 
-    def init_mask(self, bm, v_size, tempreg, maskregs):
+    def init_mask(self, m, bm, v_size, tempreg, maskregs):
         rest = bm % v_size
-        if rest == 0:
+        rest2 = (m % bm) % v_size
+        if rest == 0 and rest2 == 0:
             return block("")
         else:
-            asm = block("Set mask register")
-            restval = (1 << rest) - 1
-            asm.add(mov(restval, tempreg, False))
-            asm.add(mov(tempreg, maskregs[0], False))
+            asm = block("Set mask registers")
+            if rest > 0:
+                restval = (1 << rest) - 1
+                asm.add(mov(restval, tempreg, False))
+                asm.add(mov(tempreg, maskregs[0], False))
+            if rest2 > 0:
+                restval2 = (1 << rest2) - 1
+                asm.add(mov(restval2, tempreg, False))
+                asm.add(mov(tempreg, maskregs[1], False))
             return asm
 
     def bcst_alpha_beta(self,
@@ -114,9 +128,6 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                         ) -> Block:
 
         asm = block("Broadcast alpha and beta using inline broadcasting")
-
-#        asm.add(bcst(alpha_reg[0], alpha_reg[1]))
-#        asm.add(bcst(beta_reg[0], beta_reg[1]))
         
         return asm
 
@@ -201,6 +212,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         b_row, _, _, _ = cursor.get_block(cursor_ptr, block_offset)
 
+        process_size = min(v_size, cursor.br)
+
         for ic in range(cols):
             for ir in range(rows):
                 if (mask is None) or (mask[ir,ic]):
@@ -208,8 +221,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
                     addr.disp += self.precision.size() * load_offset
 
-                    processed = ir * v_size
-                    p = self.pred_n_trues(b_row - processed, v_size, 'z')
+                    processed = ir * process_size
+                    p = self.pred_n_trues(min(process_size, b_row - processed), v_size, 'm')
                     if store:
                         asm.add(mov(registers[ir,ic], addr, True, comment, pred=p))
                         if prefetching == 'BL2viaC':
