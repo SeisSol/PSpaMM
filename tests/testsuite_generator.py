@@ -8,8 +8,7 @@ from pspamm.codegen.precision import *
 
 BASEDIR = 'build'
 
-SparseKernel = namedtuple('SparseKernel', 'name precision m n k lda ldb ldc alpha beta block_sizes mtx delta')
-DenseKernel = namedtuple('DenseKernel', 'name precision m n k lda ldb ldc alpha beta block_sizes delta')
+TestKernel = namedtuple('TestKernel', 'name precision m n k lda ldb ldc alpha beta block_sizes amtx bmtx delta')
 
 head_of_testsuite = """#include <fstream>
 #include <sstream>
@@ -60,37 +59,58 @@ void setup_prefetch(T*& prefetch, T* matrix, unsigned n, unsigned ldc) {
 }
 
 template <typename T>
-std::tuple<T*, T*, T*, T*, T*> pre(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, std::string MTX) {
+std::tuple<T*, T*, T*, T*, T*, T*> pre(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, const std::string& AMTX, const std::string& BMTX) {
 
-  if(LDB == 0)
+  if(LDB == 0) {
     LDB = K;
+  }
+  if(LDA == 0) {
+    LDA = M;
+  }
 
-  T *A;
-  T *B;
-  T *Bsparse;
-  T *Cref;
-  T *C;
+  T* A;
+  T* Asparse;
+  T* B;
+  T* Bsparse;
+  T* Cref;
+  T* C;
 
   int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, LDA*LDB*sizeof(T));
+  int resAsparse = posix_memalign(reinterpret_cast<void **>(&Asparse), 64, LDA*LDB*sizeof(T));  
   int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, LDB*N*sizeof(T));
   int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, LDB*N*sizeof(T));  
   int resCref = posix_memalign(reinterpret_cast<void **>(&Cref), 64, LDC*N*sizeof(T));
   int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, LDC*N*sizeof(T));
 
   std::string line;
-  std::ifstream f(MTX);
-  getline(f, line);
-  getline(f, line);
-  getline(f, line);
 
-  for(int i = 0; i < LDA*LDB; i++)
-    A[i] = (T)rand() / RAND_MAX;
+  std::ifstream bf(BMTX);
+  getline(bf, line);
+  getline(bf, line);
+  getline(bf, line);
 
-  for(int i = 0; i < LDB*N; i++)
-    if(MTX.compare(""))
+  std::ifstream af(AMTX);
+  getline(af, line);
+  getline(af, line);
+  getline(af, line);
+
+  for(int i = 0; i < LDB*N; i++) {
+    if(BMTX.compare("")) {
       B[i] = 0;
-    else 
+    }
+    else {
       B[i] = (T)rand() / RAND_MAX;
+    }
+  }
+
+  for(int i = 0; i < LDA*LDB; i++) {
+    if(AMTX.compare("")) {
+      A[i] = 0;
+    }
+    else {
+      A[i] = (T)rand() / RAND_MAX;
+    }
+  }
 
   for(int i = 0; i < LDC*N; i++)
   {
@@ -98,44 +118,79 @@ std::tuple<T*, T*, T*, T*, T*> pre(unsigned M, unsigned N, unsigned K, unsigned 
     C[i] = Cref[i];
   }
 
-  if(MTX.compare(""))
+  if(BMTX.compare(""))
   {
-    while(getline(f, line)) {
+    while(getline(bf, line)) {
       std::vector<std::string> result;
       std::istringstream iss(line);
-      for(std::string s; iss >> s; )
+      for(std::string s; iss >> s; ) {
         result.push_back(s);
-      if(std::atoi(result[0].c_str()) <= K && std::atoi(result[1].c_str()) <= N)
+      }
+      if(std::atoi(result[0].c_str()) <= K && std::atoi(result[1].c_str()) <= N) {
         B[std::atoi(result[0].c_str()) - 1 + LDB * (std::atoi(result[1].c_str()) - 1)] = std::stod(result[2]);
+      }
     }
   }
-
-  int counter = 0;
-
-  for(int i = 0; i < N; i++)
+  if(AMTX.compare(""))
   {
-    for(int j = 0; j < K; j++)
-    {
-      if(B[j + i * LDB] != 0 || !MTX.compare(""))
-      {
-        Bsparse[counter] = B[j + i * LDB];
-        counter++;
+    while(getline(af, line)) {
+      std::vector<std::string> result;
+      std::istringstream iss(line);
+      for(std::string s; iss >> s; ) {
+        result.push_back(s);
+      }
+      if(std::atoi(result[0].c_str()) <= K && std::atoi(result[1].c_str()) <= N) {
+        A[std::atoi(result[0].c_str()) - 1 + LDA * (std::atoi(result[1].c_str()) - 1)] = std::stod(result[2]);
       }
     }
   }
 
-  f.close();
+  {
+    int counter = 0;
+    for(int i = 0; i < N; i++)
+    {
+      for(int j = 0; j < K; j++)
+      {
+        if(B[j + i * LDB] != 0 || !BMTX.compare(""))
+        {
+          Bsparse[counter] = B[j + i * LDB];
+          ++counter;
+        }
+      }
+    }
+  }
+  {
+    int counter = 0;
+    for(int i = 0; i < K; i++)
+    {
+      for(int j = 0; j < M; j++)
+      {
+        if(A[j + i * LDA] != 0 || !AMTX.compare(""))
+        {
+          Asparse[counter] = A[j + i * LDA];
+          ++counter;
+        }
+      }
+    }
+  }
 
-  return std::make_tuple(A, B, Bsparse, C, Cref);
+  af.close();
+  bf.close();
+
+  return std::make_tuple(A, Asparse, B, Bsparse, C, Cref);
 }
 
 template <typename T>
-bool post(const std::string& name, unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned* LDB, unsigned LDC, T* ALPHA, T* BETA, T* A, T* B, T* C, T* Cref, T DELTA) {
+bool post(const std::string& name, unsigned M, unsigned N, unsigned K, unsigned* LDA, unsigned* LDB, unsigned LDC, T* ALPHA, T* BETA, T* A, T* B, T* C, T* Cref, T DELTA) {
 
-  if(*LDB == 0)
+  if(*LDB == 0) {
     *LDB = K;
+  }
+  if(*LDA == 0) {
+    *LDA = M;
+  }
 
-  gemm_ref(M, N, K, LDA, *LDB, LDC, *ALPHA, *BETA, A, B, Cref);
+  gemm_ref(M, N, K, *LDA, *LDB, LDC, *ALPHA, *BETA, A, B, Cref);
   
   bool failed = false;
   double diffAbsMax = 0;
@@ -172,21 +227,27 @@ int main()
 
 setup_single_testcase = """
 {{
+  unsigned lda = {lda};
   unsigned ldb = {ldb};
   {precision} alpha = {alpha};
   {precision} beta = {beta};
   {precision}* prefetch = nullptr;
-  auto pointers = pre<{precision}>({m}, {n}, {k}, {lda}, ldb, {ldc}, "{mtx}");
-  setup_prefetch(prefetch, std::get<3>(pointers), {n}, {ldc});
-  {name}(std::get<0>(pointers), std::get<{sparse}>(pointers), std::get<3>(pointers), {alpha}, {beta}, nullptr);
-  const auto result = post<{precision}>(\"{name}\", {m}, {n}, {k}, {lda}, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<1>(pointers), std::get<3>(pointers), std::get<4>(pointers), {delta:.15e});
+  auto pointers = pre<{precision}>({m}, {n}, {k}, lda, ldb, {ldc}, "{amtx}", "{bmtx}");
+  setup_prefetch(prefetch, std::get<4>(pointers), {n}, {ldc});
+  {name}(std::get<{asparse}>(pointers), std::get<{bsparse}>(pointers), std::get<4>(pointers), {alpha}, {beta}, nullptr);
+  const auto result = post<{precision}>(\"{name}\", {m}, {n}, {k}, &lda, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<2>(pointers), std::get<4>(pointers), std::get<5>(pointers), {delta:.15e});
   
   if (result) {{
     ++correct;
   }}
   ++results;
 
-  free(std::get<0>(pointers)); free(std::get<1>(pointers)); free(std::get<2>(pointers)); free(std::get<3>(pointers)); free(std::get<4>(pointers));
+  free(std::get<0>(pointers));
+  free(std::get<1>(pointers));
+  free(std::get<2>(pointers));
+  free(std::get<3>(pointers));
+  free(std::get<4>(pointers));
+  free(std::get<5>(pointers));
 }}
 """
 
@@ -239,8 +300,10 @@ def make(kernels, arch):
         arguments = ['pspamm-generator', str(kern.m), str(kern.n), str(kern.k), str(kern.lda), str(kern.ldb),
                      str(kern.ldc), str(kern.alpha), str(kern.beta)]
 
-        if isinstance(kern, SparseKernel):
-            arguments += ['--mtx_filename', kern.mtx]
+        if kern.amtx is not None:
+          arguments += ['--amtx_filename', kern.amtx]
+        if kern.bmtx is not None:
+          arguments += ['--bmtx_filename', kern.bmtx]
 
         prec = 's' if kern.precision == Precision.SINGLE else 'd'
         arguments += ['--precision', prec]
@@ -300,15 +363,12 @@ def make(kernels, arch):
 
             f.write('#include "' + arch + '/' + name + '.h"\n')
 
-            if isinstance(kern, SparseKernel):
-                mtx = kern.mtx
-            else:
-                mtx = ""
-
             testcases += [
               setup_single_testcase.format(
                 m=kern.m, n=kern.n, k=kern.k, lda=kern.lda, ldb=kern.ldb, ldc=kern.ldc, alpha=kern.alpha,
-                beta=kern.beta, mtx=mtx, delta=kern.delta, name=name, sparse=2 if kern.ldb == 0 else 1,
+                beta=kern.beta, delta=kern.delta, name=name,
+                amtx=kern.amtx or '', bmtx = kern.bmtx or '',
+                asparse=1 if kern.lda == 0 else 0, bsparse=3 if kern.ldb == 0 else 2,
                 precision=kern.precision.ctype())
             ]
 

@@ -61,6 +61,8 @@ class MatMul:
                  alpha: str,
                  beta: str,
                  mtx_filename: str,
+                 amtx_filename: str,
+                 bmtx_filename: str,
                  mtx_format: str = 'any',
                  output_funcname: str = None,
                  output_filename: str = None,
@@ -172,41 +174,51 @@ class MatMul:
 
         self.prefetching = prefetching
 
-        self.mtx_filename = mtx_filename
-        self.mtx_format = mtx_format
-
         self.output_funcname = output_funcname
         self.output_filename = output_filename
         self.output_overwrite = output_overwrite
 
         if ldb == 0:
-            bpattern = Matrix.load(mtx_filename)
-            if self.masks:
-                self.generator.set_sparse()
+            if bmtx_filename is None or bmtx_filename == '':
+                bmtx_filename = mtx_filename
+            bpattern = Matrix.load(bmtx_filename)
+            self.generator.set_sparse()
         else:
+            bpattern = Matrix.full(k, n, True)
             assert self.k <= ldb
         
         if lda == 0:
-            apattern = Matrix.load(mtx_filename)
-            if self.masks:
-                self.generator.set_sparse()
+            apattern = Matrix.load(amtx_filename)
+            self.generator.set_sparse()
         else:
+            apattern = Matrix.full(m, k, True)
             assert self.m <= lda
+        
+        self.bmtx_filename = bmtx_filename
+        self.amtx_filename = amtx_filename
+        self.mtx_format = mtx_format
         
         assert self.m <= ldc
 
-        self.nnz = 0
+        self.bnnz = 0
+        self.annz = 0
         self.flop = 0
+        
+        for jj in range(n):
+            for kk in range(k):
+                if bpattern[kk,jj]:
+                    self.bnnz += 1
 
-        if ldb == 0:
-            for i in range(n):
-                for j in range(k):
-                    if bpattern[j,i]:
-                        self.nnz += 1
-            self.flop = self.nnz * m * 2
-        else:
-            self.nnz = ldb * self.n
-            self.flop = m * n * k * 2
+        for ii in range(m):
+            for kk in range(k):
+                if apattern[ii,kk]:
+                    self.annz += 1
+
+        for ii in range(m):
+            for jj in range(n):
+                for kk in range(k):
+                    if apattern[ii,kk] and bpattern[kk,jj]:
+                        self.flop += 2
 
         prefetchReg = self.generator.init_prefetching(self.prefetching)
 
@@ -214,29 +226,29 @@ class MatMul:
         if not self.masks:
             assert(self.m % self.v_size == 0)
 
-        self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.alpha_reg, self.beta_reg, self.loop_regs, self.additional_regs, self.mask_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.nnz, self.m, self.n, self.k)
+        self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.alpha_reg, self.beta_reg, self.loop_regs, self.additional_regs, self.mask_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.bnnz, self.m, self.n, self.k)
 
         self.alpha_bcst_reg, self.beta_bcst_reg = self.starting_regs[3], self.starting_regs[4]
 
         if lda == 0:
             blocks, patterns, mtx_overhead = decompose_pattern(self.m, self.k, apattern, self.bm, self.bk)
             self.A = BlockCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk, self.precision.size(), blocks, patterns, mtx_overhead)
-            self.nnz += sum(mtx_overhead)
+            self.annz += sum(mtx_overhead)
         else:
             self.A = DenseCursor("A", self.starting_regs[0], self.m, self.k, self.lda, self.bm, self.bk, self.precision.size())
         if ldb == 0:
             blocks, patterns, mtx_overhead = decompose_pattern(self.k, self.n, bpattern, self.bk, self.bn)
             self.B = BlockCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.size(), blocks, patterns, mtx_overhead)
-            self.nnz += sum(mtx_overhead)
+            self.bnnz += sum(mtx_overhead)
         else:
             self.B = DenseCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.size())
         self.C = DenseCursor("C", self.starting_regs[2], self.m, self.n, self.ldc, self.bm, self.bn, self.precision.size())
         self.C_pf = DenseCursor("C_pf", prefetchReg, self.m, self.n, self.ldc, self.bm, self.bn, self.precision.size()) if prefetchReg else None
 
-        self.unroll = ldb == 0 or lda == 0
+        self.unroll_n = ldb == 0
+        self.unroll_m = lda == 0
 
-
-    def make_nk_unroll(self, unroll=True):
+    def make_nk_unroll(self, Bmi, unroll_k=True):
 
         asm = block("Unrolling over bn and bk")
         A_ptr = self.A.start()
@@ -257,7 +269,7 @@ class MatMul:
         if k_overhead > 0:
             Bk += 1
 
-        asm.add(self.generator.make_b_pointers(self.starting_regs[1], self.additional_regs, self.nnz))
+        asm.add(self.generator.make_b_pointers(self.starting_regs[1], self.additional_regs, self.bnnz))
 
         def kernelN(asm, Bni, A_ptr, B_ptr, C_ptr):
             regs = self.C_regs
@@ -278,13 +290,13 @@ class MatMul:
                 asm.add(self.generator.make_zero_block(regs, self.additional_regs))
 
             def kernelK(asm, Bki, A_ptr, B_ptr):
-                if unroll:
-                    to_A = Coords(right=Bki)
-                    to_B = Coords(right=Bni, down=Bki, absolute=True)
+                if unroll_k:
+                    to_A = Coords(right=Bki, down=Bmi, absolute=True) if self.unroll_m else Coords(right=Bki)
+                    to_B = Coords(right=Bni, down=Bki, absolute=True) if self.unroll_n else Coords(down=Bki)
                     keep = self.B.has_nonzero_block(B_ptr, to_B) and self.A.has_nonzero_block(A_ptr, to_A)
                 else:
                     # setting A_ptr, B_ptr here may be a bit too hacky...
-                    A_ptr = CursorLocation(Coords(right=Bki, absolute=True))
+                    A_ptr = CursorLocation(Coords(right=Bki, down=Bmi, absolute=True))
                     B_ptr = CursorLocation(Coords(right=Bni, down=Bki, absolute=True))
                     to_A = Coords()
                     to_B = Coords()
@@ -293,7 +305,7 @@ class MatMul:
                 if keep:
                     asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.v_size, self.additional_regs, to_A, to_B))
             
-            if unroll:
+            if unroll_k:
                 for Bki in range(Bk):
                     kernelK(asm, Bki, A_ptr, B_ptr)
             else:
@@ -341,7 +353,7 @@ class MatMul:
                   move_C_pf, C_pf_ptr = self.C_pf.move(C_pf_ptr, Coords(right=1))
                   asm.add(move_C_pf)
 
-        if unroll:
+        if self.unroll_n:
             for Bni in range(0, Bn):
                 kernelN(asm, Bni, A_ptr, B_ptr, C_ptr)
         else:
@@ -367,20 +379,30 @@ class MatMul:
         if self.n % self.bn != 0:
             Bn += 1
 
-        loopBody = [
-          self.make_nk_unroll(self.unroll),
-          self.A.move(A_ptr, Coords(down=1))[0],
-          self.C.move(C_ptr, Coords(down=1, right=1-Bn))[0]
-        ]
-        if self.C_pf:
-          loopBody.append(self.C_pf.move(C_pf_ptr, Coords(down=1, right=1-Bn))[0])
+        def kernelM(asm, Bmi):
+            asm.add(self.make_nk_unroll(Bmi, self.unroll_n | self.unroll_m))
 
-        asm = block("unrolled_{}x{}x{}".format(self.m,self.n,self.k),
+        asm = block("kernel")
+
+        asm.add(block("header",
             self.generator.bcst_alpha_beta(self.alpha_reg, self.beta_reg),
-            self.generator.make_scaling_offsets(self.additional_regs, self.nnz),
-            self.generator.init_mask(self.m, self.bm, self.v_size, self.loop_regs[0], self.mask_regs),
-            loop(self.loop_regs[0], 0, Bm, 1).body(*loopBody)
-        )
+            self.generator.make_scaling_offsets(self.additional_regs, self.bnnz),
+            self.generator.init_mask(self.m, self.bm, self.v_size, self.loop_regs[0], self.mask_regs)
+        ))
+
+        if self.unroll_m:
+            for Bmi in range(0, Bm):
+                kernelM(asm, Bmi)
+        elif Bm > 0:
+            loopBody = block(f"kernel_{self.m}x{self.n}x{self.k}")
+            kernelM(loopBody, 0)
+            loopBody.add(self.A.move(A_ptr, Coords(down=1))[0])
+            loopBody.add(self.C.move(C_ptr, Coords(down=1, right=1-Bn))[0])
+            if self.C_pf:
+                loopBody.add(self.C_pf.move(C_pf_ptr, Coords(down=1, right=1-Bn))[0])
+            asm.add(
+                loop(self.loop_regs[0], 0, Bm, 1).body(loopBody)
+            )
 
         m_overhead = self.m % self.bm
         vm_overhead = -(m_overhead // -self.v_size)
@@ -391,6 +413,6 @@ class MatMul:
             self.A_regs = self.A_regs[0:vm_overhead, 0:self.bk]
             self.C_regs = self.C_regs[0:vm_overhead, 0:self.bn]
             self.A.r = self.m
-            asm.add(self.make_nk_unroll(self.unroll))
+            asm.add(self.make_nk_unroll(Bm, self.unroll_n | self.unroll_m))
 
         return asm

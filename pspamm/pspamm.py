@@ -57,6 +57,9 @@ def main() -> None:
     parser.add_argument("--mtx_filename", help="Path to MTX file describing the sparse matrix")
     parser.add_argument("--mtx_format", help="Constraint on sparsity pattern", choices=mtx_formats, default="Any")
 
+    parser.add_argument("--amtx_filename", help="Path to MTX file describing the sparse matrix")
+    parser.add_argument("--bmtx_filename", help="Path to MTX file describing the sparse matrix")
+
     parser.add_argument("--output_funcname", help="Name for generated C++ function")
     parser.add_argument("--output_filename", help="Path to destination C++ file")
     parser.add_argument("--output_overwrite", action="store_true", help="Overwrite output file")
