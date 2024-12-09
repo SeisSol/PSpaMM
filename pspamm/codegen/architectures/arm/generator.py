@@ -131,6 +131,13 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     skipflag = False
                     continue
                 if (mask is None) or (mask[ir,ic]):
+                    all_coords = [Coords(down=ir*v_size+i,right=ic) for i in range(v_size)]
+                    has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
+                    if not any(has_nonzero):
+                        continue
+                    elif any(has_nonzero) and not all(has_nonzero):
+                        raise NotImplementedError("Element-wise sparsity in A is not yet implemented.")
+
                     cell_offset = Coords(down=ir*v_size, right=ic)
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
                     addr.disp += self.precision.size() * load_offset
@@ -221,10 +228,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         for Vmi in range(bm//v_size):
             for bni in range(bn):   # inside this n-block
                 for bki in range(bk):       # inside this k-block
-                    to_cell = Coords(down=bki, right=bni)
                     bki_reg = bki // elem128
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
-                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
+                    to_bcell = Coords(down=bki, right=bni)
+                    to_acell = Coords(down=Vmi*v_size, right=bki)
+                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
+                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         if B_regs[bki_reg, bni] not in bs:
                             if B_cell_addr.disp > 255:
                                 if(B_cell_addr.disp - cur11 > 0 and B_cell_addr.disp - cur11 < 256):
@@ -244,9 +252,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
             cell_indices = {}
             for bki in range(bk):       # inside this k-block
                 for bni in range(bn):   # inside this n-block
-                    to_cell = Coords(down=bki, right=bni)
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
-                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
+                    to_bcell = Coords(down=bki, right=bni)
+                    to_acell = Coords(down=Vmi*v_size, right=bki)
+                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
+                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*v_size, Vmi*v_size+v_size, bni, Vmi*v_size, Vmi*v_size+v_size, bki, B_comment)
                         bki_reg = bki // elem128
                         if (bki_reg, bni) not in cell_indices:

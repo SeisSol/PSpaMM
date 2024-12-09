@@ -19,7 +19,7 @@ def label(name: str):
     stmt.label = pspamm.architecture.operands.l(name)
     return stmt
 
-def fma(bcast_src: Register, mult_src: Register, add_dest: Register, comment: str = None, bcast: Union[int, None] = None, pred: Register = None):
+def fma(bcast_src: Register, mult_src: Register, add_dest: Register, comment: str = None, bcast: Union[int, None] = None, pred: Register = None, sub=False):
     stmt = FmaStmt()
     stmt.bcast_src = bcast_src
     stmt.mult_src = mult_src
@@ -28,6 +28,7 @@ def fma(bcast_src: Register, mult_src: Register, add_dest: Register, comment: st
     stmt.bcast = bcast
     # used in arm_sve:
     stmt.pred = pred
+    stmt.sub = sub
     return stmt
 
 def mul(src: Register, mult_src: Register, dest: Register, comment: str = None, pred: Register = None):
@@ -58,12 +59,14 @@ def jump(label: str, backwards=True):
     stmt.destination = pspamm.architecture.operands.l(label)
     return stmt
 
-def mov(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, pred = None):
+def mov(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, pred = None, expand=None, temp=None):
     stmt = MovStmt()
     stmt.src = src if isinstance(src, Operand) else pspamm.architecture.operands.c(src)
     stmt.dest = dest
     stmt.comment = comment
     stmt.pred = pred
+    stmt.expand = expand
+    stmt.temp = temp
     if vector:
         stmt.aligned = True
         stmt.typ = AsmType.f64x8
@@ -80,7 +83,7 @@ def lea(src: Register, dest: Operand, offset: int, comment:str = None):
     stmt.comment = comment
     return stmt
 
-def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, dest2: Operand = None, pred: Register = None, is_B: bool = False, scalar_offs: bool = False, add_reg: AsmType.i64 = None, sub128: bool = False):
+def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, dest2: Operand = None, pred: Register = None, is_B: bool = False, scalar_offs: bool = False, add_reg: AsmType.i64 = None, sub128: bool = False, expand=None):
     stmt = LoadStmt()
     stmt.src = src if isinstance(src, Operand) else pspamm.architecture.operands.c(src)
     stmt.dest = dest
@@ -91,6 +94,7 @@ def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None
     stmt.is_B = is_B
     stmt.scalar_offs = scalar_offs
     stmt.add_reg = add_reg
+    stmt.expand = expand
 
     if vector:
         stmt.aligned = True
@@ -103,7 +107,7 @@ def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None
         stmt.typ = AsmType.i64
     return stmt
 
-def st(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, src2: Operand = None, pred: Register = None, scalar_offs: bool = False, add_reg: AsmType.i64 = None):
+def st(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, src2: Operand = None, pred: Register = None, scalar_offs: bool = False, add_reg: AsmType.i64 = None, expand=None):
     stmt = StoreStmt()
     stmt.src = src if isinstance(src, Operand) else pspamm.architecture.operands.c(src)
     stmt.src2 = src2
@@ -113,6 +117,7 @@ def st(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None
     stmt.pred = pred
     stmt.scalar_offs = scalar_offs
     stmt.add_reg = add_reg
+    stmt.expand = expand
 
     if vector:
         stmt.aligned = True

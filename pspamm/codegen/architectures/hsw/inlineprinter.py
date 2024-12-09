@@ -26,6 +26,10 @@ class InlinePrinter(Visitor):
             Precision.DOUBLE: "d",
             Precision.SINGLE: "s"
         }[precision]
+        self.bpsuffix = {
+            Precision.DOUBLE: "q",
+            Precision.SINGLE: "d"
+        }[precision]
 
     def show(self):
         print("\n".join(self.output))
@@ -51,8 +55,10 @@ class InlinePrinter(Visitor):
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
 
+        op = "sub" if stmt.sub else "add"
+
         # no broadcasting supported inside the instruction (unlike AVX-512)
-        s = f"vfmadd231p{self.psuffix} {b}, {m}, {a}"
+        s = f"vfm{op}231p{self.psuffix} {b}, {m}, {a}"
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
@@ -101,14 +107,32 @@ class InlinePrinter(Visitor):
 
         if stmt.typ == AsmType.i64:
             s = f"movq {src_str}, {stmt.dest.ugly}"
+            self.addLine(s, stmt.comment)
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
                 s = f"vpxor {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly}"
+                self.addLine(s, stmt.comment)
+            elif stmt.pred is not None:
+                self.addLine(f"vpxor {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly}", "")
+                self.addLine(f"vpblendd {src_str}, {stmt.dest.ugly}, {stmt.pred}, {stmt.dest.ugly}", "")
+            elif stmt.expand:
+                # TODO: unfinished
+                self.addLine(f"vpxor {stmt.temp.ugly}, {stmt.temp.ugly}, {stmt.temp.ugly}")
+                regsize = stmt.dest.size()
+                if self.precision == Precision.SINGLE and regsize == 32:
+                    self.addLine(f"vmovq {stmt.pred.ugly}, {stmt.dest.ugly_xmm}", "")
+                    self.addLine(f"vpmovzxb{self.bpsuffix} {stmt.dest.ugly_xmm}, {stmt.dest.ugly}", "")
+                    self.addLine(f"vpermd {src_str}, {stmt.dest.ugly}, {stmt.dest.ugly}", "")
+                elif regsize == 16:
+                    self.addLine(f"vpermilps {src_str}, MISSING_PREDICATE, {stmt.dest.ugly}", "")
+                elif self.precision == Precision.DOUBLE:
+                    self.addLine(f"vpermpd {src_str}, MISSING_PREDICATE, {stmt.dest.ugly}", "")
+                self.addLine(f"vpblendd {stmt.temp.ugly}, {stmt.dest.ugly}, MISSING_PREDICATE, {stmt.dest.ugly}", "")
             else:
                 s = f"vmovup{self.psuffix} {src_str}, {stmt.dest.ugly}"
+                self.addLine(s, stmt.comment)
         else:
             raise NotImplementedError()
-        self.addLine(s, stmt.comment)
 
     def visitLea(self, stmt: LeaStmt):
         s = f"leaq {stmt.offset}({stmt.src.ugly}), {stmt.dest.ugly}"

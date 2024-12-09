@@ -271,14 +271,20 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         prev_disp = 0
         prev_overhead = True
-        # this gives us the base register of 'cursor' irrespective of the dummy offset we use
-        prev_base = cursor.look(cursor_ptr, block_offset, Coords(down=0, right=0))[0].base
+        prev_base = None
 
         process_size = min(v_size, cursor.br)
 
         for ic in range(cols):
             for ir in range(rows):
                 if (mask is None) or (mask[ir, ic]):
+                    all_coords = [Coords(down=ir*v_size+i,right=ic) for i in range(process_size)]
+                    has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
+                    if not any(has_nonzero):
+                        continue
+                    elif any(has_nonzero) and not all(has_nonzero) and not is_B:
+                        raise NotImplementedError("Element-wise sparsity in A is not yet implemented.")
+
                     processed = ir * process_size
                     if processed >= b_row:
                         continue
@@ -305,6 +311,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                         prev_base = addr.base
 
                     # adjust addr.disp to a multiple of a SVE vector's length
+                    if prev_base is None:
+                        prev_base = addr.base
+                    
                     addr.base = prev_base
                     addr.disp = (addr.disp - prev_disp) // mul_vl
 
@@ -395,9 +404,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             for bni in range(bn):  # inside this n-block
                 for bki in range(bk):  # inside this k-block
                     bki_reg = bki // elem128
-                    to_cell = Coords(down=bki, right=bni)
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
-                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
+                    to_bcell = Coords(down=bki, right=bni)
+                    to_acell = Coords(down=Vmi*v_size, right=bki)
+                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
+                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         if B_regs[bki_reg, bni] not in bs:
                             p_zeroing = preg_last if bki_reg + 1 == vk else preg
 
@@ -426,9 +436,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             end_index = bm if Vmi + 1 == Vm else Vmi * v_size + v_size  # end_index helps us print the right index ranges
             for bki in range(bk):  # inside this k-block
                 for bni in range(bn):  # inside this n-block
-                    to_cell = Coords(down=bki, right=bni)
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
-                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
+                    to_bcell = Coords(down=bki, right=bni)
+                    to_acell = Coords(down=Vmi*v_size, right=bki)
+                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
+                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi * v_size, end_index, bni, Vmi * v_size,
                                                                          end_index, bki, B_comment)
                         

@@ -34,6 +34,12 @@ class InlinePrinter(Visitor):
             Precision.HALF: 'ph',
             Precision.BFLOAT16: 'nepbf16'
         }[precision]
+        self.bpsuffix = {
+            Precision.DOUBLE: "q",
+            Precision.SINGLE: "d",
+            Precision.HALF: "w",
+            Precision.BFLOAT16: "w",
+        }[precision]
         self.broadcast_multiplier = {
             Precision.DOUBLE: 2,
             Precision.SINGLE: 4,
@@ -76,14 +82,15 @@ class InlinePrinter(Visitor):
         a = stmt.add_dest.ugly
         regsize = stmt.add_dest.size() // 16
         extent = regsize * self.broadcast_multiplier
+        op = "sub" if stmt.sub else "add"
         if stmt.bcast is not None:
-            s = f"vfmadd231{self.alupsuffix} {b}%{{1to{extent}%}}, {m}, {a} {mask}"
+            s = f"vfm{op}231{self.alupsuffix} {b}%{{1to{extent}%}}, {m}, {a} {mask}"
         else:
             if stmt.mult_src.typeinfo == AsmType.i64:
                 # in this case, m is a Register that points to alpha; manually format to be a memory address
-                s = f"vfmadd231{self.alupsuffix} 0({m})%{{1to{extent}%}}, {b}, {a} {mask}"
+                s = f"vfm{op}231{self.alupsuffix} 0({m})%{{1to{extent}%}}, {b}, {a} {mask}"
             else:
-                s = f"vfmadd231{self.alupsuffix} {b}, {m}, {a} {mask}"
+                s = f"vfm{op}231{self.alupsuffix} {b}, {m}, {a} {mask}"
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
@@ -154,6 +161,11 @@ class InlinePrinter(Visitor):
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
                 s = f"vpxord {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly} {mask}"
+            elif stmt.expand:
+                if isinstance(stmt.src, MemoryAddress):
+                    s = f"vpexpand{self.bpsuffix} {src_str}, {stmt.dest.ugly} {mask}"
+                else:
+                    s = f"vpcompress{self.bpsuffix} {src_str}, {stmt.dest.ugly} {mask}"
             else:
                 s = f"vmovupd {src_str}, {stmt.dest.ugly} {mask}"
         else:

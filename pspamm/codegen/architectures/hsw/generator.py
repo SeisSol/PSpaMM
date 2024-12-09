@@ -48,10 +48,28 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
     def init_mask(self, m, bm, v_size, tempreg, maskregs):
         return block("")
+    
+    def pred_n_trues(self, count, v_size, mode):
+        # hacked in right now: we set a number as predicate if we need it
+        if count < v_size:
+            return (1 << count) - 1
+        else:
+            return None
+
+    def make_expand_predicate(self, mask):
+        combined = 0
+        offset = 0
+        for i, value in enumerate(mask):
+            if value:
+                combined |= offset << (8*i)
+                offset += 1
+            else:
+                combined |= 255 << (8*i)
+        return combined
 
     def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
         assert(bm % v_size == 0)
-        vm = bm//v_size
+        vm = self.ceil_div(bm, v_size)
 
         # Needs to fit in AVX/AVX2 ymm registers
         if (bn + bk) * vm + bn * bk <= 16:
@@ -88,11 +106,11 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         reg_count = 0
 
         self.spontaneous_scaling = False
-        for i in range(1024, min(max(nnz * self.precision.size(), m*k*self.precision.size(), m*n*self.precision.size()),8000), 2048):
+        for i in range(1024, min(max(nnz * self.precision.size(), m*k*self.precision.size(), m*n*self.precision.size()),8192), 2048):
             additional_regs.append(available_regs[reg_count])
             reg_count += 1
 
-        for i in range(8192, min(nnz * self.precision.size(), 33000), 8192):
+        for i in range(8192, min(nnz * self.precision.size(), 32768), 8192):
             if reg_count == len(available_regs):
                 self.spontaneous_scaling = True
                 break
@@ -189,7 +207,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                             mask: Matrix[bool] = None,
                             store: bool = False,
                             prefetching: str = None,
-                            load_offset: int = 0
+                            load_offset: int = 0,
+                            temp = None
                            ) -> Block:
 
         rows, cols = registers.shape
@@ -199,15 +218,35 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         for ic in range(cols):
             for ir in range(rows):
                 if (mask is None) or (mask[ir,ic]):
-                    cell_offset = Coords(down=ir*v_size, right=ic)
-                    addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
-                    addr.disp += self.precision.size() * load_offset
-                    if store:
-                        asm.add(mov(registers[ir,ic], addr, True, comment))
-                        if prefetching == 'BL2viaC':
-                            asm.add(prefetch(mem(additional_regs[0], addr.disp)))
-                    else:
-                        asm.add(mov(addr, registers[ir,ic], True, comment))
+                    all_coords = [Coords(down=ir*v_size+i,right=ic) for i in range(v_size)]
+                    has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
+                    if all(has_nonzero):
+                        cell_offset = all_coords[0]
+                        addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
+                        addr.disp += self.precision.size() * load_offset
+                        if store:
+                            asm.add(mov(registers[ir,ic], addr, True, comment))
+                            if prefetching == 'BL2viaC':
+                                asm.add(prefetch(mem(additional_regs[0], addr.disp)))
+                        else:
+                            asm.add(mov(addr, registers[ir,ic], True, comment))
+                    elif any(has_nonzero):
+                        raise NotImplementedError("Element-wise sparsity in A is not yet fully implemented.")
+                        firsti = 0
+                        for i in range(v_size):
+                            if has_nonzero[i]:
+                                firsti = i
+                                break
+                        addr, comment = cursor.look(cursor_ptr, block_offset, all_coords[firsti])
+                        # assume contiguous memory here
+
+                        asm.add(mov(self.make_expand_predicate(all_coords), additional_regs[0], False))
+                        if store:
+                            asm.add(mov(registers[ir,ic], addr, True, comment, pred=additional_regs[0], expand=True, temp=temp))
+                            if prefetching == 'BL2viaC':
+                                asm.add(prefetch(mem(additional_regs[0], addr.disp)))
+                        else:
+                            asm.add(mov(addr, registers[ir,ic], True, comment, pred=additional_regs[0], expand=True, temp=temp))
         return asm
 
     def move_register_single(self,
@@ -273,20 +312,23 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size)
         if self.preloadA:
-            asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
+            asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False, temp=B_regs[0,0]))
         else:
             asm.add(self.move_register_single(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, 0, 0, mask, store=False))
 
         regcache = RegisterCache(additional_regs)
 
+        Vm = self.ceil_div(bm, v_size)
+
         bs = []
         bsv = []
-        for Vmi in range(bm//v_size):
+        for Vmi in range(Vm):
             for bni in range(bn):   # inside this n-block
                 for bki in range(bk):       # inside this k-block
-                    to_cell = Coords(down=bki, right=bni)
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
-                        B_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
+                    to_bcell = Coords(down=bki, right=bni)
+                    to_acell = Coords(down=Vmi*v_size, right=bki)
+                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
+                        B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         self.reg_based_scaling(regcache, asm, B_addr, additional_regs, True)
                         if B_regs[bki, bni] not in bs:
                             asm.add(bcst(B_addr, B_regs[bki, bni], comment=B_comment))
@@ -296,15 +338,15 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                             # just to make sure we do not use registers differently in a block
                             assert bsv[bs.index(B_regs[bki, bni])].ugly == B_addr.ugly
 
-        for Vmi in range(bm//v_size):
+        for Vmi in range(Vm):
             for bki in range(bk):       # inside this k-block
                 if not self.preloadA and not (Vmi, bki) == (0,0):
                     asm.add(self.move_register_single(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, Vmi, bki, mask, store=False))
                 for bni in range(bn):   # inside this n-block
-                    to_cell = Coords(down=bki, right=bni)
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
-                        B_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
-                        self.reg_based_scaling(regcache, asm, B_addr, additional_regs, True)
+                    to_bcell = Coords(down=bki, right=bni)
+                    to_acell = Coords(down=Vmi*v_size, right=bki)
+                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
+                        B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*v_size,Vmi*v_size+v_size,bni,Vmi*v_size,Vmi*v_size+v_size,bki,B_comment)
                         asm.add(fma(B_regs[bki, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=None))
         return asm

@@ -139,7 +139,7 @@ std::tuple<T*, T*, T*, T*, T*, T*> pre(unsigned M, unsigned N, unsigned K, unsig
       for(std::string s; iss >> s; ) {
         result.push_back(s);
       }
-      if(std::atoi(result[0].c_str()) <= K && std::atoi(result[1].c_str()) <= N) {
+      if(std::atoi(result[0].c_str()) <= M && std::atoi(result[1].c_str()) <= K) {
         A[std::atoi(result[0].c_str()) - 1 + LDA * (std::atoi(result[1].c_str()) - 1)] = std::stod(result[2]);
       }
     }
@@ -192,9 +192,9 @@ bool post(const std::string& name, unsigned M, unsigned N, unsigned K, unsigned*
 
   gemm_ref(M, N, K, *LDA, *LDB, LDC, *ALPHA, *BETA, A, B, Cref);
   
-  bool failed = false;
   double diffAbsMax = 0;
   double diffRelMax = 0;
+  int failedCount = 0;
   for(int i = 0; i < M; i++) {
     for(int j = 0; j < N; j++) {
       // we use the relative error instead of the absolute error because of an issue we found for sparse single precision 
@@ -205,13 +205,20 @@ bool post(const std::string& name, unsigned M, unsigned N, unsigned K, unsigned*
       diffAbsMax = std::max(diffAbs, diffAbsMax);
       diffRelMax = std::max(diffRel, diffRelMax);
 
-      failed |= diffRel > DELTA;
+      failedCount += diffRel > DELTA ? 1 : 0;
+
+      if(diffRel > DELTA) {
+        // use for more detailed test outputs
+        // std::cout << i << " " << j << " " << diffRel << " " << C[i+j*LDC] << " " << Cref[i+j*LDC] << std::endl;
+      }
     }
   }
 
+  const bool failed = failedCount > 0;
+
   const std::string resultString = failed ? "fail" : "success";
 
-  std::cout << std::scientific << name << ": " << resultString << " (abs: " << diffAbsMax << ", rel: " << diffRelMax << ")" << std::endl;
+  std::cout << std::scientific << name << ": " << resultString << " " << failedCount << " / " << M*N << " (abs: " << diffAbsMax << ", rel: " << diffRelMax << ")" << std::endl;
 
   return !failed;
 }
@@ -219,9 +226,11 @@ bool post(const std::string& name, unsigned M, unsigned N, unsigned K, unsigned*
 
 setup_main = """
 int main()
-{
+{{
   int results = 0;
   int correct = 0;
+
+  std::cout << "Running tests for {arch}" << std::endl;
 
 """
 
@@ -260,29 +269,39 @@ end_of_testsuite = """
 """
 
 
-def generateMTX(k, n, nnz):
-    assert (nnz <= k * n)
+def generateMTX(k, n, nnz, bk=1, bn=1):
+    random.seed(k*n + nnz)
+
+    assert k % bk == 0
+    assert n % bn == 0
+
+    assert nnz <= k * n
+
+    true_nzz = nnz * bk * bn
+
     os.makedirs(os.path.join(BASEDIR, 'mtx'), exist_ok=True)
 
-    filename = os.path.join(BASEDIR, 'mtx', str(k) + 'x' + str(n) + '_' + str(nnz) + '.mtx')
+    filename = os.path.join(BASEDIR, 'mtx', f'{k}-{bk}-{n}-{bn}-{nnz}.mtx')
 
     if os.path.isfile(filename):
         return filename
 
     with open(filename, 'w') as f:
 
-      f.write('%%MatrixMarket matrix coordinate real general\n%\n' + str(k) + ' ' + str(n) + ' ' + str(nnz))
+      f.write(f'%%MatrixMarket matrix coordinate real general\n%\n{k} {n} {true_nzz}')
 
       zeros = set()
 
-      for i in range(1, k + 1):
-          for j in range(1, n + 1):
-              zeros.add((i, j))
+      for i in range(1, k + 1, bk):
+        for j in range(1, n + 1, bn):
+          zeros.add((i, j))
 
       nonzeros = random.sample(sorted(zeros), nnz)
 
       for entry in nonzeros:
-          f.write('\n' + str(entry[0]) + ' ' + str(entry[1]) + ' ' + str(random.uniform(0.00001, 1000)))
+        for ii in range(bk):
+          for jj in range(bn):
+            f.write('\n' + str(entry[0] + ii) + ' ' + str(entry[1] + jj) + ' ' + str(random.uniform(0.00001, 1000)))
 
     return filename
 
@@ -359,7 +378,7 @@ def make(kernels, arch):
                 print(' '.join(arguments + additional_args))
                 subprocess.check_output(arguments + additional_args, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
-                raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
+                raise RuntimeError(f"The command\n{' '.join(e.cmd)}\n returned with an error (code {e.returncode}):\n{e.output.decode('utf-8')}")
 
             f.write('#include "' + arch + '/' + name + '.h"\n')
 
@@ -375,7 +394,7 @@ def make(kernels, arch):
     f.write('\n')
 
     f.write(function_definitions)
-    f.write(setup_main)
+    f.write(setup_main.format(arch=arch))
 
     for testcase in testcases:
       f.write(testcase)

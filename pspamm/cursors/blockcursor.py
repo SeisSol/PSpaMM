@@ -84,7 +84,7 @@ class BlockCursor(Cursor):
              dest_block: Coords
             ) -> Tuple[AsmStmt, CursorLocation]:
 
-        comment = "Move {} to {str(dest_block)}".format(self.name)
+        comment = f"Move {self.name} to {str(dest_block)}"
 
         if dest_block.absolute:
             dest_loc = self.start_location(dest_block)
@@ -203,13 +203,13 @@ def sparse_mask(A_regs: Matrix[Register],
     B_br, B_bc, B_idx, B_pat = B.get_block(B_ptr, B_block_offset)
 
     if not has_mask:
-        assert (Vr * v_size == A_br)    # bm must tile m exactly for now in NEON and AVX512
+        assert (Vr * v_size == A_br)    # bm must tile m exactly for now in non-mask-supporting ISAs
     assert(Vc >= A_bc)                  # Matrix block must fit in register block
     assert(A_bc == B_br)                # Matrix blocks are compatible
 
-    # Mask out registers not used in current block, including zero-rows of B
+    # Mask out registers not used in current block, including zero-rows of B and A
     for Vci in range(A_bc):
         if B_pat[Vci,:].any(axis=1):
-            mask[:,Vci] = True
+            mask[:,Vci] = A_pat[:,Vci]
 
     return mask

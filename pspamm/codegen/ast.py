@@ -8,17 +8,25 @@ if TYPE_CHECKING:
 
 class AsmStmt:
     comment = None
-    implied_inputs = []
-    implied_outputs = []
 
     def accept(self, visitor: "Visitor"):
-        raise Exception("AsmStmt is supposed to be abstract!")
+        raise Exception("AsmStmt is supposed to be abstract")
+    
+    def reg_in_candidate(self):
+        return ()
+    
+    def reg_out_candidate(self):
+        return ()
+    
+    def reg_in(self):
+        return set(reg for reg in self.reg_in_candidate() if isinstance(reg, Register))
+
+    def reg_out(self):
+        return set(reg for reg in self.reg_out_candidate() if isinstance(reg, Register))
 
 
 class GenericStmt(AsmStmt):
     operation = None
-    inputs = None
-    output = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitStmt(self)
@@ -30,9 +38,17 @@ class MovStmt(AsmStmt):
     typ = None
     aligned = False
     pred = None
+    expand = False
+    temp = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitMov(self)
+    
+    def reg_in_candidate(self):
+        return (src,)
+    
+    def reg_out_candidate(self):
+        return (dest,temp)
 
 class LeaStmt(AsmStmt):
     src = None
@@ -44,6 +60,12 @@ class LeaStmt(AsmStmt):
 
     def accept(self, visitor: "Visitor"):
         visitor.visitLea(self)
+    
+    def reg_in_candidate(self):
+        return (src,)
+    
+    def reg_out_candidate(self):
+        return (dest,)
 
 class LoadStmt(AsmStmt):
     src = None
@@ -59,6 +81,12 @@ class LoadStmt(AsmStmt):
 
     def accept(self, visitor: "Visitor"):
         visitor.visitLoad(self)
+    
+    def reg_in_candidate(self):
+        return (src,)
+    
+    def reg_out_candidate(self):
+        return (dest,dest2)
 
 class StoreStmt(AsmStmt):
     src = None
@@ -73,6 +101,12 @@ class StoreStmt(AsmStmt):
 
     def accept(self, visitor: "Visitor"):
         visitor.visitStore(self)
+    
+    def reg_in_candidate(self):
+        return (src,src2)
+    
+    def reg_out_candidate(self):
+        return (dest)
 
 class PrefetchStmt(AsmStmt):
     dest = None
@@ -91,9 +125,16 @@ class FmaStmt(AsmStmt):
     add_dest = None
     bcast = None
     pred = None
+    sub = False
 
     def accept(self, visitor: "Visitor"):
         visitor.visitFma(self)
+    
+    def reg_in_candidate(self):
+        return (bcast_src,mult_src)
+    
+    def reg_out_candidate(self):
+        return (add_dest,)
 
 class MulStmt(AsmStmt):
     src = None
@@ -103,6 +144,12 @@ class MulStmt(AsmStmt):
 
     def accept(self, visitor: "Visitor"):
         visitor.visitMul(self)
+    
+    def reg_in_candidate(self):
+        return (mult_src,src)
+    
+    def reg_out_candidate(self):
+        return (dest,)
 
 class BcstStmt(AsmStmt):
     bcast_src = None
@@ -111,6 +158,12 @@ class BcstStmt(AsmStmt):
 
     def accept(self, visitor: "Visitor"):
         visitor.visitBcst(self)
+    
+    def reg_in_candidate(self):
+        return (bcast_src,)
+    
+    def reg_out_candidate(self):
+        return (dest,)
 
 class AddStmt(AsmStmt):
     src = None
@@ -122,6 +175,12 @@ class AddStmt(AsmStmt):
     def accept(self, visitor: "Visitor"):
         visitor.visitAdd(self)
 
+    def reg_in_candidate(self):
+        return (src,additional)
+    
+    def reg_out_candidate(self):
+        return (dest,)
+
 class CmpStmt(AsmStmt):
     lhs = None
     rhs = None
@@ -129,6 +188,12 @@ class CmpStmt(AsmStmt):
 
     def accept(self, visitor: "Visitor"):
         visitor.visitCmp(self)
+    
+    def reg_in_candidate(self):
+        return (lhs,rhs)
+    
+    def reg_out_candidate(self):
+        return ()
 
 class LabelStmt(AsmStmt):
     label = None
@@ -157,6 +222,8 @@ class Block(AsmStmt):
     def accept(self, visitor: "Visitor"):
         visitor.visitBlock(self)
 
+class ControlBlock(AsmStmt):
+    contents = []
 
 class Command(AsmStmt):
     name = None
@@ -167,6 +234,5 @@ class Command(AsmStmt):
     def make(self, e) -> Block:
         raise NotImplementedError()
 
-
-
-
+class VirtualRegister(Register):
+    pass

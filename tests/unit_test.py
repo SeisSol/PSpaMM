@@ -39,10 +39,19 @@ delta_dp = 1e-6 # epsilon is around e-15 => /2
 
 kernels = []
 
-random.seed(1)
-
 for precision, delta in zip((Precision.SINGLE, Precision.DOUBLE), (delta_sp, delta_dp)):
     v_size = v_size_fun(precision)
+
+    kernels.append(generator.TestKernel("test0dv", precision, 8, 8, 8, 8, 8, 8, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(8, 8, 1, v_size, precision) for x in blocksize_algs], None, None, delta))
+    kernels.append(generator.TestKernel("test0bspv", precision, 8, 8, 8, 8, 0, 8, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(8, 8, 1, v_size, precision) for x in blocksize_algs], None, generator.generateMTX(8, 8, 8, 1, 1), delta))
+    kernels.append(generator.TestKernel("test0aspv", precision, 8, 8, 8, 0, 8, 8, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(8, 8, 1, v_size, precision) for x in blocksize_algs], generator.generateMTX(8, 8, 8, v_size, 1), None, delta))
+    kernels.append(generator.TestKernel("test0abspv", precision, 8, 8, 8, 0, 0, 8, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(8, 8, 1, v_size, precision) for x in blocksize_algs], generator.generateMTX(8, 8, 8, v_size, 1), generator.generateMTX(8, 8, 8, 1, 1), delta))
+
+    kernels.append(generator.TestKernel("test1dv", precision, 64, 8, 56, 64, 56, 64, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(64, 8, 1, v_size, precision) for x in blocksize_algs], None, None, delta))
+    kernels.append(generator.TestKernel("test1bspv", precision, 64, 8, 56, 64, 0, 64, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(64, 8, 1, v_size, precision) for x in blocksize_algs], None, generator.generateMTX(56, 8, 20, 1, 1), delta))
+    kernels.append(generator.TestKernel("test1aspv", precision, 64, 8, 56, 0, 56, 64, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(64, 8, 1, v_size, precision) for x in blocksize_algs], generator.generateMTX(64, 56, 30, v_size, 1), None, delta))
+    kernels.append(generator.TestKernel("test1abspv", precision, 64, 8, 56, 0, 0, 64, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(64, 8, 1, v_size, precision) for x in blocksize_algs], generator.generateMTX(64, 56, 30, v_size, 1), generator.generateMTX(56, 8, 20, 1, 1), delta))
+
     kernels.append(generator.TestKernel("testlarge", precision, 40, 100, 100, 100, 100, 100, 2.5, 1.0, [(8, 5), (8,2)] + [x.getBlocksize(10, 10, 1, v_size, precision) for x in blocksize_algs], None, None, delta))
     kernels.append(generator.TestKernel("test1", precision, 8, 56, 56, 8, 0, 8, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(8, 56, 2, v_size, precision) for x in blocksize_algs], None, generator.generateMTX(56, 56, 30), delta))
     kernels.append(generator.TestKernel("test2", precision, 8, 40, 40, 8, 40, 8, 2.5, 1.0, [(8, 5), (8,2)] + [x.getBlocksize(8, 40, 2, v_size, precision) for x in blocksize_algs], None, None, delta))

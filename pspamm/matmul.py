@@ -258,16 +258,20 @@ class MatMul:
 
         Bn = self.n // self.bn
         Bk = self.k // self.bk
-        # handle fringe case of SVE -> allow bm < v_size
-        vm = self.bm // self.v_size if not self.masks else self.generator.ceil_div(self.bm, self.v_size)
+        Bm = self.m // self.bm
+
+        vm = self.generator.ceil_div(self.bm, self.v_size)
 
         n_overhead = self.n % self.bn
         k_overhead = self.k % self.bk
+        m_overhead = self.m % self.bm
 
         if n_overhead > 0:
             Bn += 1
         if k_overhead > 0:
             Bk += 1
+        if m_overhead > 0:
+            Bm += 1
 
         asm.add(self.generator.make_b_pointers(self.starting_regs[1], self.additional_regs, self.bnnz))
 
@@ -291,9 +295,16 @@ class MatMul:
 
             def kernelK(asm, Bki, A_ptr, B_ptr):
                 if unroll_k:
+                    # adjust registers if necessary for the last operation
+
+                    if Bmi + 1 == Bm and m_overhead > 0 and not self.unroll_m:
+                        A_ptr = CursorLocation(Coords(right=0, down=Bmi, absolute=True))
                     to_A = Coords(right=Bki, down=Bmi, absolute=True) if self.unroll_m else Coords(right=Bki)
+
+                    if Bni + 1 == Bn and n_overhead > 0 and not self.unroll_n:
+                        B_ptr = CursorLocation(Coords(down=0, right=Bni, absolute=True))
                     to_B = Coords(right=Bni, down=Bki, absolute=True) if self.unroll_n else Coords(down=Bki)
-                    keep = self.B.has_nonzero_block(B_ptr, to_B) and self.A.has_nonzero_block(A_ptr, to_A)
+                    keep = (not self.unroll_n or self.B.has_nonzero_block(B_ptr, to_B)) and (not self.unroll_m or self.A.has_nonzero_block(A_ptr, to_A))
                 else:
                     # setting A_ptr, B_ptr here may be a bit too hacky...
                     A_ptr = CursorLocation(Coords(right=Bki, down=Bmi, absolute=True))
@@ -304,16 +315,17 @@ class MatMul:
 
                 if keep:
                     asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.v_size, self.additional_regs, to_A, to_B))
-            
+
             if unroll_k:
                 for Bki in range(Bk):
                     kernelK(asm, Bki, A_ptr, B_ptr)
             else:
-                loopblock = block("microkernel")
-                kernelK(loopblock, 0, A_ptr, B_ptr)
-                loopblock.add(self.B.move(B_ptr, Coords(down=1))[0])
-                loopblock.add(self.A.move(A_ptr, Coords(right=1))[0])
-                asm.add(loop(self.loop_regs[2], 0, Bk-1, 1, unroll=4).body(loopblock))
+                if Bk > 1:
+                    loopblock = block("microkernel")
+                    kernelK(loopblock, 0, A_ptr, B_ptr)
+                    loopblock.add(self.B.move(B_ptr, Coords(down=1))[0])
+                    loopblock.add(self.A.move(A_ptr, Coords(right=1))[0])
+                    asm.add(loop(self.loop_regs[2], 0, Bk-1, 1, unroll=4).body(loopblock))
                 kernelK(asm, Bk-1, A_ptr, B_ptr)
                 asm.add(self.B.move(B_ptr, Coords(down=1-Bk))[0])
                 asm.add(self.A.move(A_ptr, Coords(right=1-Bk))[0])
@@ -337,6 +349,7 @@ class MatMul:
                             pred_m = None if not self.masks else self.generator.pred_n_trues(self.bm - ir*self.v_size, self.v_size, "m")
                             if self.beta != 0.0 and self.beta != 1.0:
                                 store_block.add(mul(A_regs_cut[ir,ic], self.beta_reg[1], A_regs_cut[ir,ic], "C = beta * C + alpha * AB", pred=pred_m))
+                            
                             if self.beta == 0.0:
                                 store_block.add(mul(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = alpha * AB", pred=pred_m))
                             else:
@@ -381,6 +394,9 @@ class MatMul:
 
         def kernelM(asm, Bmi):
             asm.add(self.make_nk_unroll(Bmi, self.unroll_n | self.unroll_m))
+            asm.add(self.C.move(C_ptr, Coords(down=1, right=1-Bn))[0])
+            if self.C_pf:
+                asm.add(self.C_pf.move(C_pf_ptr, Coords(down=1, right=1-Bn))[0])
 
         asm = block("kernel")
 
@@ -397,9 +413,6 @@ class MatMul:
             loopBody = block(f"kernel_{self.m}x{self.n}x{self.k}")
             kernelM(loopBody, 0)
             loopBody.add(self.A.move(A_ptr, Coords(down=1))[0])
-            loopBody.add(self.C.move(C_ptr, Coords(down=1, right=1-Bn))[0])
-            if self.C_pf:
-                loopBody.add(self.C_pf.move(C_pf_ptr, Coords(down=1, right=1-Bn))[0])
             asm.add(
                 loop(self.loop_regs[0], 0, Bm, 1).body(loopBody)
             )
@@ -410,6 +423,8 @@ class MatMul:
         if vm_overhead > 0:
             self.m = self.m % self.bm
             self.bm = self.m % self.bm
+
+            # adjust registers for the last m iteration
             self.A_regs = self.A_regs[0:vm_overhead, 0:self.bk]
             self.C_regs = self.C_regs[0:vm_overhead, 0:self.bn]
             self.A.r = self.m

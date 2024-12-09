@@ -37,6 +37,10 @@ class Register_HSW(Register):
     @property
     def ugly(self):
         return "%%" + self.value
+    
+    @property
+    def ugly_xmm(self):
+        return "%%x" + self.value[1:]
 
 
 rax = Register_HSW(AsmType.i64, "rax")
