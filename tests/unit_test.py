@@ -42,6 +42,8 @@ kernels = []
 for precision, delta in zip((Precision.SINGLE, Precision.DOUBLE), (delta_sp, delta_dp)):
     v_size = v_size_fun(precision)
 
+    kernels.append(generator.TestKernel("test0m", precision, 8, 8, 8, 8, 8, 8, -1.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(8, 8, 1, v_size, precision) for x in blocksize_algs], None, None, delta))
+
     kernels.append(generator.TestKernel("test0dv", precision, 8, 8, 8, 8, 8, 8, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(8, 8, 1, v_size, precision) for x in blocksize_algs], None, None, delta))
     kernels.append(generator.TestKernel("test0bspv", precision, 8, 8, 8, 8, 0, 8, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(8, 8, 1, v_size, precision) for x in blocksize_algs], None, generator.generateMTX(8, 8, 8, 1, 1), delta))
     kernels.append(generator.TestKernel("test0aspv", precision, 8, 8, 8, 0, 8, 8, 2.0, 0.0, [(8, 4), (8,1)] + [x.getBlocksize(8, 8, 1, v_size, precision) for x in blocksize_algs], generator.generateMTX(8, 8, 8, v_size, 1), None, delta))

@@ -358,7 +358,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                          v_size: int,
                          additional_regs,
                          to_A_block: Coords = Coords(),
-                         to_B_block: Coords = Coords()
+                         to_B_block: Coords = Coords(),
+                         sub: bool = False
                          ) -> Block:
 
         """ make_microkernel generates a GEMM microkernel for two blocks using the outer-product formulation.
@@ -450,7 +451,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                             bcast = None
                         else:
                             bcast = cell_indices[(bki_reg, bni)]
-                        asm.add(fma(B_regs[bki_reg, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, pred=p_merging, bcast=bcast))
+                        asm.add(fma(B_regs[bki_reg, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, pred=p_merging, bcast=bcast, sub=sub))
                         cell_indices[(bki_reg, bni)] += 1
         return asm
 

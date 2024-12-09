@@ -281,7 +281,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                          v_size:int,
                          additional_regs,
                          to_A_block: Coords = Coords(),
-                         to_B_block: Coords = Coords()
+                         to_B_block: Coords = Coords(),
+                         sub: bool = False
                         ) -> Block:
 
         """ make_microkernel generates a GEMM microkernel for two blocks using the outer-product formulation.
@@ -310,7 +311,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                         B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         self.reg_based_scaling(regcache, asm, B_addr, additional_regs, True)
                         comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*v_size,Vmi*v_size+v_size,bni,Vmi*v_size,Vmi*v_size+v_size,bki,B_comment)
-                        asm.add(fma(B_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=0))
+                        asm.add(fma(B_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=0, sub=sub))
         return asm
 
     def init_prefetching(self, prefetching):

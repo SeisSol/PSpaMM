@@ -281,7 +281,7 @@ class MatMul:
             if Bni + 1 == Bn and n_overhead > 0:
                 regs = self.C_regs[0:vm, 0:n_overhead]
 
-            if self.alpha == 1.0 and self.beta != 0.0:
+            if self.alpha in [-1.0, 1.0] and self.beta != 0.0:
                 asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, False))
                 if self.beta != 1.0:
                     if self.use_bcst:
@@ -313,8 +313,9 @@ class MatMul:
                     to_B = Coords()
                     keep = True
 
+                sub = self.alpha == -1.0
                 if keep:
-                    asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.v_size, self.additional_regs, to_A, to_B))
+                    asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.v_size, self.additional_regs, to_A, to_B, sub))
 
             if unroll_k:
                 for Bki in range(Bk):
@@ -330,7 +331,7 @@ class MatMul:
                 asm.add(self.B.move(B_ptr, Coords(down=1-Bk))[0])
                 asm.add(self.A.move(A_ptr, Coords(right=1-Bk))[0])
 
-            if self.alpha != 1.0:
+            if self.alpha not in [-1.0, 1.0]:
                 store_block = block("")
 
                 if self.use_bcst:

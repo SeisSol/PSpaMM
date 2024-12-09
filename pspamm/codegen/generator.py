@@ -70,7 +70,8 @@ class AbstractGenerator(ABC):
                          v_size:int,
                          additional_regs,
                          to_A_block: Coords = Coords(),
-                         to_B_block: Coords = Coords()
+                         to_B_block: Coords = Coords(),
+                         sub: bool = False
                          ) -> Block:
         pass
 
