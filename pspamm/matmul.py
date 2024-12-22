@@ -248,14 +248,7 @@ class MatMul:
         self.unroll_n = ldb == 0
         self.unroll_m = lda == 0
 
-    def make_nk_unroll(self, Bmi, unroll_k=True):
-
-        asm = block("Unrolling over bn and bk")
-        A_ptr = self.A.start()
-        B_ptr = self.B.start()
-        C_ptr = CursorLocation()
-        C_pf_ptr = CursorLocation()
-
+    def microkernel(self, asm, Bmi, Bni, unroll, A_ptr, B_ptr, C_ptr, C_pf_ptr):
         Bn = self.n // self.bn
         Bk = self.k // self.bk
         Bm = self.m // self.bm
@@ -265,6 +258,7 @@ class MatMul:
         n_overhead = self.n % self.bn
         k_overhead = self.k % self.bk
         m_overhead = self.m % self.bm
+        vm_overhead = -(m_overhead // -self.v_size)
 
         if n_overhead > 0:
             Bn += 1
@@ -273,162 +267,185 @@ class MatMul:
         if m_overhead > 0:
             Bm += 1
 
-        asm.add(self.generator.make_b_pointers(self.starting_regs[1], self.additional_regs, self.bnnz))
+        regs = self.C_regs
 
-        def kernelN(asm, Bni, A_ptr, B_ptr, C_ptr):
-            regs = self.C_regs
+        BnEnd = Bni + 1 == Bn
+        BmEnd = Bmi + 1 == Bm
 
-            if Bni + 1 == Bn and n_overhead > 0:
-                regs = self.C_regs[0:vm, 0:n_overhead]
+        if BnEnd and n_overhead > 0:
+            regs = regs[:, :n_overhead]
+        if BmEnd and m_overhead > 0:
+            regs = regs[:vm_overhead, :]
 
-            if self.alpha in [-1.0, 1.0] and self.beta != 0.0:
-                asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, False))
-                if self.beta != 1.0:
-                    if self.use_bcst:
-                        asm.add(bcst(self.beta_bcst_reg, self.beta_reg[1], "Broadcast beta"))
-                    for ic in range(regs.shape[1]):
-                        for ir in range(regs.shape[0]):
-                            pred_m = None if not self.masks else self.generator.pred_n_trues(self.bm - ir * self.v_size, self.v_size, "m")
-                            asm.add(mul(regs[ir,ic], self.beta_reg[1], regs[ir,ic], "C = beta * C", pred=pred_m))
-            else:
-                asm.add(self.generator.make_zero_block(regs, self.additional_regs))
-
-            def kernelK(asm, Bki, A_ptr, B_ptr):
-                if unroll_k:
-                    # adjust registers if necessary for the last operation
-
-                    if Bmi + 1 == Bm and m_overhead > 0 and not self.unroll_m:
-                        A_ptr = CursorLocation(Coords(right=0, down=Bmi, absolute=True))
-                    to_A = Coords(right=Bki, down=Bmi, absolute=True) if self.unroll_m else Coords(right=Bki)
-
-                    if Bni + 1 == Bn and n_overhead > 0 and not self.unroll_n:
-                        B_ptr = CursorLocation(Coords(down=0, right=Bni, absolute=True))
-                    to_B = Coords(right=Bni, down=Bki, absolute=True) if self.unroll_n else Coords(down=Bki)
-                    keep = (not self.unroll_n or self.B.has_nonzero_block(B_ptr, to_B)) and (not self.unroll_m or self.A.has_nonzero_block(A_ptr, to_A))
-                else:
-                    # setting A_ptr, B_ptr here may be a bit too hacky...
-                    A_ptr = CursorLocation(Coords(right=Bki, down=Bmi, absolute=True))
-                    B_ptr = CursorLocation(Coords(right=Bni, down=Bki, absolute=True))
-                    to_A = Coords()
-                    to_B = Coords()
-                    keep = True
-
-                sub = self.alpha == -1.0
-                if keep:
-                    asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr, B_ptr, self.A_regs, self.B_regs, regs, self.v_size, self.additional_regs, to_A, to_B, sub))
-
-            if unroll_k:
-                for Bki in range(Bk):
-                    kernelK(asm, Bki, A_ptr, B_ptr)
-            else:
-                if Bk > 1:
-                    loopblock = block("microkernel")
-                    kernelK(loopblock, 0, A_ptr, B_ptr)
-                    loopblock.add(self.B.move(B_ptr, Coords(down=1))[0])
-                    loopblock.add(self.A.move(A_ptr, Coords(right=1))[0])
-                    asm.add(loop(self.loop_regs[2], 0, Bk-1, 1, unroll=4).body(loopblock))
-                kernelK(asm, Bk-1, A_ptr, B_ptr)
-                asm.add(self.B.move(B_ptr, Coords(down=1-Bk))[0])
-                asm.add(self.A.move(A_ptr, Coords(right=1-Bk))[0])
-
-            if self.alpha not in [-1.0, 1.0]:
-                store_block = block("")
-
+        if self.alpha in [-1.0, 1.0] and self.beta != 0.0:
+            asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, False))
+            if self.beta != 1.0:
                 if self.use_bcst:
-                    store_block.add(bcst(self.alpha_bcst_reg, self.alpha_reg[1], "Broadcast alpha"))
-                    if self.beta != 0.0 and self.beta != 1.0:
-                        store_block.add(bcst(self.beta_bcst_reg, self.beta_reg[1], "Broadcast beta"))
-
-                for x in range(0, regs.shape[1], self.A_regs.shape[1]):
-                    A_regs_cut = self.A_regs[0:min(self.A_regs.shape[0], regs.shape[0]), 0:regs.shape[1]-x]
-                    if self.beta != 0.0:
-                        store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, False, None, self.ldc * x))
-
-
-                    for ir in range(A_regs_cut.shape[0]):
-                        for ic in range(A_regs_cut.shape[1]):
-                            pred_m = None if not self.masks else self.generator.pred_n_trues(self.bm - ir*self.v_size, self.v_size, "m")
-                            if self.beta != 0.0 and self.beta != 1.0:
-                                store_block.add(mul(A_regs_cut[ir,ic], self.beta_reg[1], A_regs_cut[ir,ic], "C = beta * C + alpha * AB", pred=pred_m))
-                            
-                            if self.beta == 0.0:
-                                store_block.add(mul(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = alpha * AB", pred=pred_m))
-                            else:
-                                store_block.add(fma(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = C + alpha * AB", None, pred=pred_m))
-                    store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, True, self.prefetching, self.ldc * x))
-                asm.add(store_block)
-            else:
-                asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, True, self.prefetching))
-
-            if (Bni != Bn-1):
-                move_C, C_ptr = self.C.move(C_ptr, Coords(right=1))
-                asm.add(move_C)
-                if self.C_pf:
-                  move_C_pf, C_pf_ptr = self.C_pf.move(C_pf_ptr, Coords(right=1))
-                  asm.add(move_C_pf)
-
-        if self.unroll_n:
-            for Bni in range(0, Bn):
-                kernelN(asm, Bni, A_ptr, B_ptr, C_ptr)
+                    asm.add(bcst(self.beta_bcst_reg, self.beta_reg[1], "Broadcast beta"))
+                for ic in range(regs.shape[1]):
+                    for ir in range(regs.shape[0]):
+                        pred_m = None if not self.masks else self.generator.pred_n_trues(self.bm - ir * self.v_size, self.v_size, "m")
+                        asm.add(mul(regs[ir,ic], self.beta_reg[1], regs[ir,ic], "C = beta * C", pred=pred_m))
         else:
-            if Bn > 1:
-                loopblock = block("microkernel")
-                kernelN(loopblock, 0, A_ptr, B_ptr, C_ptr)
-                loopblock.add(self.B.move(B_ptr, Coords(right=1))[0])
-                asm.add(loop(self.loop_regs[1], 0, Bn-1, 1).body(loopblock))
-            kernelN(asm, Bn-1, A_ptr, B_ptr, C_ptr)
-            asm.add(self.B.move(B_ptr, Coords(right=1-Bn))[0])
+            asm.add(self.generator.make_zero_block(regs, self.additional_regs))
 
-        return asm
+        def kernelK(asm, Bki):
+            if unroll:
+                # adjust registers if necessary for the last operation
 
-    def make(self):
-        A_ptr = CursorLocation()
-        C_ptr = CursorLocation()
-        C_pf_ptr = CursorLocation()
+                if BmEnd and m_overhead > 0 and not self.unroll_m:
+                    A_ptr_in = CursorLocation(Coords(right=0, down=Bmi, absolute=True))
+                else:
+                    A_ptr_in = A_ptr
+                to_A = Coords(right=Bki, down=Bmi, absolute=True) if self.unroll_m else Coords(right=Bki)
 
-        Bm = self.m // self.bm
+                if BnEnd and n_overhead > 0 and not self.unroll_n:
+                    B_ptr_in = CursorLocation(Coords(down=0, right=Bni, absolute=True))
+                else:
+                    B_ptr_in = B_ptr
+                to_B = Coords(right=Bni, down=Bki, absolute=True) if self.unroll_n else Coords(down=Bki)
+                keep = (not self.unroll_n or self.B.has_nonzero_block(B_ptr_in, to_B)) and (not self.unroll_m or self.A.has_nonzero_block(A_ptr_in, to_A))
+            else:
+                # setting A_ptr, B_ptr here may be a bit too hacky...
+                A_ptr_in = CursorLocation(Coords(right=Bki, down=Bmi, absolute=True))
+                B_ptr_in = CursorLocation(Coords(right=Bni, down=Bki, absolute=True))
+                to_A = Coords()
+                to_B = Coords()
+                keep = True
+            
+            sub = self.alpha == -1.0
+
+            if keep:
+                asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr_in, B_ptr_in, self.A_regs, self.B_regs, regs, self.v_size, self.additional_regs, to_A, to_B, sub))
+
+        self.loopwrap(asm, kernelK, Bk, k_overhead > 0, unroll, self.loop_regs[2], [self.A, self.B], [A_ptr, B_ptr], ['right', 'down'], 2)
+
+        if self.alpha not in [-1.0, 1.0]:
+            store_block = block("")
+
+            if self.use_bcst:
+                store_block.add(bcst(self.alpha_bcst_reg, self.alpha_reg[1], "Broadcast alpha"))
+                if self.beta != 0.0 and self.beta != 1.0:
+                    store_block.add(bcst(self.beta_bcst_reg, self.beta_reg[1], "Broadcast beta"))
+
+            for x in range(0, regs.shape[1], self.A_regs.shape[1]):
+                A_regs_cut = self.A_regs[0:min(self.A_regs.shape[0], regs.shape[0]), 0:regs.shape[1]-x]
+                if self.beta != 0.0:
+                    store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, False, None, self.ldc * x))
+
+
+                for ir in range(A_regs_cut.shape[0]):
+                    for ic in range(A_regs_cut.shape[1]):
+                        pred_m = None if not self.masks else self.generator.pred_n_trues(self.bm - ir*self.v_size, self.v_size, "m")
+                        if self.beta != 0.0 and self.beta != 1.0:
+                            store_block.add(mul(A_regs_cut[ir,ic], self.beta_reg[1], A_regs_cut[ir,ic], "C = beta * C + alpha * AB", pred=pred_m))
+                        
+                        if self.beta == 0.0:
+                            store_block.add(mul(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = alpha * AB", pred=pred_m))
+                        else:
+                            store_block.add(fma(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = C + alpha * AB", None, pred=pred_m))
+                store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, True, self.prefetching, self.ldc * x))
+            asm.add(store_block)
+        else:
+            asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, True, self.prefetching))
+
+    def blockloop(self, asm, A_ptr, B_ptr, C_ptr, C_pf_ptr):
         Bn = self.n // self.bn
         Bk = self.k // self.bk
+        Bm = self.m // self.bm
 
-        if self.n % self.bn != 0:
+        vm = self.generator.ceil_div(self.bm, self.v_size)
+
+        n_overhead = self.n % self.bn
+        k_overhead = self.k % self.bk
+        m_overhead = self.m % self.bm
+        vm_overhead = -(m_overhead // -self.v_size)
+        
+        if n_overhead > 0:
             Bn += 1
+        if k_overhead > 0:
+            Bk += 1
+        if m_overhead > 0:
+            Bm += 1
 
-        def kernelM(asm, Bmi):
-            asm.add(self.make_nk_unroll(Bmi, self.unroll_n | self.unroll_m))
-            asm.add(self.C.move(C_ptr, Coords(down=1, right=1-Bn))[0])
+        argsA = [Bm, m_overhead > 0, self.unroll_m, self.loop_regs[0], [self.A], [A_ptr], ['down']]
+        argsB = [Bn, n_overhead > 0, self.unroll_n, self.loop_regs[1], [self.B], [B_ptr], ['right']]
+
+        if self.unroll_m and not self.unroll_n:
+            # swap loops
+            outerArgs, innerArgs = (argsB, argsA)
+            dirC, dirC2 = ('down', 'right')
+            args = lambda i,j: (j,i)
+        else:
+            outerArgs, innerArgs = (argsA, argsB)
+            dirC, dirC2 = ('right', 'down')
+            args = lambda i,j: (i,j)
+        
+        unroll_k = self.unroll_m | self.unroll_n
+
+        def outerLoop(asm, i):
+            def innerLoop(asm, j):
+                Bmi, Bni = args(i, j)
+                self.microkernel(asm, Bmi, Bni, unroll_k, A_ptr, B_ptr, C_ptr, C_pf_ptr)
+                if j < innerArgs[0] - 1:
+                    move_C, _ = self.C.move(C_ptr, Coords(**{dirC:1}))
+                    asm.add(move_C)
+                    if self.C_pf:
+                        move_C_pf, _ = self.C_pf.move(C_pf_ptr, Coords(**{dirC:1}))
+                        asm.add(move_C_pf)
+            overhead = self.loopwrap(asm, innerLoop, *innerArgs)
+            moveLength = 1-innerArgs[0] if overhead else -innerArgs[0]
+            asm.add(self.C.move(C_ptr, Coords(**{dirC2:1, dirC:moveLength}))[0])
             if self.C_pf:
-                asm.add(self.C_pf.move(C_pf_ptr, Coords(down=1, right=1-Bn))[0])
+                asm.add(self.C_pf.move(C_pf_ptr, Coords(**{dirC2:1, dirC:moveLength}))[0])
+
+        self.loopwrap(asm, outerLoop, *outerArgs)
+
+    def loopwrap(self, asm, inner, length, overhead, unroll, loopreg, matrices, ptrs, directions, loopunroll=1):
+        if unroll:
+            for i in range(length):
+                inner(asm, i)
+            return True
+        else:
+            def makeMove(dist):
+                asm = block(f"move by {dist}")
+                for matrix, ptr, direction in zip(matrices, ptrs, directions):
+                    asm.add(matrix.move(ptr, Coords(**{direction:dist}))[0])
+                return asm
+            def makeLoop(until):
+                loopblock = block("kernel")
+                inner(loopblock, 0)
+                loopblock.add(makeMove(1))
+                return loop(loopreg, until, unroll=loopunroll).body(loopblock)
+            if length == 1:
+                inner(asm, 0)
+                return True
+            elif overhead:
+                if length > 1:
+                    asm.add(makeLoop(length - 1))
+                inner(asm, length - 1)
+                asm.add(makeMove(1-length))
+                return True
+            else:
+                asm.add(makeLoop(length))
+                asm.add(makeMove(-length))
+                return False
+
+    def make(self):
+        A_ptr = self.A.start()
+        B_ptr = self.B.start()
+        C_ptr = self.C.start()
+        C_pf_ptr = self.C_pf.start() if self.C_pf else None
 
         asm = block("kernel")
 
         asm.add(block("header",
             self.generator.bcst_alpha_beta(self.alpha_reg, self.beta_reg),
             self.generator.make_scaling_offsets(self.additional_regs, self.bnnz),
-            self.generator.init_mask(self.m, self.bm, self.v_size, self.loop_regs[0], self.mask_regs)
+            self.generator.init_mask(self.m, self.bm, self.v_size, self.loop_regs[0], self.mask_regs),
+            self.generator.make_b_pointers(self.starting_regs[1], self.additional_regs, self.bnnz)
         ))
 
-        if self.unroll_m:
-            for Bmi in range(0, Bm):
-                kernelM(asm, Bmi)
-        elif Bm > 0:
-            loopBody = block(f"kernel_{self.m}x{self.n}x{self.k}")
-            kernelM(loopBody, 0)
-            loopBody.add(self.A.move(A_ptr, Coords(down=1))[0])
-            asm.add(
-                loop(self.loop_regs[0], 0, Bm, 1).body(loopBody)
-            )
-
-        m_overhead = self.m % self.bm
-        vm_overhead = -(m_overhead // -self.v_size)
-
-        if vm_overhead > 0:
-            self.m = self.m % self.bm
-            self.bm = self.m % self.bm
-
-            # adjust registers for the last m iteration
-            self.A_regs = self.A_regs[0:vm_overhead, 0:self.bk]
-            self.C_regs = self.C_regs[0:vm_overhead, 0:self.bn]
-            self.A.r = self.m
-            asm.add(self.make_nk_unroll(Bm, self.unroll_n | self.unroll_m))
+        self.blockloop(asm, A_ptr, B_ptr, C_ptr, C_pf_ptr)
 
         return asm

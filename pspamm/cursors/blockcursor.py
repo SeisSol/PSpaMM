@@ -150,7 +150,7 @@ class BlockCursor(Cursor):
             dest_block += src_loc.current_block
 
         dest_cell += Coords(dest_block.down*self.br, dest_block.right*self.bc, True)
-        return self.offsets[dest_cell.down, dest_cell.right] != -1
+        return self.offsets.shape[0] > dest_cell.down and self.offsets.shape[1] > dest_cell.right and self.offsets[dest_cell.down, dest_cell.right] != -1
 
 
     def has_nonzero_block(self, src: CursorLocation, dest_block: Coords) -> bool:
@@ -203,7 +203,7 @@ def sparse_mask(A_regs: Matrix[Register],
     B_br, B_bc, B_idx, B_pat = B.get_block(B_ptr, B_block_offset)
 
     if not has_mask:
-        assert (Vr * v_size == A_br)    # bm must tile m exactly for now in non-mask-supporting ISAs
+        assert (A_br % v_size == 0)     # bm must tile m exactly for now in non-mask-supporting ISAs
     assert(Vc >= A_bc)                  # Matrix block must fit in register block
     assert(A_bc == B_br)                # Matrix blocks are compatible
 

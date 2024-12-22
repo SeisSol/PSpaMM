@@ -200,7 +200,7 @@ bool post(const std::string& name, unsigned M, unsigned N, unsigned K, unsigned*
       // we use the relative error instead of the absolute error because of an issue we found for sparse single precision 
       // kernels presumably due to limited precision of floats
       const double diffAbs = std::abs((static_cast<double>(C[i + j * LDC]) - static_cast<double>(Cref[i + j * LDC])));
-      const double diffRel = diffAbs / static_cast<double>(Cref[i + j * LDC]);
+      const double diffRel = diffAbs / std::abs(static_cast<double>(Cref[i + j * LDC]));
 
       diffAbsMax = std::max(diffAbs, diffAbsMax);
       diffRelMax = std::max(diffRel, diffRelMax);
