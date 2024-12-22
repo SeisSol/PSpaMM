@@ -16,6 +16,9 @@ def make_cfunc(funcName:str, template:str, body:Block, flop:int, starting_regs:L
     analyzer = Analyzer(starting_regs)
     body.accept(analyzer)
     regs = set('"{}"'.format(reg.clobbered) for reg in analyzer.clobbered_registers)
+    regs.add('"memory"')
+    regs.add('"cc"')
+    # TODO: maybe regs.add('"redzone"') ?
     clobbered = ",".join(sorted(regs))
     return template.format(funcName = funcName,
                            body_text = body_text,
