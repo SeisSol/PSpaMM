@@ -82,15 +82,15 @@ class InlinePrinter(Visitor):
         a = stmt.add_dest.ugly
         regsize = stmt.add_dest.size() // 16
         extent = regsize * self.broadcast_multiplier
-        op = "sub" if stmt.sub else "add"
+        op = "nmadd" if stmt.sub else "madd"
         if stmt.bcast is not None:
-            s = f"vfm{op}231{self.alupsuffix} {b}%{{1to{extent}%}}, {m}, {a} {mask}"
+            s = f"vf{op}231{self.alupsuffix} {b}%{{1to{extent}%}}, {m}, {a} {mask}"
         else:
             if stmt.mult_src.typeinfo == AsmType.i64:
                 # in this case, m is a Register that points to alpha; manually format to be a memory address
-                s = f"vfm{op}231{self.alupsuffix} 0({m})%{{1to{extent}%}}, {b}, {a} {mask}"
+                s = f"vf{op}231{self.alupsuffix} 0({m})%{{1to{extent}%}}, {b}, {a} {mask}"
             else:
-                s = f"vfm{op}231{self.alupsuffix} {b}, {m}, {a} {mask}"
+                s = f"vf{op}231{self.alupsuffix} {b}, {m}, {a} {mask}"
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):

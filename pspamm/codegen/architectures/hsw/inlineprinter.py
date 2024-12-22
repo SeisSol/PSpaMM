@@ -55,10 +55,10 @@ class InlinePrinter(Visitor):
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
 
-        op = "sub" if stmt.sub else "add"
+        op = "nmadd" if stmt.sub else "madd"
 
         # no broadcasting supported inside the instruction (unlike AVX-512)
-        s = f"vfm{op}231p{self.psuffix} {b}, {m}, {a}"
+        s = f"vf{op}231p{self.psuffix} {b}, {m}, {a}"
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
