@@ -272,6 +272,11 @@ end_of_testsuite = """
 def generateMTX(k, n, nnz, bk=1, bn=1):
     random.seed(k*n + nnz)
 
+    if k < bk:
+      k = bk
+    if n < bn:
+      n = bn
+
     assert k % bk == 0
     assert n % bn == 0
 
