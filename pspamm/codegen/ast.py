@@ -318,7 +318,7 @@ class Block(AsmStmt):
         return regs
     
     def __str__(self):
-        return f'block {{\n{"\n".join(str(content) for content in self.contents)}\n}}'
+        return 'block {\n' + '\n'.join(str(content) for content in self.contents) + '\n}'
 
 class Command(AsmStmt):
     name = None

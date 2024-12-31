@@ -57,7 +57,7 @@ class Loop(Block):
         yield loop(self.iteration_var, self.final_val, self.unroll).body(*[substmt for stmt in self.body_contents.contents for substmt in stmt.normalize()])
     
     def __str__(self):
-        return f'loop {self.iteration_var.ugly} in range({self.final_val}), unroll {self.unroll} {{\n{"\n".join(str(content) for content in self.body_contents.contents)}\n}}'
+        return f'loop {self.iteration_var.ugly} in range({self.final_val}), unroll {self.unroll}' + '{\n' + '\n'.join(str(content) for content in self.body_contents.contents) + '\n}'
 
 def loop(iter_var, final_val, unroll=1):
     return Loop(iter_var, final_val, unroll=unroll)
