@@ -10,16 +10,10 @@ from pspamm.codegen.precision import *
 class Generator(AbstractGenerator):
 
     template = """
-void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, const {real_type}* prefetch) {{{{
+void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, const {real_type}* prefetch) {{
   __asm__ __volatile__(
-    "ldr x0, %0\\n\\t"
-    "ldr x1, %1\\n\\t"
-    "ldr x2, %2\\n\\t"
-    "ldr x3, %3\\n\\t"
-    "ldr x4, %4\\n\\t"
-    {body_text}
-
-    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta) : {clobbered});
+{body_text}
+    : : {args} : {clobbered});
     
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -27,8 +21,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     #endif
     pspamm_num_total_flops += {flop};
     #endif
-
-}}}};
+}}
 """
 
     def get_v_size(self):
@@ -45,8 +38,19 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     
     def init_mask(self, m, bm, v_size, tempreg, maskregs):
         return block("")
+    
+    def make_argument_load(self, starting_regs, prefetch):
+        asm = block("Load arguments")
+        asm.add(ld(InputOperand(f'0', 'm', 'A'), starting_regs[0], False))
+        asm.add(ld(InputOperand(f'1', 'm', 'B'), starting_regs[1], False))
+        asm.add(ld(InputOperand(f'2', 'm', 'C'), starting_regs[2], False))
+        asm.add(ld(InputOperand(f'3', 'm', 'alpha'), starting_regs[3], False))
+        asm.add(ld(InputOperand(f'4', 'm', 'beta'), starting_regs[4], False))
+        if prefetch:
+            asm.add(ld(InputOperand(f'5', 'm', 'prefetch'), starting_regs[5], False))
+        return asm
 
-    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
+    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int, prefetch: str):
         assert(bm % v_size == 0)
         vm = bm//v_size
         elem128 = 16 // self.get_precision().size()
@@ -76,7 +80,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         loop_regs = [r(12), r(13), r(14)]
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, []
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, [], False
 
 
     def bcst_alpha_beta(self,
@@ -105,6 +109,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         asm = block("No register based scaling")
         return asm
+
+    def init_block(self, size):
+        return block("")
 
     def move_register_block(self,
                             cursor: Cursor,

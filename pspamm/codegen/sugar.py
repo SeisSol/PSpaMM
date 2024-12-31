@@ -54,9 +54,10 @@ def cmp(lhs: Union[Operand, int], rhs: Union[Operand, int]):
     stmt.rhs = rhs if isinstance(rhs, Operand) else pspamm.architecture.operands.c(rhs)
     return stmt
 
-def jump(label: str, backwards=True):
+def jump(label: str, cmpreg = None, backwards=True):
     stmt = JumpStmt()
     stmt.destination = pspamm.architecture.operands.l(label)
+    stmt.cmpreg = cmpreg
     return stmt
 
 def mov(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, pred = None, expand=None, temp=None):
@@ -143,6 +144,11 @@ def data(value: Union[Operand, int], asmType=AsmType.i64):
     stmt.asmType = asmType
     return stmt
 
+def rvsetvl(actual: Register, requested: Union[Register, int]):
+    stmt = RVSetVLStmt()
+    stmt.actual = actual
+    stmt.requested = requested if isinstance(requested, Operand) else pspamm.architecture.operands.c(requested)
+    return stmt
 
 # Fluent interface
 class BlockBuilder(Block):
@@ -167,7 +173,6 @@ class BlockBuilder(Block):
     def body(self, *args):
         self.contents = list(args)
         return self
-
 
 
 # S-expression interface

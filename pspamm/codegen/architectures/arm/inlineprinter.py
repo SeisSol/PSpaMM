@@ -141,7 +141,7 @@ class InlinePrinter(Visitor):
             src_str = stmt.src.ugly
 
         if stmt.typ == AsmType.i64:
-            s = f"add {stmt.dest.ugly}, {stmt.dest.ugly}, {src_str}"
+            s = f"ldr {stmt.dest.ugly}, {src_str}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if stmt.dest2 is not None:
                 s = f"ldp {stmt.dest.ugly_scalar}, {stmt.dest2.ugly_scalar}, {src_str}"
@@ -159,7 +159,7 @@ class InlinePrinter(Visitor):
             src_str = stmt.src.ugly
 
         if stmt.typ == AsmType.i64:
-            s = f"add {stmt.dest.ugly}, {stmt.dest.ugly}, {src_str}"
+            s = f"str {src_str}, {stmt.dest.ugly}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if stmt.src2 is not None:
                 s = f"stp {stmt.src.ugly_scalar}, {stmt.src2.ugly_scalar}, {stmt.dest.ugly}"

@@ -74,6 +74,9 @@ class MemoryAddress_HSW(MemoryAddress):
         if self.index is None:
             return "{}({})".format(self.disp,self.base.ugly)
         return "{}({},{},{})".format(self.disp,self.base.ugly,self.index.ugly,self.scaling)
+    
+    def registers(self):
+        return [self.base, self.index]
 
 def mem(base, offset, index=None, scaling=None):
     return MemoryAddress_HSW(base, offset, index, scaling)

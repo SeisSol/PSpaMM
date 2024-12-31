@@ -59,6 +59,9 @@ class MemoryAddress_KNL(MemoryAddress):
     @property
     def clobbered(self):
         return self.base.clobbered
+    
+    def registers(self):
+        return [self.base, self.index]
 
 def mem(base, offset, index=None, scaling=None):
     return MemoryAddress_KNL(base, offset, index, scaling)
@@ -75,7 +78,7 @@ r    = lambda n: Register_KNL(AsmType.i64, "r"+str(n)) if n > 7 else gen_regs[n]
 xmm  = lambda n: Register_KNL(AsmType.f64x2, "xmm"+str(n))
 ymm  = lambda n: Register_KNL(AsmType.f64x4, "ymm"+str(n))
 zmm  = lambda n: Register_KNL(AsmType.f64x8, "zmm"+str(n))
-mask = lambda n: Register_KNL(AsmType.i64, "k"+str(n))
+kmask= lambda n: Register_KNL(AsmType.i64, "k"+str(n))
 
 class Predicate:
     def __init__(self, register: Register_KNL, zero: bool):

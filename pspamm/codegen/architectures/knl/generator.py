@@ -9,31 +9,24 @@ from pspamm.codegen.regcache import *
 
 class Generator(AbstractGenerator):
     template = """
-void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}* C, {{real_type}} alpha, {{real_type}} beta, {{real_type}} const* prefetch) {{{{
-  {{real_type}}* alpha_p = &alpha;
-  {{real_type}}* beta_p = &beta;
+void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, {real_type} const* prefetch) {{
+  {real_type}* alpha_p = &alpha;
+  {real_type}* beta_p = &beta;
   __asm__ __volatile__(
-    "movq %0, %%rdi\\n\\t"
-    "movq %1, %%rsi\\n\\t"
-    "movq %2, %%rdx\\n\\t"
-    "movq %3, %%rbx\\n\\t"
-    "movq %4, %%rcx\\n\\t"
-{prefetching_mov}
-{{body_text}}
-
-    : : "m"(A), "m"(B), "m"(C), "m"(alpha_p), "m"(beta_p){prefetching_decl} : {{clobbered}});
+{body_text}
+    : : {args} : {clobbered});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
     #pragma omp atomic
     #endif
-    pspamm_num_total_flops += {{flop}};
+    pspamm_num_total_flops += {flop};
     #endif
 
-}}}};
+}}
 """
     v_len = 4
-    predicates = {0:mask(0)}
+    predicates = {0:kmask(0)}
 
     def get_v_size(self):
         return (16 // self.precision.size()) * self.v_len
@@ -45,7 +38,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         return False
 
     def has_masks(self):
-        return True # for now
+        return True
 
     def pred_n_trues(self, count, v_size, mode):
         # a bit hacky at the moment (won't work for all masks)
@@ -53,8 +46,19 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
             return Predicate(self.predicates[count], mode=='z')
         else:
             return None
+        
+    def make_argument_load(self, starting_regs, prefetch):
+        asm = block("Load arguments")
+        asm.add(mov(InputOperand(f'0', 'm', 'A'), starting_regs[0], False))
+        asm.add(mov(InputOperand(f'1', 'm', 'B'), starting_regs[1], False))
+        asm.add(mov(InputOperand(f'2', 'm', 'C'), starting_regs[2], False))
+        asm.add(mov(InputOperand(f'3', 'm', 'alpha_p'), starting_regs[3], False))
+        asm.add(mov(InputOperand(f'4', 'm', 'beta_p'), starting_regs[4], False))
+        if prefetch:
+            asm.add(mov(InputOperand(f'5', 'm', 'prefetch'), starting_regs[5], False))
+        return asm
 
-    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
+    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int, prefetch: str):
         vm = self.ceil_div(bm, v_size)
         assert((bn+bk) * vm <= 32)  # Needs to fit in AVX512 xmm/ymm/zmm registers
 
@@ -76,9 +80,14 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         available_regs = [r(9),r(10),r(11),r(15),rax] # ,r(13),r(14)
 
-        additional_regs = [r(8)]
+        prefetch_reg = prefetch == 'BL2viaC'
+        if prefetch_reg:
+            starting_regs += [r(8)]
+            additional_regs = []
+        else:
+            additional_regs = [r(8)]
 
-        mask_regs = [mask(1), mask(2)]
+        mask_regs = [kmask(1), kmask(2)]
 
         reg_count = 0
 
@@ -99,11 +108,11 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         # FIXME: a bit hacky to have the mask setup here
         rest = bm % v_size
         rest2 = (m % bm) % v_size
-        self.predicates[rest] = mask(1)
-        self.predicates[rest2] = mask(2)
-        self.predicates[0] = mask(0)
+        self.predicates[rest] = kmask(1)
+        self.predicates[rest2] = kmask(2)
+        self.predicates[0] = kmask(0)
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs, prefetch_reg
 
     def init_mask(self, m, bm, v_size, tempreg, maskregs):
         rest = bm % v_size
@@ -158,6 +167,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         
         return asm
 
+    def init_block(self, size):
+        return block("")
 
     def reg_based_scaling(self, regcache, asm, addr: MemoryAddress, additional_regs: List[Register], with_index: bool):
         if addr.disp >= 1024:
@@ -217,7 +228,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                     all_coords = [Coords(down=ir*v_size+i,right=ic) for i in range(process_size)]
                     has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
                     if all(has_nonzero):
-                        cell_offset = Coords(down=ir*v_size, right=ic)
+                        cell_offset = all_coords[0]
                         addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
                         addr.disp += self.precision.size() * load_offset
 
@@ -232,30 +243,46 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                         else:
                             asm.add(mov(addr, registers[ir,ic], True, comment, pred=p))
                     elif any(has_nonzero):
+                        contiguous = True
                         firsti = 0
-                        for i in range(v_size):
+                        lasti = None
+                        for i in range(process_size):
                             if has_nonzero[i]:
                                 firsti = i
                                 break
                         bitmask = 0
-                        for i in range(v_size):
+                        for i in range(process_size):
                             if has_nonzero[i]:
                                 bitmask |= 1 << i
+                                if lasti is not None:
+                                    contiguous = False
+                            elif i > firsti:
+                                if lasti is None:
+                                    lasti = i - 1
+                        if lasti is None:
+                            lasti = process_size
                         addr, comment = cursor.look(cursor_ptr, block_offset, all_coords[firsti])
                         # assume contiguous memory here
 
-                        maskreg = mask(3)
+                        maskFound = False
+                        if firsti == 0 and contiguous:
+                            self.predicates[lasti]
 
-                        asm.add(mov(mask, additional_regs[0], False))
-                        asm.add(mov(additional_regs[0], maskreg, False))
-                        pred = Predicate(maskreg, True)
+                        if not maskFound:
+                            maskreg = kmask(3)
+
+                            asm.add(mov(maskreg, additional_regs[0], False))
+                            asm.add(mov(additional_regs[0], maskreg, False))
+                            pred = Predicate(maskreg, True)
+
+                        needsExpand = not contiguous
 
                         if store:
-                            asm.add(mov(registers[ir,ic], addr, True, comment, pred=pred, expand=True))
+                            asm.add(mov(registers[ir,ic], addr, True, comment, pred=pred, expand=needsExpand))
                             if prefetching == 'BL2viaC':
                                 asm.add(prefetch(mem(additional_regs[0], addr.disp)))
                         else:
-                            asm.add(mov(addr, registers[ir,ic], True, comment, pred=pred, expand=True))
+                            asm.add(mov(addr, registers[ir,ic], True, comment, pred=pred, expand=needsExpand))
         return asm
 
     def make_zero_block(self, registers: Matrix[Register], additional_regs) -> Block:
@@ -313,13 +340,3 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                         comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*v_size,Vmi*v_size+v_size,bni,Vmi*v_size,Vmi*v_size+v_size,bki,B_comment)
                         asm.add(fma(B_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=0, sub=sub))
         return asm
-
-    def init_prefetching(self, prefetching):
-        
-        if prefetching != 'BL2viaC':
-            Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = "")    
-            return None
-        
-        prefetchReg = r(8)
-        Generator.template = Generator.template.format(prefetching_mov = '    "movq %5, {}\\n\\t"'.format(prefetchReg.ugly), prefetching_decl = ', "m"(prefetch)')
-        return prefetchReg

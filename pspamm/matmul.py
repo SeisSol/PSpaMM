@@ -7,6 +7,9 @@ from pspamm.codegen.precision import *
 
 from pspamm.cursors import *
 
+from pspamm.codegen.virtual import *
+from pspamm.codegen.prune import *
+
 import pspamm.architecture
 import numpy
 
@@ -124,8 +127,18 @@ class MatMul:
             v_len_regs = v_len_bits // 128
           arch = 'hsw'
         
+        if arch.startswith('rvv'):
+          if len(arch) == 3:
+            v_len_regs = 1
+          else:
+            v_len_bits = int(arch[3:])
+            assert v_len_bits in (128, 256, 512, 1024, 2048, 4096, 8192)
+            v_len_regs = v_len_bits // 128
+          arch = 'rvv'
+        
         if arch.startswith('arm') and not arch.startswith('arm_sve'):
           # only 128 supported
+          v_len_regs = 1
           arch = 'arm'
 
         self.arch = arch
@@ -150,8 +163,7 @@ class MatMul:
         # define which architectures need to use an explicit broadcast, necessary for alpha/beta values
         self.use_bcst = self.generator.use_broadcast()
 
-        if arch in ('arm_sve', 'hsw', 'knl'):
-          self.generator.v_len = v_len_regs
+        self.generator.v_len = v_len_regs
 
         self.v_size = self.generator.get_v_size()
 
@@ -159,14 +171,7 @@ class MatMul:
             bk = 2 if arch == 'knl' else 1
 
         if bm == None or bn == None:
-            if arch == 'knl':
-                (self.bm, self.bn, self.bk) = pspamm.architecture.blocksize.getBlocksize(m, n, bk, self.v_size, self.precision)
-            elif arch == 'hsw':
-                (self.bm, self.bn, self.bk) = pspamm.architecture.blocksize.getBlocksize(m, n, bk, self.v_size, self.precision)
-            elif arch == 'arm':
-                (self.bm, self.bn, self.bk) = pspamm.architecture.blocksize.getBlocksize(m, n, bk, self.v_size, self.precision)
-            elif arch == 'arm_sve':
-                (self.bm, self.bn, self.bk) = pspamm.architecture.blocksize.getBlocksize(m, n, bk, self.v_size, self.precision)
+            (self.bm, self.bn, self.bk) = pspamm.architecture.blocksize.getBlocksize(m, n, bk, self.v_size, self.precision)
         else: 
             self.bm = bm
             self.bn = bn
@@ -200,33 +205,23 @@ class MatMul:
         
         assert self.m <= ldc
 
-        self.bnnz = 0
-        self.annz = 0
-        self.flop = 0
-        
-        for jj in range(n):
-            for kk in range(k):
-                if bpattern[kk,jj]:
-                    self.bnnz += 1
+        self.bnnz = bpattern.nnz()
+        self.annz = apattern.nnz()
 
-        for ii in range(m):
-            for kk in range(k):
-                if apattern[ii,kk]:
-                    self.annz += 1
-
-        for ii in range(m):
-            for jj in range(n):
-                for kk in range(k):
-                    if apattern[ii,kk] and bpattern[kk,jj]:
-                        self.flop += 2
-
-        prefetchReg = self.generator.init_prefetching(self.prefetching)
+        # compute flops by splitting into outer products over k
+        kannz = apattern.nnz(1)
+        kbnnz = bpattern.nnz(0)
+        self.flop = 2 * sum(ka * kb for ka,kb in zip(kannz, kbnnz))
 
         # if matrices are always padded to multiple of v_size, we can remove the if-part and execute the assert for SVE too
         if not self.masks:
             assert(self.m % self.v_size == 0)
 
-        self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.alpha_reg, self.beta_reg, self.loop_regs, self.additional_regs, self.mask_regs = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.bnnz, self.m, self.n, self.k)
+        self.A_regs, self.B_regs, self.C_regs, self.starting_regs, self.alpha_reg, self.beta_reg, self.loop_regs, self.additional_regs, self.mask_regs, self.prefetch_reg = self.generator.make_reg_blocks(self.bm, self.bn, self.bk, self.v_size, self.bnnz, self.m, self.n, self.k, self.prefetching)
+
+        self.A_pool = RegisterPool([self.A_regs[i,j] for i in range(self.A_regs.shape[0]) for j in range(self.A_regs.shape[1])])
+        self.B_pool = RegisterPool([self.B_regs[i,j] for i in range(self.B_regs.shape[0]) for j in range(self.B_regs.shape[1])])
+        self.C_pool = RegisterPool([self.C_regs[i,j] for i in range(self.C_regs.shape[0]) for j in range(self.B_regs.shape[1])])
 
         self.alpha_bcst_reg, self.beta_bcst_reg = self.starting_regs[3], self.starting_regs[4]
 
@@ -243,7 +238,7 @@ class MatMul:
         else:
             self.B = DenseCursor("B", self.starting_regs[1], self.k, self.n, self.ldb, self.bk, self.bn, self.precision.size())
         self.C = DenseCursor("C", self.starting_regs[2], self.m, self.n, self.ldc, self.bm, self.bn, self.precision.size())
-        self.C_pf = DenseCursor("C_pf", prefetchReg, self.m, self.n, self.ldc, self.bm, self.bn, self.precision.size()) if prefetchReg else None
+        self.C_pf = DenseCursor("C_pf", self.starting_regs[5], self.m, self.n, self.ldc, self.bm, self.bn, self.precision.size()) if self.prefetch_reg else None
 
         self.unroll_n = ldb == 0
         self.unroll_m = lda == 0
@@ -267,7 +262,7 @@ class MatMul:
         if m_overhead > 0:
             Bm += 1
 
-        regs = self.C_regs
+        regs = Matrix([[VirtualRegister(self.C_regs[0,0].typeinfo, self.C_pool) for _ in range(self.C_regs.shape[1])] for _ in range(self.C_regs.shape[0])])
 
         BnEnd = Bni + 1 == Bn
         BmEnd = Bmi + 1 == Bm
@@ -316,9 +311,11 @@ class MatMul:
             sub = self.alpha == -1.0
 
             if keep:
-                asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr_in, B_ptr_in, self.A_regs, self.B_regs, regs, self.v_size, self.additional_regs, to_A, to_B, sub))
+                A_regs = Matrix([[VirtualRegister(self.A_regs[0,0].typeinfo, self.A_pool) for _ in range(self.A_regs.shape[1])] for _ in range(self.A_regs.shape[0])])
+                B_regs = Matrix([[VirtualRegister(self.B_regs[0,0].typeinfo, self.B_pool) for _ in range(self.B_regs.shape[1])] for _ in range(self.B_regs.shape[0])])
+                asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr_in, B_ptr_in, A_regs, B_regs, regs, self.v_size, self.additional_regs, to_A, to_B, sub))
 
-        self.loopwrap(asm, kernelK, Bk, k_overhead > 0, unroll, self.loop_regs[2], [self.A, self.B], [A_ptr, B_ptr], ['right', 'down'], 2)
+        self.loopwrap(asm, kernelK, Bk, k_overhead > 0, unroll, self.loop_regs[2], [self.A, self.B], [A_ptr, B_ptr], ['right', 'down'], 1)
 
         if self.alpha not in [-1.0, 1.0]:
             store_block = block("")
@@ -329,10 +326,10 @@ class MatMul:
                     store_block.add(bcst(self.beta_bcst_reg, self.beta_reg[1], "Broadcast beta"))
 
             for x in range(0, regs.shape[1], self.A_regs.shape[1]):
-                A_regs_cut = self.A_regs[0:min(self.A_regs.shape[0], regs.shape[0]), 0:regs.shape[1]-x]
+                A_regs = Matrix([[VirtualRegister(self.A_regs[0,0].typeinfo, self.A_pool) for _ in range(self.A_regs.shape[1])] for _ in range(self.A_regs.shape[0])])
+                A_regs_cut = A_regs[0:min(self.A_regs.shape[0], regs.shape[0]), 0:regs.shape[1]-x]
                 if self.beta != 0.0:
                     store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, False, None, self.ldc * x))
-
 
                 for ir in range(A_regs_cut.shape[0]):
                     for ic in range(A_regs_cut.shape[1]):
@@ -439,6 +436,8 @@ class MatMul:
 
         asm = block("kernel")
 
+        asm.add(self.generator.make_argument_load(self.starting_regs, self.C_pf is not None))
+
         asm.add(block("header",
             self.generator.bcst_alpha_beta(self.alpha_reg, self.beta_reg),
             self.generator.make_scaling_offsets(self.additional_regs, self.bnnz),
@@ -446,6 +445,14 @@ class MatMul:
             self.generator.make_b_pointers(self.starting_regs[1], self.additional_regs, self.bnnz)
         ))
 
+        asm.add(self.generator.init_block(self.v_size))
+
         self.blockloop(asm, A_ptr, B_ptr, C_ptr, C_pf_ptr)
 
+        assignVirtualRegisters(asm, [self.A_pool, self.B_pool, self.C_pool])
+
         return asm
+
+        #import pspamm.codegen.schedule as sched
+
+        #return block("", *prune(sched.moveLoads(list(asm.normalize()))))

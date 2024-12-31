@@ -9,18 +9,11 @@ from pspamm.codegen.precision import *
 
 class Generator(AbstractGenerator):
     template = """
-void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, const {real_type} alpha, const {real_type} beta, const {real_type}* prefetch) {{{{{{{{
+void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, const {real_type} alpha, const {real_type} beta, const {real_type}* prefetch) {{{{
   __asm__ __volatile__(
-    "ldr x0, %0\\n\\t"
-    "ldr x1, %1\\n\\t"
-    "ldr x2, %2\\n\\t"
-    "ldr x3, %3\\n\\t"
-    "ldr x4, %4\\n\\t"
-    {prefetching_mov}
-    {init_registers}
-    {body_text}
-
-    : : "m"(A), "m"(B), "m"(C), "m"(alpha), "m"(beta){prefetching_decl}: "memory",{clobbered});
+{init_registers}
+{body_text}
+    : : {args} : {clobbered});
     
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -29,7 +22,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     pspamm_num_total_flops += {flop};
     #endif
 
-}}}}}}}};
+}}}}
 """
 
     prefetch_reg = None
@@ -52,6 +45,17 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
     def has_masks(self):
         return True
+    
+    def make_argument_load(self, starting_regs, prefetch):
+        asm = block("Load arguments")
+        asm.add(ld(InputOperand(f'0', 'm', 'A'), starting_regs[0], False))
+        asm.add(ld(InputOperand(f'1', 'm', 'B'), starting_regs[1], False))
+        asm.add(ld(InputOperand(f'2', 'm', 'C'), starting_regs[2], False))
+        asm.add(ld(InputOperand(f'3', 'm', 'alpha'), starting_regs[3], False))
+        asm.add(ld(InputOperand(f'4', 'm', 'beta'), starting_regs[4], False))
+        if prefetch:
+            asm.add(ld(InputOperand(f'5', 'm', 'prefetch'), starting_regs[5], False))
+        return asm
 
     def pred_n_trues(self, num_trues: int, v_size: int, suffix: str = None) -> Register_ARM:
         """pred takes num_trues=num of true elements and suffix=type of predicate (m or z) for merging or zeroing
@@ -74,7 +78,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     def set_sparse(self):
         self.is_sparse = True
 
-    def make_reg_blocks(self, bm: int, bn: int, bk: int, v_size: int, nnz: int, m: int, n: int, k: int):
+    def make_reg_blocks(self, bm: int, bn: int, bk: int, v_size: int, nnz: int, m: int, n: int, k: int, prefetch:str):
         vm = self.ceil_div(bm, v_size)                  # vm can be 0 if bm < v_size -> makes ceil_div necessary
 
         # k-broadcasting only works in 128-bit lanes
@@ -124,7 +128,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         self.init_registers(m, bm, k, bk, v_size, nnz)
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs
+        prefetch_reg = prefetch is not None
+
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs, prefetch_reg
 
     def bcst_alpha_beta(self,
                         alpha_reg: Register,
@@ -150,6 +156,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         asm = block("No register based scaling")
         return asm
+
+    def init_block(self, size):
+        return block("")
 
     def init_mask(self,
                         m: int,
@@ -234,7 +243,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                                                    body_text="{body_text}",
                                                    clobbered="{clobbered}",
                                                    flop="{flop}",
-                                                   real_type="{real_type}")
+                                                   real_type="{real_type}",
+                                                   args="{args}")
 
     def move_register_block(self,
                             cursor: Cursor,

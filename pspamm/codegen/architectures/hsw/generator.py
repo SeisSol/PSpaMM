@@ -9,28 +9,20 @@ from pspamm.codegen.regcache import *
 
 class Generator(AbstractGenerator):
     template = """
-void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}* C, {{real_type}} alpha, {{real_type}} beta, {{real_type}} const* prefetch) {{{{
-  {{real_type}}* alpha_p = &alpha;
-  {{real_type}}* beta_p = &beta;
+void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, {real_type} const* prefetch) {{
+  {real_type}* alpha_p = &alpha;
+  {real_type}* beta_p = &beta;
   __asm__ __volatile__(
-    "movq %0, %%rdi\\n\\t"
-    "movq %1, %%rsi\\n\\t"
-    "movq %2, %%rdx\\n\\t"
-    "movq %3, %%rbx\\n\\t"
-    "movq %4, %%rcx\\n\\t"
-{prefetching_mov}
-{{body_text}}
-
-    : : "m"(A), "m"(B), "m"(C), "m"(alpha_p), "m"(beta_p){prefetching_decl} : {{clobbered}});
+{body_text}
+    : : {args} : {clobbered});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
     #pragma omp atomic
     #endif
-    pspamm_num_total_flops += {{flop}};
+    pspamm_num_total_flops += {flop};
     #endif
-
-}}}};
+}}
 """
     v_len = 2
 
@@ -56,6 +48,17 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         else:
             return None
 
+    def make_argument_load(self, starting_regs, prefetch):
+        asm = block("Load arguments")
+        asm.add(mov(InputOperand(f'0', 'm', 'A'), starting_regs[0], False))
+        asm.add(mov(InputOperand(f'1', 'm', 'B'), starting_regs[1], False))
+        asm.add(mov(InputOperand(f'2', 'm', 'C'), starting_regs[2], False))
+        asm.add(mov(InputOperand(f'3', 'm', 'alpha_p'), starting_regs[3], False))
+        asm.add(mov(InputOperand(f'4', 'm', 'beta_p'), starting_regs[4], False))
+        if prefetch:
+            asm.add(mov(InputOperand(f'5', 'm', 'prefetch'), starting_regs[5], False))
+        return asm
+
     def make_expand_predicate(self, mask):
         combined = 0
         offset = 0
@@ -67,7 +70,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                 combined |= 255 << (8*i)
         return combined
 
-    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
+    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int, prefetch: str):
         assert(bm % v_size == 0)
         vm = self.ceil_div(bm, v_size)
 
@@ -101,7 +104,12 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         available_regs = [r(9),r(10),r(11),r(15),rax] # ,r(13),r(14)
 
-        additional_regs = [r(8)]
+        prefetch_reg = prefetch == 'BL2viaC'
+        if prefetch_reg:
+            starting_regs += [r(8)]
+            additional_regs = []
+        else:
+            additional_regs = [r(8)]
 
         reg_count = 0
 
@@ -119,7 +127,7 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         loop_regs = [r(12), r(13), r(14)]
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, []
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, [], prefetch_reg
 
 
     def bcst_alpha_beta(self,
@@ -164,6 +172,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         
         return asm
 
+    def init_block(self, size):
+        return block("")
 
     def reg_based_scaling(self, regcache, asm, addr: MemoryAddress, additional_regs: List[Register], with_index: bool):
         if addr.disp >= 1024:
@@ -351,13 +361,3 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                         comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*v_size,Vmi*v_size+v_size,bni,Vmi*v_size,Vmi*v_size+v_size,bki,B_comment)
                         asm.add(fma(B_regs[bki, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=None, sub=sub))
         return asm
-
-    def init_prefetching(self, prefetching):
-        
-        if prefetching != 'BL2viaC':
-            Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = "")    
-            return None
-        
-        prefetchReg = r(8)
-        Generator.template = Generator.template.format(prefetching_mov = '    "movq %5, {}\\n\\t"'.format(prefetchReg.ugly), prefetching_decl = ', "m"(prefetch)')
-        return prefetchReg

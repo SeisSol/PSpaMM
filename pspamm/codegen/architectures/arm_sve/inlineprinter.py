@@ -155,7 +155,7 @@ class InlinePrinter(Visitor):
     def visitLoad(self, stmt: LoadStmt):
         if isinstance(stmt.src, Label):
             src_str = "#" + stmt.src.ugly
-        elif (stmt.src.ugly_offset != "0" and stmt.scalar_offs):
+        elif isinstance(stmt.dest, MemoryAddress) and (stmt.src.ugly_offset != "0" and stmt.scalar_offs):
             self.addLine(f"mov {stmt.add_reg.ugly}, #{stmt.src.ugly_offset}", f"move immediate offset into {stmt.add_reg.ugly}")
             # TODO: adapt ugly_lsl_shift to account for possible single precision instead of double precision
             src_str = f"[{stmt.src.ugly_base}, {stmt.add_reg.ugly}, LSL #{stmt.dest.ugly_lsl_shift}]"
@@ -172,7 +172,7 @@ class InlinePrinter(Visitor):
         prec = self.ugly_precision
 
         if stmt.typ == AsmType.i64:
-            s = f"add {stmt.dest.ugly}, {stmt.dest.ugly}, {src_str}"
+            s = f"ldr {stmt.dest.ugly}, {src_str}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if stmt.is_B:
                 s = f"ld1r{prec} {stmt.dest.ugly}, {p}{src_str}"
@@ -189,7 +189,7 @@ class InlinePrinter(Visitor):
     def visitStore(self, stmt: StoreStmt):
         if isinstance(stmt.src, Label):
             src_str = "#" + stmt.src.ugly
-        elif stmt.dest.ugly_offset != "0" and stmt.scalar_offs:
+        elif isinstance(stmt.dest, MemoryAddress) and stmt.dest.ugly_offset != "0" and stmt.scalar_offs:
             self.addLine(f"mov {stmt.add_reg.ugly}, #{stmt.dest.ugly_offset}",
                          f"move immediate offset into {stmt.add_reg.ugly}")
             # TODO: adapt ugly_lsl_shift to account for possible single precision instead of double precision
@@ -202,7 +202,7 @@ class InlinePrinter(Visitor):
         prec = self.ugly_precision
 
         if stmt.typ == AsmType.i64:
-            s = f"add {stmt.dest.ugly}, {stmt.dest.ugly}, {src_str}"
+            s = f"str {src_str}, {stmt.dest.ugly}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             s = f"st1{prec} {stmt.src.ugly}, {p}{dest_str}"
         else:

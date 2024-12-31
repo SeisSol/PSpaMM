@@ -6,11 +6,15 @@ AsmType = Enum('AsmType', ['unknown','i8','i16','i32','i64','f32','f64',
                            'f32x4','f32x8','f32x16','f64x2','f64x4','f64x8',
                            'p64x8'])
 
+RegisterType = Enum('RegisterType', ['undefined', 'scalar', 'vector', 'predicate'])
+
 class Operand:
     @property
     def ugly(self):
         raise NotImplementedError()
 
+    def registers(self):
+        return []
 
 # TODO: Rename this 'Immediate'
 class Constant(Operand):
@@ -77,6 +81,15 @@ class Register(Operand):
     @property
     def clobbered(self):
         return self.value
+    
+    def registers(self):
+        return [self]
+    
+    def __eq__(self, other):
+        return self.ugly == other.ugly
+    
+    def __hash__(self):
+        return hash(self.ugly)
 
 class MemoryAddress(Operand):
 
@@ -89,3 +102,20 @@ class MemoryAddress(Operand):
     @property
     def ugly(self):
         raise NotImplementedError()
+    
+    def registers(self):
+        return [self.base]
+
+class InputOperand(Operand):
+    def __init__(self, name, optype, source):
+        self.name = str(name)
+        self.optype = optype
+        self.source = source
+    
+    @property
+    def ugly(self):
+        return f'%{self.name}'
+    
+    @property
+    def arg(self):
+        return f'"{self.optype}"({self.source})'

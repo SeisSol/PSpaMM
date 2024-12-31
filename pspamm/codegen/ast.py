@@ -1,6 +1,6 @@
 
 from typing import List, TYPE_CHECKING
-from pspamm.codegen.operands import Operand, Label, Register, AsmType, MemoryAddress
+from pspamm.codegen.operands import *
 
 if TYPE_CHECKING:
     from pspamm.codegen.arm.visitors import Visitor
@@ -18,12 +18,37 @@ class AsmStmt:
     def reg_out_candidate(self):
         return ()
     
-    def reg_in(self):
-        return set(reg for reg in self.reg_in_candidate() if isinstance(reg, Register))
+    def regs_in(self):
+        return set(reg for regc in self.reg_in_candidate() if regc is not None for reg in regc.registers() if isinstance(reg, Register))
 
-    def reg_out(self):
-        return set(reg for reg in self.reg_out_candidate() if isinstance(reg, Register))
+    def regs_out(self):
+        return set(reg for regc in self.reg_out_candidate() if regc is not None for reg in regc.registers() if isinstance(reg, Register))
+    
+    def regs(self):
+        return self.regs_in() | self.regs_out()
+    
+    def args_in(self):
+        return set(reg for reg in self.reg_in_candidate() if reg is not None and isinstance(reg, InputOperand))
 
+    def args_out(self):
+        return set(reg for reg in self.reg_out_candidate() if reg is not None and isinstance(reg, InputOperand))
+    
+    def args(self):
+        return self.args_in() | self.args_out()
+    
+    def normalize(self):
+        yield self
+    
+    def flatten(self):
+        yield self
+    
+    def stmtname(self):
+        return '???'
+    
+    def __str__(self):
+        inregs = ', '.join(reg.ugly for reg in self.regs_in())
+        outregs = ', '.join(reg.ugly for reg in self.regs_out())
+        return f'{self.stmtname()} {inregs} -> {outregs}'
 
 class GenericStmt(AsmStmt):
     operation = None
@@ -45,10 +70,13 @@ class MovStmt(AsmStmt):
         visitor.visitMov(self)
     
     def reg_in_candidate(self):
-        return (src,)
+        return (self.src,self.temp,self.pred)
     
     def reg_out_candidate(self):
-        return (dest,temp)
+        return (self.dest,)
+    
+    def stmtname(self):
+        return 'mov'
 
 class LeaStmt(AsmStmt):
     src = None
@@ -62,10 +90,13 @@ class LeaStmt(AsmStmt):
         visitor.visitLea(self)
     
     def reg_in_candidate(self):
-        return (src,)
+        return (self.src,self.pred)
     
     def reg_out_candidate(self):
-        return (dest,)
+        return (self.dest,)
+    
+    def stmtname(self):
+        return 'lea'
 
 class LoadStmt(AsmStmt):
     src = None
@@ -83,10 +114,13 @@ class LoadStmt(AsmStmt):
         visitor.visitLoad(self)
     
     def reg_in_candidate(self):
-        return (src,)
+        return (self.src,self.pred,self.add_reg)
     
     def reg_out_candidate(self):
-        return (dest,dest2)
+        return (self.dest, self.dest2)
+    
+    def stmtname(self):
+        return 'load'
 
 class StoreStmt(AsmStmt):
     src = None
@@ -103,10 +137,13 @@ class StoreStmt(AsmStmt):
         visitor.visitStore(self)
     
     def reg_in_candidate(self):
-        return (src,src2)
+        return (self.src, self.src2, self.pred, self.add_reg)
     
     def reg_out_candidate(self):
-        return (dest)
+        return (self.dest,)
+    
+    def stmtname(self):
+        return 'store'
 
 class PrefetchStmt(AsmStmt):
     dest = None
@@ -117,6 +154,9 @@ class PrefetchStmt(AsmStmt):
 
     def accept(self, visitor: "Visitor"):
         visitor.visitPrefetch(self)
+    
+    def stmtname(self):
+        return 'prefetch'
 
 
 class FmaStmt(AsmStmt):
@@ -131,10 +171,13 @@ class FmaStmt(AsmStmt):
         visitor.visitFma(self)
     
     def reg_in_candidate(self):
-        return (bcast_src,mult_src)
+        return (self.add_dest, self.bcast_src, self.mult_src, self.pred)
     
     def reg_out_candidate(self):
-        return (add_dest,)
+        return (self.add_dest,)
+    
+    def stmtname(self):
+        return 'fma'
 
 class MulStmt(AsmStmt):
     src = None
@@ -146,10 +189,13 @@ class MulStmt(AsmStmt):
         visitor.visitMul(self)
     
     def reg_in_candidate(self):
-        return (mult_src,src)
+        return (self.mult_src,self.src,self.pred)
     
     def reg_out_candidate(self):
-        return (dest,)
+        return (self.dest,)
+    
+    def stmtname(self):
+        return 'mul'
 
 class BcstStmt(AsmStmt):
     bcast_src = None
@@ -160,10 +206,13 @@ class BcstStmt(AsmStmt):
         visitor.visitBcst(self)
     
     def reg_in_candidate(self):
-        return (bcast_src,)
+        return (self.bcast_src,self.pred,)
     
     def reg_out_candidate(self):
-        return (dest,)
+        return (self.dest,)
+    
+    def stmtname(self):
+        return 'broadcast'
 
 class AddStmt(AsmStmt):
     src = None
@@ -176,10 +225,16 @@ class AddStmt(AsmStmt):
         visitor.visitAdd(self)
 
     def reg_in_candidate(self):
-        return (src,additional)
+        if self.additional is not None:
+            return (self.src,self.additional,self.pred)
+        else:
+            return (self.src,self.dest,self.pred)
     
     def reg_out_candidate(self):
-        return (dest,)
+        return (self.dest,)
+    
+    def stmtname(self):
+        return 'add'
 
 class CmpStmt(AsmStmt):
     lhs = None
@@ -190,23 +245,33 @@ class CmpStmt(AsmStmt):
         visitor.visitCmp(self)
     
     def reg_in_candidate(self):
-        return (lhs,rhs)
+        return (self.lhs,self.rhs,self.pred)
     
-    def reg_out_candidate(self):
-        return ()
+    def stmtname(self):
+        return 'cmp'
 
 class LabelStmt(AsmStmt):
     label = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitLabel(self)
+    
+    def __str__(self):
+        return f'Label: {self.label.ugly}'
 
 
 class JumpStmt(AsmStmt):
     destination = None
+    cmpreg = None
 
     def accept(self, visitor: "Visitor"):
         visitor.visitJump(self)
+    
+    def reg_in_candidate(self):
+        return (self.cmpreg,)
+
+    def stmtname(self):
+        return 'branch'
 
 class DataStmt(AsmStmt):
     value = None
@@ -215,15 +280,45 @@ class DataStmt(AsmStmt):
     def accept(self, visitor: "Visitor"):
         visitor.visitData(self)
 
+class RVSetVLStmt(AsmStmt):
+    actual = None
+    requested = None
+
+    def accept(self, visitor: "Visitor"):
+        visitor.visitRVSetVLStmt(self)
+    
+    def reg_in_candidate(self):
+        return (self.requested,)
+    
+    def reg_out_candidate(self):
+        return (self.actual,)
 
 class Block(AsmStmt):
     contents = []
 
     def accept(self, visitor: "Visitor"):
         visitor.visitBlock(self)
-
-class ControlBlock(AsmStmt):
-    contents = []
+    
+    def normalize(self):
+        return (subcontent for content in self.contents for subcontent in content.normalize())
+    
+    def flatten(self):
+        return (subcontent for content in self.contents for subcontent in content.flatten())
+    
+    def regs_in(self):
+        regs = set()
+        for instr in self.contents:
+            regs |= instr.regs_in()
+        return regs
+    
+    def regs_out(self):
+        regs = set()
+        for instr in self.contents:
+            regs |= instr.regs_out()
+        return regs
+    
+    def __str__(self):
+        return f'block {{\n{"\n".join(str(content) for content in self.contents)}\n}}'
 
 class Command(AsmStmt):
     name = None
@@ -233,6 +328,3 @@ class Command(AsmStmt):
 
     def make(self, e) -> Block:
         raise NotImplementedError()
-
-class VirtualRegister(Register):
-    pass

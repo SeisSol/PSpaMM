@@ -74,7 +74,3 @@ class AbstractGenerator(ABC):
                          sub: bool = False
                          ) -> Block:
         pass
-
-    @abstractmethod
-    def init_prefetching(self, prefetching):
-        pass
