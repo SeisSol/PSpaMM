@@ -372,6 +372,10 @@ def make(kernels, arch):
               if not ((bn+bk) * vm + bn * vk <= 32) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
                 print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
                 continue
+            elif arch.startswith("rvv"):
+              if not ((bn+bk) * vm <= 32) or not (bn*bk <= 30) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
+                print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
+                continue
 
             name = f'{kern.name}_{kern.precision}_{bm}_{bn}_{bk}'
 

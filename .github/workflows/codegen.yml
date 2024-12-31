@@ -209,3 +209,51 @@ jobs:
         run: |
           cd tests/
           qemu-aarch64-static -cpu max,sve${{matrix.vectorlen}}=on,sve-default-vector-length=-1 build/arm_sve${{matrix.vectorlen}}-test
+  pspamm-codegen-rvv:
+    name: pspamm-codegen-rvv
+    runs-on: ubuntu-24.04
+    needs: install-pspamm
+    # include vector lengths for RISC-V V manually (for now)
+    strategy:
+      matrix:
+        vectorlen:
+          - 128
+          - 256
+          - 512
+          - 1024
+          - 2048
+          - 4096
+    steps:
+      - name: apt-get
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install g++-riscv64-linux-gnu qemu-user-static
+
+      - name: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: checkout-pspamm
+        uses: actions/checkout@v4
+
+      - name: pip-pspamm
+        run: |
+          pip install .
+
+      - name: pspamm-tests-generate
+        run: |
+          cd tests/
+          python unit_tests_rvv.py ${{matrix.vectorlen}}
+      
+      - name: pspamm-tests-compile
+        run: |
+          cd tests/
+          riscv64-linux-gnu-g++ -static -march=rv64gvzvl${{matrix.vectorlen}}b build/rvv${{matrix.vectorlen}}_testsuite.cpp -o build/rvv${{matrix.vectorlen}}-test
+      
+      # TODO: check if rv64i is better than max here?
+      - name: pspamm-tests-run
+        run: |
+          cd tests/
+          qemu-riscv64-static -cpu max,g=on,v=on,vlen=${{matrix.vectorlen}} build/rvv${{matrix.vectorlen}}-test
