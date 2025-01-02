@@ -33,6 +33,9 @@ class AsmStmt:
     def args_out(self):
         return set(reg for reg in self.reg_out_candidate() if reg is not None and isinstance(reg, InputOperand))
     
+    def barrier(self):
+        return False
+    
     def args(self):
         return self.args_in() | self.args_out()
     
@@ -292,6 +295,9 @@ class RVSetVLStmt(AsmStmt):
     
     def reg_out_candidate(self):
         return (self.actual,)
+    
+    def barrier(self):
+        return True
 
 class Block(AsmStmt):
     contents = []

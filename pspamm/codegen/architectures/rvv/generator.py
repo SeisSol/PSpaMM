@@ -83,9 +83,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         alpha_reg = [f(0), f(0)]
         beta_reg = [f(1), f(1)]
 
-        starting_regs = [x(10), x(11), x(12), f(0), f(1)]
+        # TODO: move x(5) out of here
+        starting_regs = [x(10), x(11), x(12), f(0), f(1), x(5)]
 
-        additional_regs = [x(13), x(14), x(15), x(16), x(17), x(31), x(6), x(7), x(5)]
+        additional_regs = [x(13), x(14), x(15), x(16), x(17), x(31), x(6), x(7)]
 
         loop_regs = [x(28), x(29), x(30)]
 
@@ -162,11 +163,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         # DONE if another CPU implements SVE at VL != 64 bytes, rewrite mul_vl (maybe do this dynamically)
         mul_vl = 16 * self.v_len   # e.g. A64FX has VL of 64 bytes in memory (thus, use v_len==4)
-        max_mem_ins_mult = 7  # A64FX allows a maximum positive offset of 7 in memory instructions, e.g. ld1d z1.d, p0/z, [x0, 7, MUL VL] (TODO: tune, if ever different)
-        max_offset = mul_vl * max_mem_ins_mult  # ld1d/st1d instruction encodes the immediate offset using 4 bits, multiplies it with MUL VL
+        max_mem_ins_mult = 0
+        max_offset = 0  # ld1d/st1d instruction encodes the immediate offset using 4 bits, multiplies it with MUL VL
 
         prev_disp = 0
-        prev_overhead = True
         prev_base = None
 
         process_size = min(v_size, cursor.br)
@@ -199,19 +199,20 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     larger_max_offset = cont_counter > max_mem_ins_mult
                     non_dividing_offset = offset % mul_vl != 0
 
-                    if larger_max_offset or (prev_overhead and addr.disp > 0) or non_dividing_offset:
-                        offset_comment = f"disp > {max_offset}" if larger_max_offset else ("disp % VL != 0" if non_dividing_offset else "previous mem. instr. used p0")
-                        asm.add(add(addr.disp, additional_regs[0], offset_comment, addr.base))
-                        prev_disp = addr.disp
-                        addr.base = additional_regs[0]
-                        prev_base = addr.base
-
                     # adjust addr.disp to a multiple of the RVV vector length
                     if prev_base is None:
                         prev_base = addr.base
-                    
-                    addr.base = prev_base
-                    addr.disp = (addr.disp - prev_disp) // mul_vl
+
+                    if larger_max_offset or addr.disp > 0 or non_dividing_offset:
+                        offset_comment = f"move to new vector"
+                        if offset < 2048 and offset >= -2048 and prev_base == additional_regs[0]:
+                            asm.add(add(offset, additional_regs[0], offset_comment))
+                        else:
+                            asm.add(add(addr.disp, additional_regs[0], offset_comment, addr.base))
+                        prev_disp = addr.disp
+                        addr.base = additional_regs[0]
+                        addr.disp = 0
+                        prev_base = additional_regs[0]
 
                     if store:
                         asm.add(st(registers[ir, ic], addr, True, comment, pred=p, scalar_offs=False,
@@ -227,8 +228,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     else:
                         asm.add(ld(addr, registers[ir, ic], True, comment, pred=p_zeroing, is_B=is_B, scalar_offs=False,
                                    add_reg=additional_regs[2]))
-
-                    prev_overhead = p is None or int(p.ugly[1]) == 0  # determine if we previously used p0 (overhead predicate)
 
         return asm
 

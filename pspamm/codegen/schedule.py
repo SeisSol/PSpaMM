@@ -66,7 +66,7 @@ def moveLoadsBlock(block, isLoop):
     def preponeLoad(instr, i):
         maxI = None
         for loadInstr in reversed(currentLoads):
-            if hasDependency(loadInstr, instr):
+            if hasDependency(loadInstr, instr) or instr.barrier():
                 maxI = loadInstr
                 break
         previousLoad.append(maxI)

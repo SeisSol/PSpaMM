@@ -37,7 +37,7 @@ class InlinePrinter(Visitor):
         luipart = value >> ADDILENGTH
 
         if addipart >= ADDISBLOCK:
-            addipart = addipart - ADDIBLOCK
+            addipart = addipart - (1 << ADDILENGTH)
             luipart += 1
         return addipart, luipart
 
@@ -112,8 +112,8 @@ class InlinePrinter(Visitor):
                 addival, luival = self.to_addi(-stmt.src.value)
             else:
                 addival, luival = self.to_addi(stmt.src.value)
-            self.addLine(f"lui {tmp}, {luival}", "Intermediate add: place upper 12 bits")
-            self.addLine(f"addi {tmp}, {tmp}, {addival}", "Intermediate add: place lower 12 bits")
+            self.addLine(f"lui {tmp}, {luival}", f"Intermediate add: place upper 12 bits of {stmt.src.value}")
+            self.addLine(f"addi {tmp}, {tmp}, {addival}", f"Intermediate add: place lower 12 bits of {stmt.src.value}")
             if stmt.src.value < 0:
                 self.addLine(f"sub {stmt.dest.ugly}, {stmt.dest.ugly}, {tmp}", stmt.comment)
             else:
