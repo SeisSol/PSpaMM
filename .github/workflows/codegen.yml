@@ -215,6 +215,7 @@ jobs:
     needs: install-pspamm
     # include vector lengths for RISC-V V manually (for now)
     strategy:
+      fail-fast: false
       matrix:
         vectorlen:
           - 128
@@ -223,12 +224,13 @@ jobs:
           - 1024
           - 2048
           - 4096
+          - 8192
     steps:
       - name: apt-get
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install g++-riscv64-linux-gnu qemu-user-static
+          sudo apt-get install g++-aarch64-linux-gnu g++-riscv64-linux-gnu qemu-user-static
 
       - name: setup-python
         uses: actions/setup-python@v4
@@ -245,7 +247,7 @@ jobs:
       - name: pspamm-tests-generate
         run: |
           cd tests/
-          python unit_tests_rvv.py ${{matrix.vectorlen}}
+          python unit_test.py rvv${{matrix.vectorlen}}
       
       - name: pspamm-tests-compile
         run: |
