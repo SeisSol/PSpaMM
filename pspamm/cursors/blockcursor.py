@@ -104,7 +104,7 @@ class BlockCursor(Cursor):
 
         dest_loc = CursorLocation(dest_block, dest_cell)
         offset_bytes = self.offset(src_loc, dest_loc) * self.scalar_bytes
-        comment = "{}[{},{}][{},{}]".format(self.name,dest_block.down,dest_block.right,dest_cell.down,dest_cell.right)
+        comment = f"{self.name}[{dest_block.down},{dest_block.right}][{dest_cell.down},{dest_cell.right}]"
 
         addr = pspamm.architecture.operands.mem(self.base_ptr, offset_bytes)
         
@@ -172,7 +172,7 @@ class BlockCursor(Cursor):
                 if pat[bri,bci]:
                     return CursorLocation(dest_block, Coords(down=bri, right=bci, absolute=False))
 
-        raise Exception("Block {} has no starting location because it is empty!".format(dest_block))
+        raise Exception(f"Block {dest_block} has no starting location because it is empty!")
 
 
     def start(self) -> CursorLocation:

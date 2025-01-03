@@ -10,19 +10,19 @@ class Operand_ARM:
 class Constant_ARM(Constant):
     @property
     def ugly(self):
-        return "#{}".format(self.value)
+        return f"#{self.value}"
 
     @property
     def ugly_large(self):
-        return "={}".format(self.value)
+        return f"={self.value}"
 
     @property
     def ugly_lower16(self):
-        return "#:lower16:{}".format(self.value)
+        return f"#:lower16:{self.value}"
 
     @property
     def ugly_upper16(self):
-        return "#:upper16:{}".format(self.value)
+        return f"#:upper16:{self.value}"
 
 
 def c(n):
@@ -89,7 +89,7 @@ class MemoryAddress_ARM(MemoryAddress):
         # in-memory size, irrespective of predication, and added to the base address. Inactive elements will not
         # not cause a read from Device memory or signal a fault, and are set to zero in the destination vector.
         # MUL VL should multiply 64 on top of the immediate offset?
-        return "[{}, {}, MUL VL]".format(self.base.ugly, self.disp)
+        return f"[{self.base.ugly}, {self.disp}, MUL VL]"
 
     @property
     def clobbered(self):
@@ -97,16 +97,16 @@ class MemoryAddress_ARM(MemoryAddress):
 
     @property
     def ugly_no_vl_scaling(self):
-        return "[{}, {}]".format(self.base.ugly, self.disp)
+        return f"[{self.base.ugly}, {self.disp}]"
 
     @property
     def ugly_base(self):
-        return "{}".format(self.base.ugly)
+        return str(self.base.ugly)
 
     @property
     def ugly_offset(self):
         # TODO: is this already dynamic? -> if precision is single, we need LSL #2
-        return "{}".format(self.disp)
+        return str(self.disp)
 
 
 def mem(base, offset):

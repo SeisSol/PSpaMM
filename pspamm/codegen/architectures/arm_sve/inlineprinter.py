@@ -68,7 +68,7 @@ class InlinePrinter(Visitor):
 
         if a != b:
             s1 = f"movprfx {a.split('.')[0]}, {b.split('.')[0]}"
-            self.addLine(s1, "move {} into {}".format(b, a))
+            self.addLine(s1, f"move {b} into {a}")
             b = a
 
         p = self.p_string(stmt.pred)

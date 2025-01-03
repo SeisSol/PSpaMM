@@ -216,7 +216,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         rows, cols = registers.shape
         action = "Store" if store else "Load"
-        asm = block("{} {} register block @ {}".format(action,cursor.name,block_offset))
+        asm = block(f"{action} {cursor.name} register block @ {block_offset}")
 
         b_row, _, _, _ = cursor.get_block(cursor_ptr, block_offset)
 
@@ -337,6 +337,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
                         B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         self.reg_based_scaling(regcache, asm, B_addr, additional_regs, True)
-                        comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*v_size,Vmi*v_size+v_size,bni,Vmi*v_size,Vmi*v_size+v_size,bki,B_comment)
+                        comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
                         asm.add(fma(B_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=0, sub=sub))
         return asm

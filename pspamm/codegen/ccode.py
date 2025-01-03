@@ -15,7 +15,7 @@ def make_cfunc(funcName:str, template:str, body:Block, flop:int, starting_regs:L
 
     analyzer = Analyzer(starting_regs)
     analyzer.collect(body)
-    regs = set('"{}"'.format(reg.clobbered) for reg in analyzer.clobbered_registers if reg.clobbered is not None)
+    regs = set(f'"{reg.clobbered}"' for reg in analyzer.clobbered_registers if reg.clobbered is not None)
     regs.add('"memory"')
     regs.add('"cc"')
     # TODO: maybe regs.add('"redzone"') ?

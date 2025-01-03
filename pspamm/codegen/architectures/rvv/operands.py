@@ -10,7 +10,7 @@ class Operand_RV:
 class Constant_RV(Constant):
     @property
     def ugly(self):
-        return "{}".format(self.value)
+        return str(self.value)
 
 def c(n):
     """Sugar for conveniently defining integer constants"""
@@ -78,11 +78,11 @@ class MemoryAddress_RV(MemoryAddress):
 
     @property
     def ugly_base(self):
-        return "{}".format(self.base.ugly)
+        return str(self.base.ugly)
 
     @property
     def ugly_offset(self):
-        return "{}".format(self.disp)
+        return str(self.disp)
 
 
 def mem(base, offset):

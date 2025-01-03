@@ -262,7 +262,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         rows, cols = registers.shape
         action = "Store" if store else "Load"
-        asm = block("{} {} register block @ {}".format(action, cursor.name, block_offset))
+        asm = block(f"{action} {cursor.name} register block @ {block_offset}")
         prec = self.get_precision()
 
         # Determine whether we use prefetching and if we are currently operating on C
@@ -450,9 +450,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     to_bcell = Coords(down=bki, right=bni)
                     to_acell = Coords(down=Vmi*v_size, right=bki)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
-                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi * v_size, end_index, bni, Vmi * v_size,
-                                                                         end_index, bki, B_comment)
+                        _, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+                        comment = f"C[{Vmi * v_size}:{end_index},{bni}] += A[{Vmi * v_size}:{end_index},{bki}]*{B_comment}"
                         
                         bki_reg = bki // elem128
                         if (bki_reg, bni) not in cell_indices:
@@ -464,23 +463,3 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                         asm.add(fma(B_regs[bki_reg, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, pred=p_merging, bcast=bcast, sub=sub))
                         cell_indices[(bki_reg, bni)] += 1
         return asm
-
-    def init_prefetching(self, prefetching):
-        #TODO: currently, SVE prefetching brings at best equal performance compared to no prefetching
-        # for now disable it -> if we find a way to get better performance with prefetching, delete the next line
-        prefetching = None  # disable prefetching and make it easy to enable
-        if prefetching is None:
-            prefetch_reg = None
-            prefetching_mov = ''
-            prefetching_decl = ''
-        else:
-            prefetch_reg = r(5)
-            prefetching_mov = "\"ldr {}, %5\\n\\t\"".format(prefetch_reg.ugly)
-            prefetching_decl = ", \"m\"(prefetch)"
-
-        self.prefetch_reg = prefetch_reg
-        Generator.template = Generator.template.format(prefetching_mov=prefetching_mov, prefetching_decl=prefetching_decl,
-                                                       funcName="{funcName}", body_text="{body_text}",
-                                                       clobbered="{clobbered}", real_type="{real_type}",
-                                                       init_registers="{init_registers}", flop="{flop}")
-        return prefetch_reg

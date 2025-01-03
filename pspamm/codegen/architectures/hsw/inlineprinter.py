@@ -74,7 +74,7 @@ class InlinePrinter(Visitor):
         # check if we broadcast a general register
         if isinstance(stmt.bcast_src, Register):
             # reformat bcast_src to be a memory address
-            b = "0({})".format(b)
+            b = f"0({b})"
         regsize = stmt.dest.size()
         instruction = "vmovddup" if self.precision == Precision.DOUBLE and regsize == 16 else f"vbroadcasts{self.psuffix}"
         s = f"{instruction} {b}, {a}"

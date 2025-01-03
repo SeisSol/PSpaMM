@@ -113,7 +113,8 @@ class InlinePrinter(Visitor):
             else:
                 addival, luival = self.to_addi(stmt.src.value)
             self.addLine(f"lui {tmp}, {luival}", f"Intermediate add: place upper 12 bits of {stmt.src.value}")
-            self.addLine(f"addi {tmp}, {tmp}, {addival}", f"Intermediate add: place lower 12 bits of {stmt.src.value}")
+            if addival != 0:
+                self.addLine(f"addi {tmp}, {tmp}, {addival}", f"Intermediate add: place lower 12 bits of {stmt.src.value}")
             if stmt.src.value < 0:
                 self.addLine(f"sub {stmt.dest.ugly}, {stmt.dest.ugly}, {tmp}", stmt.comment)
             else:
@@ -145,7 +146,8 @@ class InlinePrinter(Visitor):
                 elif stmt.src.value < 2**32:
                     addival, luival = self.to_addi(stmt.src.value)
                     self.addLine(f"lui {stmt.dest.ugly}, {luival}", "Intermediate mov: place upper 12 bits")
-                    self.addLine(f"addi {stmt.dest.ugly}, {stmt.dest.ugly}, {addival}", stmt.comment)
+                    if addival != 0:
+                        self.addLine(f"addi {stmt.dest.ugly}, {stmt.dest.ugly}, {addival}", stmt.comment)
                 else:
                     raise NotImplementedError()
         elif isinstance(stmt.src, Register):

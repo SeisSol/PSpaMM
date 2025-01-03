@@ -149,7 +149,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         rows, cols = registers.shape
         action = "Store" if store else "Load"
-        asm = block("{} {} register block @ {}".format(action, cursor.name, block_offset))
+        asm = block(f"{action} {cursor.name} register block @ {block_offset}")
         prec = self.get_precision()
 
         # Determine whether we use prefetching and if we are currently operating on C
@@ -317,9 +317,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     to_bcell = Coords(down=bki, right=bni)
                     to_acell = Coords(down=Vmi*v_size, right=bki)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
-                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi * v_size, end_index, bni, Vmi * v_size,
-                                                                         end_index, bki, B_comment)
+                        _, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+                        comment = f"C[{Vmi * v_size}:{end_index},{bni}] += A[{Vmi * v_size}:{end_index},{bki}]*{B_comment}"
                         
                         asm.add(fma(B_regs[bki, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, pred=p_merging, bcast=True, sub=sub))
         return asm

@@ -128,7 +128,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         rows, cols = registers.shape
         action = "Store" if store else "Load"
-        asm = block("{} {} register block @ {}".format(action, cursor.name, block_offset))
+        asm = block(f"{action} {cursor.name} register block @ {block_offset}")
 
         cur11 = -1000
         skipflag = False
@@ -263,8 +263,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     to_bcell = Coords(down=bki, right=bni)
                     to_acell = Coords(down=Vmi*v_size, right=bki)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
-                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*v_size, Vmi*v_size+v_size, bni, Vmi*v_size, Vmi*v_size+v_size, bki, B_comment)
+                        _, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+                        comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
                         bki_reg = bki // elem128
                         if (bki_reg, bni) not in cell_indices:
                             cell_indices[(bki_reg, bni)] = 0

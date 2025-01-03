@@ -35,4 +35,4 @@ class Coords(C):
             absolute = ", absolute"
         else:
             absolute = ""
-        return "(d={},r={}{})".format(self.down, self.right,absolute) 
+        return f"(d={self.down},r={self.right}{absolute})"

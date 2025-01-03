@@ -12,7 +12,7 @@ class Constant_KNL(Constant):
 
     @property
     def ugly(self):
-        return "${}".format(self.value)
+        return f"${self.value}"
 
 
 def c(n):
@@ -53,8 +53,8 @@ class MemoryAddress_KNL(MemoryAddress):
     @property
     def ugly(self):
         if self.index is None:
-            return "{}({})".format(self.disp,self.base.ugly)
-        return "{}({},{},{})".format(self.disp,self.base.ugly,self.index.ugly,self.scaling)
+            return f"{self.disp}({self.base.ugly})"
+        return f"{self.disp}({self.base.ugly},{self.index.ugly},{self.scaling})"
 
     @property
     def clobbered(self):

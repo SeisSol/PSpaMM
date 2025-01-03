@@ -12,19 +12,19 @@ class Constant_ARM(Constant):
 
     @property
     def ugly(self):
-        return "#{}".format(self.value)
+        return f"#{self.value}"
 
     @property
     def ugly_large(self):
-        return "={}".format(self.value)
+        return f"={self.value}"
 
     @property
     def ugly_lower16(self):
-        return "#:lower16:{}".format(self.value)
+        return f"#:lower16:{self.value}"
 
     @property
     def ugly_upper16(self):
-        return "#:upper16:{}".format(self.value)
+        return f"#:upper16:{self.value}"
 
 
 def c(n):
@@ -90,7 +90,7 @@ class MemoryAddress_ARM(MemoryAddress):
 
     @property
     def ugly(self):
-        return "[{}, {}]".format(self.base.ugly, self.disp)
+        return f"[{self.base.ugly}, {self.disp}]"
 
 
 def mem(base, offset):

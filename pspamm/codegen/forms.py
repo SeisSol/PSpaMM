@@ -19,8 +19,7 @@ class Loop(Block):
         self.body_contents = body_contents
         self.unroll = unroll
 
-        self.comment = "for {} <- {}:".format(self.iteration_var.ugly, 0) + \
-                       "{}:{})".format(1, self.final_val)
+        self.comment = f'loop {self.iteration_var.ugly} in range({self.final_val}), unroll {self.unroll}'
 
     @property
     def contents(self):
