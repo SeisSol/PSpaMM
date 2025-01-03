@@ -271,10 +271,3 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         asm.add(fma(B_regs[bki_reg, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=cell_indices[(bki_reg, bni)], sub=sub))
                         cell_indices[(bki_reg, bni)] += 1
         return asm
-
-
-    def init_prefetching(self, prefetching):            
-        Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = '',
-            funcName="{funcName}", body_text="{body_text}",
-            clobbered="{clobbered}", real_type="{real_type}",
-            init_registers="{init_registers}", flop="{flop}")
