@@ -19,6 +19,14 @@ class VirtualRegister(Register):
         return self.register.ugly if self.register is not None else f'vreg{id(self)}'
     
     @property
+    def ugly_scalar_1d(self):
+        return self.register.ugly_scalar_1d if self.register is not None else f'vreg{id(self)}'
+    
+    @property
+    def ugly_scalar(self):
+        return self.register.ugly_scalar_1d if self.register is not None else f'vreg{id(self)}'
+    
+    @property
     def clobbered(self):
         return self.register.clobbered if self.register is not None else f'vreg{id(self)}'
     

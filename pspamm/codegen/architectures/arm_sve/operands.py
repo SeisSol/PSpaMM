@@ -60,8 +60,10 @@ class Register_ARM(Register):
 
     @property
     def clobbered(self):
+        if self.value == "xzr":
+            return None
         # removed [this comment should stay here for now---in case there's some compiler expecting it]: .replace("x", "r")
-        return (self.value.split(".")[0])
+        return (self.value.split(".")[0].split("/")[0])
 
     @property
     def ugly_scalar(self):
