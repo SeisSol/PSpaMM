@@ -131,6 +131,7 @@ class InlinePrinter(Visitor):
         self.addLine(s, stmt.comment)
 
     def visitLabel(self, stmt: LabelStmt):
+        self.addLine('.align 16', 'Align label')
         s = f"{stmt.label.ugly}:"
         self.addLine(s, stmt.comment)
 
