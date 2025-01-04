@@ -38,193 +38,33 @@ jobs:
 
           echo "Success!"
 
-  pspamm-codegen-avx:
-    name: pspamm-codegen-avx
+  pspamm-codegen:
+    name: pspamm-codegen
     runs-on: ubuntu-24.04
     needs: install-pspamm
-    steps:
-      - name: apt-get
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install g++ qemu-user-static
-
-      - name: setup-python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: checkout-pspamm
-        uses: actions/checkout@v4
-
-      - name: pip-pspamm
-        run: |
-          pip install .
-
-      - name: pspamm-tests-generate
-        run: |
-          cd tests/
-          python unit_test.py hsw256
-          python unit_test.py hsw128
-      
-      - name: pspamm-tests-compile
-        run: |
-          cd tests/
-          g++ -static -mavx2 build/hsw256_testsuite.cpp -o build/hsw256-test
-          g++ -static -mavx2 build/hsw128_testsuite.cpp -o build/hsw128-test
-      
-      - name: pspamm-tests-run
-        run: |
-          cd tests/
-          qemu-x86_64-static -cpu Haswell build/hsw256-test
-          qemu-x86_64-static -cpu Haswell build/hsw128-test
-
-  pspamm-codegen-avx512-no-run:
-    name: pspamm-codegen-avx512-no-run
-    runs-on: ubuntu-24.04
-    needs: install-pspamm
-    steps:
-      - name: apt-get
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install g++ qemu-user-static
-
-      - name: setup-python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: checkout-pspamm
-        uses: actions/checkout@v4
-
-      - name: pip-pspamm
-        run: |
-          pip install .
-
-      - name: pspamm-tests-generate
-        run: |
-          cd tests/
-          python unit_test.py knl512
-          python unit_test.py knl256
-          python unit_test.py knl128
-      
-      - name: pspamm-tests-compile
-        run: |
-          cd tests/
-          g++ -static -mavx512f build/knl512_testsuite.cpp -o build/knl512-test
-          g++ -static -mavx512f build/knl256_testsuite.cpp -o build/knl256-test
-          g++ -static -mavx512f build/knl128_testsuite.cpp -o build/knl128-test
-      
-      # disabled, since qemu doesn't support AVX512F (yet) with of Ubuntu 24.04
-      # - name: pspamm-tests-run
-      #   run: |
-      #     cd tests/
-      #     qemu-x86_64-static -cpu Skylake-Server build/knl512-test
-      #     qemu-x86_64-static -cpu Skylake-Server build/knl256-test
-      #     qemu-x86_64-static -cpu Skylake-Server build/knl128-test
-
-  pspamm-codegen-aarch64:
-    name: pspamm-codegen-aarch64
-    runs-on: ubuntu-24.04
-    needs: install-pspamm
-    steps:
-      - name: apt-get
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install g++-aarch64-linux-gnu qemu-user-static
-
-      - name: setup-python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: checkout-pspamm
-        uses: actions/checkout@v4
-
-      - name: pip-pspamm
-        run: |
-          pip install .
-
-      - name: pspamm-tests-generate
-        run: |
-          cd tests/
-          python unit_test.py arm128
-      
-      - name: pspamm-tests-compile
-        run: |
-          cd tests/
-          aarch64-linux-gnu-g++ -static -march=armv8.2-a build/arm128_testsuite.cpp -o build/arm128-test
-      
-      - name: pspamm-tests-run
-        run: |
-          cd tests/
-          qemu-aarch64-static -cpu max build/arm128-test
-
-  pspamm-codegen-armsve:
-    name: pspamm-codegen-armsve
-    runs-on: ubuntu-24.04
-    needs: install-pspamm
-    # include vector lengths for SVE manually (for now)
+    # include all vector lengths manually for now
     strategy:
       fail-fast: false
       matrix:
-        vectorlen:
-          - 128
-          - 256
-          - 512
-          - 1024
-          - 2048
-    steps:
-      - name: apt-get
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install g++-aarch64-linux-gnu qemu-user-static
-
-      - name: setup-python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: checkout-pspamm
-        uses: actions/checkout@v4
-
-      - name: pip-pspamm
-        run: |
-          pip install .
-
-      - name: pspamm-tests-generate
-        run: |
-          cd tests/
-          python unit_test.py arm_sve${{matrix.vectorlen}}
-      
-      - name: pspamm-tests-compile
-        run: |
-          cd tests/
-          aarch64-linux-gnu-g++ -static -march=armv8.2-a+sve -msve-vector-bits=${{matrix.vectorlen}} build/arm_sve${{matrix.vectorlen}}_testsuite.cpp -o build/arm_sve${{matrix.vectorlen}}-test
-      
-      - name: pspamm-tests-run
-        run: |
-          cd tests/
-          qemu-aarch64-static -cpu max,sve${{matrix.vectorlen}}=on,sve-default-vector-length=-1 build/arm_sve${{matrix.vectorlen}}-test
-  pspamm-codegen-rvv:
-    name: pspamm-codegen-rvv
-    runs-on: ubuntu-24.04
-    needs: install-pspamm
-    # include vector lengths for RISC-V V manually (for now)
-    strategy:
-      fail-fast: false
-      matrix:
-        vectorlen:
-          - 128
-          - 256
-          - 512
-          - 1024
-          - 2048
-          - 4096
-          - 8192
+        arch:
+          - hsw128
+          - hsw256
+          - knl128
+          - knl256
+          - knl512
+          - arm128
+          - arm_sve128
+          - arm_sve256
+          - arm_sve512
+          - arm_sve1024
+          - arm_sve2048
+          - rvv128
+          - rvv256
+          - rvv512
+          - rvv1024
+          - rvv2048
+          - rvv4096
+          - rvv8192
     steps:
       - name: apt-get
         run: |
@@ -244,18 +84,7 @@ jobs:
         run: |
           pip install .
 
-      - name: pspamm-tests-generate
+      - name: pspamm-tests
         run: |
           cd tests/
-          python unit_test.py rvv${{matrix.vectorlen}}
-      
-      - name: pspamm-tests-compile
-        run: |
-          cd tests/
-          riscv64-linux-gnu-g++ -static -march=rv64gvzvl${{matrix.vectorlen}}b build/rvv${{matrix.vectorlen}}_testsuite.cpp -o build/rvv${{matrix.vectorlen}}-test
-      
-      # TODO: check if rv64i is better than max here?
-      - name: pspamm-tests-run
-        run: |
-          cd tests/
-          qemu-riscv64-static -cpu max,g=on,v=on,vlen=${{matrix.vectorlen}} build/rvv${{matrix.vectorlen}}-test
+          ./runlocal.sh ${{matrix.arch}}

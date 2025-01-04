@@ -19,9 +19,9 @@ elif [[ ${1:0:3} == "rvv" ]]; then
 elif [[ ${1:0:3} == "hsw" ]]; then
     BITLEN=${1:3:6}
     g++ -static -mavx2 build/${1}_testsuite.cpp -o build/${1}-test
-    build/${1}-test
+    qemu-x86_64-static -cpu Haswell build/${1}-test
 elif [[ ${1:0:3} == "knl" ]]; then
     BITLEN=${1:3:6}
     g++ -static -mavx512f build/${1}_testsuite.cpp -o build/${1}-test
-    build/${1}-test
+    qemu-x86_64-static -cpu Skylake-Server build/${1}-test
 fi
