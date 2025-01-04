@@ -221,7 +221,7 @@ class MatMul:
 
         self.A_pool = RegisterPool([self.A_regs[i,j] for i in range(self.A_regs.shape[0]) for j in range(self.A_regs.shape[1])])
         self.B_pool = RegisterPool([self.B_regs[i,j] for i in range(self.B_regs.shape[0]) for j in range(self.B_regs.shape[1])])
-        self.C_pool = RegisterPool([self.C_regs[i,j] for i in range(self.C_regs.shape[0]) for j in range(self.B_regs.shape[1])])
+        self.C_pool = RegisterPool([self.C_regs[i,j] for i in range(self.C_regs.shape[0]) for j in range(self.C_regs.shape[1])])
 
         self.alpha_bcst_reg, self.beta_bcst_reg = self.starting_regs[3], self.starting_regs[4]
 
@@ -439,10 +439,8 @@ class MatMul:
         asm.add(self.generator.make_argument_load(self.starting_regs, self.C_pf is not None))
 
         asm.add(block("header",
-            self.generator.bcst_alpha_beta(self.alpha_reg, self.beta_reg),
             self.generator.make_scaling_offsets(self.additional_regs, self.bnnz),
-            self.generator.init_mask(self.m, self.bm, self.v_size, self.loop_regs[0], self.mask_regs),
-            self.generator.make_b_pointers(self.starting_regs[1], self.additional_regs, self.bnnz)
+            self.generator.init_mask(self.m, self.bm, self.v_size, self.loop_regs[0], self.mask_regs)
         ))
 
         asm.add(self.generator.init_block(self.v_size))

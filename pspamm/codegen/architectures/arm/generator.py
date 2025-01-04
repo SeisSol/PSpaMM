@@ -82,27 +82,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, [], False
 
-
-    def bcst_alpha_beta(self,
-                        alpha_reg: Register,
-                        beta_reg: Register,
-                        ) -> Block:
-
-        asm = block("Broadcast alpha and beta so that efficient multiplication is possible")
-        # asm.add(mov(alpha_reg[0], alpha_reg[1], True))
-        # asm.add(mov(beta_reg[0], beta_reg[1], True))
-        return asm
-
     def make_scaling_offsets(self,
-                         additional_regs: List[Register],
-                         nnz: int
-                        ) -> Block:
-
-        asm = block("No register based scaling")
-        return asm
-
-    def make_b_pointers(self,
-                         B_reg: Register,
                          additional_regs: List[Register],
                          nnz: int
                         ) -> Block:

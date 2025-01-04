@@ -41,6 +41,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     def init_mask(self, m, bm, v_size, tempreg, maskregs):
         return block("")
     
+    def scale_base(self):
+        return 256
+
     def pred_n_trues(self, count, v_size, mode):
         # hacked in right now: we set a number as predicate if we need it
         if count < v_size:
@@ -102,45 +105,17 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         alpha_reg = [xmm(b_reg), vmm(b_reg)]
         beta_reg = [xmm(b_reg + 1), vmm(b_reg + 1)]
 
-        available_regs = [r(9),r(10),r(11),r(15),rax] # ,r(13),r(14)
+        additional_regs = [r(9),r(10),r(11),r(15),rax] # ,r(13),r(14)
 
         prefetch_reg = prefetch == 'BL2viaC'
         if prefetch_reg:
             starting_regs += [r(8)]
-            additional_regs = []
         else:
-            additional_regs = [r(8)]
-
-        reg_count = 0
-
-        self.spontaneous_scaling = False
-        for i in range(1024, min(max(nnz * self.precision.size(), m*k*self.precision.size(), m*n*self.precision.size()),8192), 2048):
-            additional_regs.append(available_regs[reg_count])
-            reg_count += 1
-
-        for i in range(8192, min(nnz * self.precision.size(), 32768), 8192):
-            if reg_count == len(available_regs):
-                self.spontaneous_scaling = True
-                break
-            additional_regs.append(available_regs[reg_count])
-            reg_count += 1
+            additional_regs += [r(8)]
 
         loop_regs = [r(12), r(13), r(14)]
 
         return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, [], prefetch_reg
-
-
-    def bcst_alpha_beta(self,
-                        alpha_reg: Register,
-                        beta_reg: Register,
-                        ) -> Block:
-
-        asm = block("Broadcast alpha and beta when needed")
-
-#        asm.add(bcst(alpha_reg[0], alpha_reg[1]))
-#        asm.add(bcst(beta_reg[0], beta_reg[1]))
-        
-        return asm
 
     def make_scaling_offsets(self,
                          additional_regs: List[Register],
@@ -149,63 +124,28 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         asm = block("Optimize usage of offsets when accessing B Matrix")
 
-        if not self.spontaneous_scaling:
-            for i in range(1, min(len(additional_regs), 5)):
-                asm.add(mov(c(1024 + (i-1) * 2048), additional_regs[i], False))
-        
-        return asm
-
-    def make_b_pointers(self,
-                         B_reg: Register,
-                         additional_regs: List[Register],
-                         nnz: int
-                        ) -> Block:
-
-        asm = block("Optimize usage of offsets when accessing B Matrix")
-
-        if not self.spontaneous_scaling:
-            reg_count = 5
-
-            for i in range(8192, min(nnz * self.precision.size(), 33000), 8192):
-                asm.add(lea(B_reg, additional_regs[reg_count], i))
-                reg_count += 1
+        for i in range(1, len(additional_regs)):
+            asm.add(mov(c(self.scale_base() * (2*i - 1)), additional_regs[i], False))
         
         return asm
 
     def init_block(self, size):
         return block("")
 
-    def reg_based_scaling(self, regcache, asm, addr: MemoryAddress, additional_regs: List[Register], with_index: bool):
-        if addr.disp >= 1024:
-            if ((addr.disp < 32768 and with_index) or addr.disp < 8192) and not self.spontaneous_scaling:
-                scaling_and_register = {
-                    1: (1, 1),
-                    2: (2, 1),
-                    3: (1, 2),
-                    4: (4, 1),
-                    5: (1, 3),
-                    6: (2, 2),
-                    7: (1, 4)
-                }
-                if addr.disp % 8192 >= 1024:
-                    addr.scaling, reg = scaling_and_register[ (addr.disp % 8192) // 1024 ]
-                    addr.index = additional_regs[reg]
+    def reg_based_scaling(self, asm, addr: MemoryAddress, additional_regs: List[Register]):
+        halfscale = self.scale_base() // 2
+        if addr.disp >= halfscale:
+            base = (addr.disp + halfscale) // self.scale_base()
+            scaling = 1
+            while base % 2 == 0:
+                base //= 2
+                scaling *= 2
+            register = base // 2 + 1
 
-                if addr.disp >= 8192 and not self.spontaneous_scaling:
-                    addr.base = additional_regs[addr.disp // 8192 + 4]
-
-                addr.disp = addr.disp % 1024
-            else:
-                # TODO: not 100%ly sure about this code here...
-                large_offset = addr.disp // 1024
-
-                basereg, load = regcache.get(large_offset)
-                if load:
-                    asm.add(mov(addr.base, basereg, False))
-                    asm.add(add(c(large_offset * 1024), basereg))
-
-                addr.base = basereg
-                addr.disp = addr.disp % 1024
+            if register < len(additional_regs) and scaling <= 8:
+                addr.index = additional_regs[register]
+                addr.scaling = scaling
+                addr.disp = ((addr.disp + halfscale) % self.scale_base()) - halfscale
 
     def move_register_block(self,
                             cursor: Cursor,
@@ -234,6 +174,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         cell_offset = all_coords[0]
                         addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
                         addr.disp += self.precision.size() * load_offset
+                        self.reg_based_scaling(asm, addr, additional_regs)
                         if store:
                             asm.add(mov(registers[ir,ic], addr, True, comment))
                             if prefetching == 'BL2viaC':
@@ -327,8 +268,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         else:
             asm.add(self.move_register_single(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, 0, 0, mask, store=False))
 
-        regcache = RegisterCache(additional_regs)
-
         Vm = self.ceil_div(bm, v_size)
 
         bs = []
@@ -340,7 +279,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     to_acell = Coords(down=Vmi*v_size, right=bki)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
                         B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        self.reg_based_scaling(regcache, asm, B_addr, additional_regs, True)
+                        self.reg_based_scaling(asm, B_addr, additional_regs)
                         if B_regs[bki, bni] not in bs:
                             asm.add(bcst(B_addr, B_regs[bki, bni], comment=B_comment))
                             bs.append(B_regs[bki, bni])

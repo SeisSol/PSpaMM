@@ -84,3 +84,15 @@ class Predicate:
     def __init__(self, register: Register_KNL, zero: bool):
         self.register = register
         self.zero = zero
+    
+    @property
+    def ugly(self):
+        # TODO?
+        return self.register.ugly
+    
+    @property
+    def clobbered(self):
+        return self.register.clobbered
+    
+    def registers(self):
+        return [self.register]

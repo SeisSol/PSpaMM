@@ -39,6 +39,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
     def has_masks(self):
         return True
+    
+    def scale_base(self):
+        # larger scaling range for B inline broadcasts
+        return self.precision.size() * 256
 
     def pred_n_trues(self, count, v_size, mode):
         # a bit hacky at the moment (won't work for all masks)
@@ -69,7 +73,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         }[self.v_len]
 
         A_regs = Matrix([[vmm(vm*c + r) for c in range(bk)] for r in range(vm)])
-        B_regs = []
+        B_regs = Matrix([[]])
         C_regs = Matrix([[vmm(32 - vm*bn + vm*c + r) for c in range(bn)]
                                                      for r in range(vm)])
 
@@ -78,30 +82,15 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         alpha_reg = [rbx, rbx]
         beta_reg = [rcx, rcx]
 
-        available_regs = [r(9),r(10),r(11),r(15),rax] # ,r(13),r(14)
+        additional_regs = [r(9),r(10),r(11),r(15),rax] # ,r(13),r(14)
 
         prefetch_reg = prefetch == 'BL2viaC'
         if prefetch_reg:
             starting_regs += [r(8)]
-            additional_regs = []
         else:
-            additional_regs = [r(8)]
+            additional_regs += [r(8)]
 
         mask_regs = [kmask(1), kmask(2)]
-
-        reg_count = 0
-
-        self.spontaneous_scaling = False
-        for i in range(1024, min(max(nnz * self.precision.size(), m*k*self.precision.size(), m*n*self.precision.size()),8192), 2048):
-            additional_regs.append(available_regs[reg_count])
-            reg_count += 1
-
-        for i in range(8192, min(nnz * self.precision.size(), 32768), 8192):
-            if reg_count == len(available_regs):
-                self.spontaneous_scaling = True
-                break
-            additional_regs.append(available_regs[reg_count])
-            reg_count += 1
 
         loop_regs = [r(12), r(13), r(14)]
 
@@ -128,15 +117,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
             asm.add(mov(tempreg, maskregs[1], False))
         return asm
 
-    def bcst_alpha_beta(self,
-                        alpha_reg: Register,
-                        beta_reg: Register,
-                        ) -> Block:
-
-        asm = block("Broadcast alpha and beta using inline broadcasting")
-        
-        return asm
-
     def make_scaling_offsets(self,
                          additional_regs: List[Register],
                          nnz: int
@@ -144,62 +124,28 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         asm = block("Optimize usage of offsets when accessing B Matrix")
 
-        if not self.spontaneous_scaling:
-            for i in range(1, min(len(additional_regs), 5)):
-                asm.add(mov(c(1024 + (i-1) * 2048), additional_regs[i], False))
-        
-        return asm
-
-    def make_b_pointers(self,
-                         B_reg: Register,
-                         additional_regs: List[Register],
-                         nnz: int
-                        ) -> Block:
-
-        asm = block("Optimize usage of offsets when accessing B Matrix")
-
-        if not self.spontaneous_scaling:
-            reg_count = 5
-
-            for i in range(8192, min(nnz * self.precision.size(), 33000), 8192):
-                asm.add(lea(B_reg, additional_regs[reg_count], i))
-                reg_count += 1
+        for i in range(1, min(len(additional_regs), 5)):
+            asm.add(mov(c(1024 + (i-1) * 2048), additional_regs[i], False))
         
         return asm
 
     def init_block(self, size):
         return block("")
 
-    def reg_based_scaling(self, regcache, asm, addr: MemoryAddress, additional_regs: List[Register], with_index: bool):
-        if addr.disp >= 1024:
-            if ((addr.disp < 32768 and with_index) or addr.disp < 8192) and not self.spontaneous_scaling:
-                scaling_and_register = {
-                    1: (1, 1),
-                    2: (2, 1),
-                    3: (1, 2),
-                    4: (4, 1),
-                    5: (1, 3),
-                    6: (2, 2),
-                    7: (1, 4)
-                }
-                if addr.disp % 8192 >= 1024:
-                    addr.scaling, reg = scaling_and_register[ (addr.disp % 8192) // 1024 ]
-                    addr.index = additional_regs[reg]
+    def reg_based_scaling(self, asm, addr: MemoryAddress, additional_regs: List[Register]):
+        halfscale = self.scale_base() // 2
+        if addr.disp >= halfscale:
+            base = (addr.disp + halfscale) // self.scale_base()
+            scaling = 1
+            while base % 2 == 0:
+                base >>= 1
+                scaling *= 2
+            register = base // 2 + 1
 
-                if addr.disp >= 8192 and not self.spontaneous_scaling:
-                    addr.base = additional_regs[addr.disp // 8192 + 4]
-
-                addr.disp = addr.disp % 1024
-            else:
-                large_offset = addr.disp // 1024
-
-                basereg, load = regcache.get(large_offset)
-                if load:
-                    asm.add(mov(addr.base, basereg, False))
-                    asm.add(add(c(large_offset * 1024), basereg))
-
-                addr.base = basereg
-                addr.disp = addr.disp % 1024
+            if register < len(additional_regs) and scaling <= 8:
+                addr.index = additional_regs[register]
+                addr.scaling = scaling
+                addr.disp = ((addr.disp + halfscale) % self.scale_base()) - halfscale
 
     def move_register_block(self,
                             cursor: Cursor,
@@ -225,24 +171,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         for ic in range(cols):
             for ir in range(rows):
                 if (mask is None) or (mask[ir,ic]):
+                    # no register-based scaling here (for now)
+
                     all_coords = [Coords(down=ir*v_size+i,right=ic) for i in range(process_size)]
                     has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
-                    if all(has_nonzero):
-                        cell_offset = all_coords[0]
-                        addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
-                        addr.disp += self.precision.size() * load_offset
-
-                        processed = ir * process_size
-                        if processed >= b_row:
-                            continue
-                        p = self.pred_n_trues(min(process_size, b_row - processed), v_size, 'm')
-                        if store:
-                            asm.add(mov(registers[ir,ic], addr, True, comment, pred=p))
-                            if prefetching == 'BL2viaC':
-                                asm.add(prefetch(mem(additional_regs[0], addr.disp)))
-                        else:
-                            asm.add(mov(addr, registers[ir,ic], True, comment, pred=p))
-                    elif any(has_nonzero):
+                    processed = ir * process_size
+                    if any(has_nonzero):
                         contiguous = True
                         firsti = 0
                         lasti = None
@@ -262,20 +196,22 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         if lasti is None:
                             lasti = process_size
                         addr, comment = cursor.look(cursor_ptr, block_offset, all_coords[firsti])
+                        addr.disp += self.precision.size() * load_offset
                         # assume contiguous memory here
 
                         maskFound = False
+                        needsExpand = True
                         if firsti == 0 and contiguous:
-                            self.predicates[lasti]
+                            if lasti in self.predicates:
+                                pred = Predicate(self.predicates[lasti], True)
+                            needsExpand = False
 
                         if not maskFound:
                             maskreg = kmask(3)
 
-                            asm.add(mov(maskreg, additional_regs[0], False))
+                            asm.add(mov(bitmask, additional_regs[0], False))
                             asm.add(mov(additional_regs[0], maskreg, False))
                             pred = Predicate(maskreg, True)
-
-                        needsExpand = not contiguous
 
                         if store:
                             asm.add(mov(registers[ir,ic], addr, True, comment, pred=pred, expand=needsExpand))
@@ -322,8 +258,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         bm,bk,aidx,apattern = A.get_block(A_ptr, to_A_block)
         bk,bn,bidx,bpattern = B.get_block(B_ptr, to_B_block)
 
-        regcache = RegisterCache(additional_regs)
-
         mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size, True)
         asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
 
@@ -336,7 +270,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     to_acell = Coords(down=Vmi*v_size, right=bki)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
                         B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        self.reg_based_scaling(regcache, asm, B_addr, additional_regs, True)
+                        self.reg_based_scaling(asm, B_addr, additional_regs)
                         comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
                         asm.add(fma(B_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=0, sub=sub))
         return asm

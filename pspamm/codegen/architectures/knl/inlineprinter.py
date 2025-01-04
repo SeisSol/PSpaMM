@@ -67,10 +67,10 @@ class InlinePrinter(Visitor):
 
         self.output.append(line)
 
-    def maskformat(self, pred):
+    def maskformat(self, pred, ignoreZero = False):
         if pred is None:
             return ''
-        elif pred.zero:
+        elif pred.zero and not ignoreZero:
             return f'%{{{pred.register.ugly}%}}%{{z%}}'
         else:
             return f'%{{{pred.register.ugly}%}}'
@@ -168,6 +168,7 @@ class InlinePrinter(Visitor):
                 else:
                     s = f"vpcompress{self.bpsuffix} {src_str}, {stmt.dest.ugly} {mask}"
             else:
+                mask = self.maskformat(stmt.pred, True)
                 s = f"vmovupd {src_str}, {stmt.dest.ugly} {mask}"
         else:
             raise NotImplementedError()
