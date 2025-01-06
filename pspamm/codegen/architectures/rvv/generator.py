@@ -114,7 +114,13 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         return asm
     
     def init_block(self, size):
-        return rvsetvl(x(0), size)
+        if size < 32:
+            return rvsetvl(x(0), size)
+        else:
+            asm = block("Set vector length")
+            asm.add(mov(size, x(5), False))
+            asm.add(rvsetvl(x(0), x(5)))
+            return asm
 
     def move_register_block(self,
                             cursor: Cursor,
