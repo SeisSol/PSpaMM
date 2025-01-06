@@ -64,7 +64,6 @@ jobs:
           - rvv1024
           - rvv2048
           - rvv4096
-          - rvv8192
     steps:
       - name: apt-get
         run: |
