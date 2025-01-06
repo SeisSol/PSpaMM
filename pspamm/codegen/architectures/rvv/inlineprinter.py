@@ -106,15 +106,16 @@ class InlinePrinter(Visitor):
         if isinstance(stmt.src, Constant) and (stmt.src.value > 2047 or stmt.src.value < -2048):
             # we need an intermediate register here
 
-            # TODO: do not hard-code x5 here
+            # TODO: do not hard-code x5 here, make well-defined
+            itmp = "x5" if stmt.additional is None else stmt.dest.ugly
             tmp = "x5" if stmt.additional is None else stmt.additional.ugly
             if stmt.src.value < 0:
                 addival, luival = self.to_addi(-stmt.src.value)
             else:
                 addival, luival = self.to_addi(stmt.src.value)
-            self.addLine(f"lui {tmp}, {luival}", f"Intermediate add: place upper 12 bits of {stmt.src.value}")
+            self.addLine(f"lui {itmp}, {luival}", f"Intermediate add: place upper 12 bits of {stmt.src.value}")
             if addival != 0:
-                self.addLine(f"addi {tmp}, {tmp}, {addival}", f"Intermediate add: place lower 12 bits of {stmt.src.value}")
+                self.addLine(f"addi {itmp}, {itmp}, {addival}", f"Intermediate add: place lower 12 bits of {stmt.src.value}")
             if stmt.src.value < 0:
                 self.addLine(f"sub {stmt.dest.ugly}, {stmt.dest.ugly}, {tmp}", stmt.comment)
             else:

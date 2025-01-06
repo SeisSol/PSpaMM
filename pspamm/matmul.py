@@ -368,7 +368,7 @@ class MatMul:
         argsA = [Bm, m_overhead > 0, self.unroll_m, self.loop_regs[0], [self.A], [A_ptr], ['down']]
         argsB = [Bn, n_overhead > 0, self.unroll_n, self.loop_regs[1], [self.B], [B_ptr], ['right']]
 
-        if self.unroll_m and not self.unroll_n:
+        if self.unroll_n and not self.unroll_m:
             # swap loops
             outerArgs, innerArgs = (argsB, argsA)
             dirC, dirC2 = ('down', 'right')

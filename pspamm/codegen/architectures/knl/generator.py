@@ -192,7 +192,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                                     contiguous = False
                             elif i > firsti:
                                 if lasti is None:
-                                    lasti = i - 1
+                                    lasti = i
                         if lasti is None:
                             lasti = process_size
                         addr, comment = cursor.look(cursor_ptr, block_offset, all_coords[firsti])
@@ -200,11 +200,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         # assume contiguous memory here
 
                         maskFound = False
-                        needsExpand = True
-                        if firsti == 0 and contiguous:
-                            if lasti in self.predicates:
+                        needsExpand = not (firsti == 0 and contiguous)
+                        if not needsExpand:
+                            if lasti == process_size:
+                                pred = None
+                                maskFound = True
+                            elif lasti in self.predicates:
                                 pred = Predicate(self.predicates[lasti], True)
-                            needsExpand = False
+                                maskFound = True
 
                         if not maskFound:
                             maskreg = kmask(3)

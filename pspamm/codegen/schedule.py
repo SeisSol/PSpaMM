@@ -18,10 +18,13 @@ def hasDependency(instr1, instr2):
     return len(ww) > 0 or len(wr) > 0 or len(rw) > 0
 
 def moveLoads(block, isLoop=False):
+    has_subloops = any(isinstance(instr, Loop) for instr in block)
+
     preprocessed = []
     for instr in block:
         if isinstance(instr, Loop):
-            if True:
+            if not has_subloops:
+                # only unroll the innermost loop at most
                 prelude, inner, postlude = moveLoads(instr.body_contents.contents, True)
                 if instr.final_val == 1:
                     preprocessed += prelude + postlude
