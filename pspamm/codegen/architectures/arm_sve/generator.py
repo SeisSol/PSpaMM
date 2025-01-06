@@ -393,6 +393,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         preg = self.pred_n_trues(elem128, elem128, 'z')
         preg_last = preg if bk % elem128 == 0 else self.pred_n_trues(bk % elem128, elem128, 'z')
+        firstloc = {}
         for Vmi in range(Vm):
             # set to all v_size predicates to true, we want to replicate a B element into a whole vector
             for bni in range(bn):  # inside this n-block
@@ -400,10 +401,15 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     bki_reg = bki // elem128
                     to_bcell = Coords(down=bki, right=bni)
                     to_acell = Coords(down=Vmi*v_size, right=bki)
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
-                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        if B_regs[bki_reg, bni] not in bs:
+                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell):
+                        if (bki_reg, bni) not in firstloc:
+                            B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+                            firstloc[(bki_reg, bni)] = (B_cell_addr, B_comment)
+                        if A.has_nonzero_cell(A_ptr, to_A_block, to_acell) and B_regs[bki_reg, bni] not in bs:
                             p_zeroing = preg_last if bki_reg + 1 == vk else preg
+
+                            B_cell_addr = firstloc[(bki_reg, bni)][0]
+                            B_comment = firstloc[(bki_reg, bni)][1]
 
                             # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
                             if B_cell_addr.disp > max_offs or B_cell_addr.disp % divider != 0:
@@ -432,17 +438,19 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                 for bni in range(bn):  # inside this n-block
                     to_bcell = Coords(down=bki, right=bni)
                     to_acell = Coords(down=Vmi*v_size, right=bki)
+                    bki_reg = bki // elem128
+                    if (Vmi, bki_reg, bni) not in cell_indices:
+                        cell_indices[(Vmi, bki_reg, bni)] = 0
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
                         _, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         comment = f"C[{Vmi * v_size}:{end_index},{bni}] += A[{Vmi * v_size}:{end_index},{bki}]*{B_comment}"
                         
-                        bki_reg = bki // elem128
-                        if (Vmi, bki_reg, bni) not in cell_indices:
-                            cell_indices[(Vmi, bki_reg, bni)] = 0
                         if not self.inline_broadcast:
                             bcast = None
                         else:
                             bcast = cell_indices[(Vmi, bki_reg, bni)]
                         asm.add(fma(B_regs[bki_reg, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, pred=p_merging, bcast=bcast, sub=sub))
+                    
+                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell):
                         cell_indices[(Vmi, bki_reg, bni)] += 1
         return asm

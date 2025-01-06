@@ -23,7 +23,7 @@ def moveLoads(block, isLoop=False):
     preprocessed = []
     for instr in block:
         if isinstance(instr, Loop):
-            if not has_subloops:
+            if True:
                 # only unroll the innermost loop at most
                 prelude, inner, postlude = moveLoads(instr.body_contents.contents, True)
                 if instr.final_val == 1:

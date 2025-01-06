@@ -107,6 +107,8 @@ class LoadStmt(AsmStmt):
     typ = None
     aligned = False
     dest2 = None
+    dest3 = None
+    dest4 = None
     # used in arm_sve:
     pred = None
     is_B = None
@@ -120,7 +122,7 @@ class LoadStmt(AsmStmt):
         return (self.src,self.pred,self.add_reg)
     
     def reg_out_candidate(self):
-        return (self.dest, self.dest2)
+        return (self.dest, self.dest2, self.dest3, self.dest4)
     
     def stmtname(self):
         return 'load'
@@ -131,6 +133,8 @@ class StoreStmt(AsmStmt):
     typ = None
     aligned = False
     src2 = None
+    src3 = None
+    src4 = None
     # used in arm_sve:
     pred = None
     scalar_offs = False
@@ -140,7 +144,7 @@ class StoreStmt(AsmStmt):
         visitor.visitStore(self)
     
     def reg_in_candidate(self):
-        return (self.src, self.src2, self.pred, self.add_reg)
+        return (self.src, self.src2, self.src3, self.src4, self.pred, self.add_reg)
     
     def reg_out_candidate(self):
         return (self.dest,)

@@ -139,59 +139,67 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         asm = block(f"{action} {name} register block @ {block_offset}")
 
         cur11 = -1000
-        fuse_cache = False
-        fuse_addr = None
-        fuse_register = None
-        fuse_comment = None
+        fuse_cache = []
+        def try_flush_cache(force, cur11):
+            if len(fuse_cache) == 0:
+                return
+
+            if force:
+                op1 = fuse_cache[0]
+                op2 = fuse_cache[1] if len(fuse_cache) > 1 else None
+                op3 = fuse_cache[2] if len(fuse_cache) > 2 else None
+                op4 = fuse_cache[3] if len(fuse_cache) > 3 else None
+
+                max_offset = [65520, 1008, 48, 64][len(fuse_cache) - 1]
+                div_offset = [16, 16, 24, 32][len(fuse_cache) - 1]
+
+                comment = f'{op1.comment}'
+                if op2 is not None: comment += f', {op2.comment}'
+                if op3 is not None: comment += f', {op3.comment}'
+                if op4 is not None: comment += f', {op4.comment}'
+
+                offset = op1.addr.disp - cur11 if cur11 >= 0 else op1.addr.disp
+
+                if cur11 >= 0:
+                    op1.addr.disp = offset
+                    op1.addr.base = additional_regs[0]
+
+                if offset > max_offset or offset % div_offset != 0:
+                    if cur11 < 0:
+                        asm.add(add(offset, additional_regs[0], "", op1.addr.base))
+                        cur11 = offset
+                    else:
+                        asm.add(add(offset, additional_regs[0], ""))
+                        cur11 += offset
+                    op1.addr.disp = 0
+                    op1.addr.base = additional_regs[0]
+                
+                op1r = op1.register
+                op2r = op2.register if op2 is not None else None
+                op3r = op3.register if op3 is not None else None
+                op4r = op4.register if op4 is not None else None
+
+                if store:
+                    asm.add(st(op1r, op1.addr, True, comment, src2=op2r, src3=op3r, src4=op4r))
+                else:
+                    asm.add(ld(op1.addr, op1r, True, comment, dest2=op2r, dest3=op3r, dest4=op4r))
+                
+                fuse_cache.clear()
+            
+            return cur11
+
         for _,location in offsets:
-            if fuse_cache:
-                can_fuse = location.addr.disp == fuse_addr.disp + 16
-                if fuse_addr.disp > 255:
-                    if(fuse_addr.disp - cur11 > 0 and fuse_addr.disp - cur11 < 256):
-                        fuse_addr.disp = fuse_addr.disp - cur11
-                    else:
-                        asm.add(add(fuse_addr.disp, additional_regs[0], "", fuse_addr.base))
-                        cur11 = fuse_addr.disp
-                        fuse_addr.disp = 0
-                    fuse_addr.base = additional_regs[0]
+            if len(fuse_cache) > 0:
+                can_fuse = location.addr.disp == fuse_cache[-1].addr.disp + 16
 
-                if can_fuse:
-                    if fuse_addr.disp % 16 != 0:
-                        asm.add(add(fuse_addr.disp, additional_regs[0], "", fuse_addr.base))
-                        cur11 = fuse_addr.disp
-                        fuse_addr.disp = 0
-                        fuse_addr.base = additional_regs[0]
-                    if store:
-                        asm.add(st(fuse_register, fuse_addr, True, f'{fuse_comment}, {location.comment}', location.register))
-                    else:
-                        asm.add(ld(fuse_addr, fuse_register, True, f'{fuse_comment}, {location.comment}', location.register))
-                else:
-                    if store:
-                        asm.add(st(fuse_register, fuse_addr, True, fuse_comment))
-                    else:
-                        asm.add(ld(fuse_addr, fuse_register, True, fuse_comment))                    
-                fuse_cache = not can_fuse
-            else:
-                fuse_cache = True
+                # TODO: extend to 4?
+                max_length = len(fuse_cache) == 2
 
-            if fuse_cache:
-                fuse_addr = location.addr
-                fuse_register = location.register
-                fuse_comment = location.comment
-        
-        if fuse_cache:
-            if fuse_addr.disp > 255:
-                if(fuse_addr.disp - cur11 > 0 and fuse_addr.disp - cur11 < 256):
-                    fuse_addr.disp = fuse_addr.disp - cur11
-                else:
-                    asm.add(add(fuse_addr.disp, additional_regs[0], "", fuse_addr.base))
-                    cur11 = fuse_addr.disp
-                    fuse_addr.disp = 0
-                fuse_addr.base = additional_regs[0]
-            if store:
-                asm.add(st(fuse_register, fuse_addr, True, fuse_comment))
-            else:
-                asm.add(ld(fuse_addr, fuse_register, True, fuse_comment))
+                cur11 = try_flush_cache(not can_fuse or max_length, cur11)
+
+            fuse_cache += [location]
+
+        cur11 = try_flush_cache(True, cur11)
         
         return asm
 
@@ -242,6 +250,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         # TODO: fuse loads here as well
         bs = []
+        firstloc = {}
         locations = []
         for Vmi in range(bm//v_size):
             for bni in range(bn):   # inside this n-block
@@ -249,10 +258,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     bki_reg = bki // elem128
                     to_bcell = Coords(down=bki, right=bni)
                     to_acell = Coords(down=Vmi*v_size, right=bki)
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
-                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        if B_regs[bki_reg, bni] not in bs:
-                            locations += [self.LoadStoreLocation(B_cell_addr, B_regs[bki_reg, bni], B_comment)]
+                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell):
+                        if (bki_reg, bni) not in firstloc:
+                            B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+                            firstloc[(bki_reg, bni)] = self.LoadStoreLocation(B_cell_addr, B_regs[bki_reg, bni], B_comment)
+                        if A.has_nonzero_cell(A_ptr, to_A_block, to_acell) and B_regs[bki_reg, bni] not in bs:
+                            locations += [firstloc[(bki_reg, bni)]]
                             bs.append(B_regs[bki_reg, bni])
         asm.add(self.fuse_loadstore_block(locations, False, B.name, to_B_block, additional_regs))
 
@@ -263,12 +274,16 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 for bni in range(bn):   # inside this n-block
                     to_bcell = Coords(down=bki, right=bni)
                     to_acell = Coords(down=Vmi*v_size, right=bki)
+
+                    bki_reg = bki // elem128
+                    if (Vmi, bki_reg, bni) not in cell_indices:
+                        cell_indices[(Vmi, bki_reg, bni)] = 0
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
                         _, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
-                        bki_reg = bki // elem128
-                        if (Vmi, bki_reg, bni) not in cell_indices:
-                            cell_indices[(Vmi, bki_reg, bni)] = 0
                         asm.add(fma(B_regs[bki_reg, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=cell_indices[(Vmi, bki_reg, bni)], sub=sub))
+                    
+                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell):
                         cell_indices[(Vmi, bki_reg, bni)] += 1
+
         return asm

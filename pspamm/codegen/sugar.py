@@ -84,11 +84,13 @@ def lea(src: Register, dest: Operand, offset: int, comment:str = None):
     stmt.comment = comment
     return stmt
 
-def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, dest2: Operand = None, pred: Register = None, is_B: bool = False, scalar_offs: bool = False, add_reg: AsmType.i64 = None, sub128: bool = False, expand=None):
+def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, dest2: Operand = None, pred: Register = None, is_B: bool = False, scalar_offs: bool = False, add_reg: AsmType.i64 = None, sub128: bool = False, expand=None, dest3: Operand = None, dest4: Operand = None):
     stmt = LoadStmt()
     stmt.src = src if isinstance(src, Operand) else pspamm.architecture.operands.c(src)
     stmt.dest = dest
     stmt.dest2 = dest2
+    stmt.dest3 = dest3
+    stmt.dest4 = dest4
     stmt.comment = comment
     # used in arm_sve:
     stmt.pred = pred
@@ -108,10 +110,12 @@ def ld(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None
         stmt.typ = AsmType.i64
     return stmt
 
-def st(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, src2: Operand = None, pred: Register = None, scalar_offs: bool = False, add_reg: AsmType.i64 = None, expand=None):
+def st(src: Union[Operand, int], dest: Operand, vector: bool, comment:str = None, src2: Operand = None, pred: Register = None, scalar_offs: bool = False, add_reg: AsmType.i64 = None, expand=None, src3: Operand=None, src4: Operand=None):
     stmt = StoreStmt()
     stmt.src = src if isinstance(src, Operand) else pspamm.architecture.operands.c(src)
     stmt.src2 = src2
+    stmt.src3 = src3
+    stmt.src4 = src4
     stmt.dest = dest
     stmt.comment = comment
     # used in arm_sve:

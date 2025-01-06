@@ -144,7 +144,13 @@ class InlinePrinter(Visitor):
         if stmt.typ == AsmType.i64:
             s = f"ldr {stmt.dest.ugly}, {src_str}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
-            if stmt.dest2 is not None:
+            if stmt.dest4 is not None:
+                dispadd = '' if stmt.src.disp == 0 else f', {stmt.src.disp}'
+                s = f"ld1 {{ {stmt.dest.ugly},{stmt.dest2.ugly},{stmt.dest3.ugly},{stmt.dest4.ugly} }}, {stmt.src.ugly_base}{dispadd}"
+            elif stmt.dest3 is not None:
+                dispadd = '' if stmt.src.disp == 0 else f', {stmt.src.disp}'
+                s = f"ld1 {{ {stmt.dest.ugly},{stmt.dest2.ugly},{stmt.dest3.ugly} }}, {stmt.src.ugly_base}{dispadd}"
+            elif stmt.dest2 is not None:
                 s = f"ldp {stmt.dest.ugly_scalar}, {stmt.dest2.ugly_scalar}, {src_str}"
             else:
                 s = f"ldr {stmt.dest.ugly_scalar}, {src_str}"
@@ -162,7 +168,13 @@ class InlinePrinter(Visitor):
         if stmt.typ == AsmType.i64:
             s = f"str {src_str}, {stmt.dest.ugly}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
-            if stmt.src2 is not None:
+            if stmt.src4 is not None:
+                dispadd = '' if stmt.dest.disp == 0 else f', {stmt.dest.disp}'
+                s = f"ld1 {{ {stmt.src.ugly},{stmt.src2.ugly},{stmt.src3.ugly},{stmt.src4.ugly} }}, {stmt.dest.ugly_base}{dispadd}"
+            elif stmt.src3 is not None:
+                dispadd = '' if stmt.dest.disp == 0 else f', {stmt.dest.disp}'
+                s = f"ld1 {{ {stmt.src.ugly},{stmt.src2.ugly},{stmt.src3.ugly} }}, {stmt.dest.ugly_base}{dispadd}"
+            elif stmt.src2 is not None:
                 s = f"stp {stmt.src.ugly_scalar}, {stmt.src2.ugly_scalar}, {stmt.dest.ugly}"
             else:
                 s = f"str {stmt.src.ugly_scalar}, {stmt.dest.ugly}"

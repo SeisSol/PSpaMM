@@ -91,6 +91,10 @@ class MemoryAddress_ARM(MemoryAddress):
     @property
     def ugly(self):
         return f"[{self.base.ugly}, {self.disp}]"
+    
+    @property
+    def ugly_base(self):
+        return f"[{self.base.ugly}]"
 
 
 def mem(base, offset):
