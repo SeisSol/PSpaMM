@@ -59,7 +59,9 @@ void setup_prefetch(T*& prefetch, T* matrix, unsigned n, unsigned ldc) {
 }
 
 template <typename T>
-std::tuple<T*, T*, T*, T*, T*, T*> pre(unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, const std::string& AMTX, const std::string& BMTX) {
+std::tuple<T*, T*, T*, T*, T*, T*> pre(const std::string& name, unsigned M, unsigned N, unsigned K, unsigned LDA, unsigned LDB, unsigned LDC, const std::string& AMTX, const std::string& BMTX) {
+
+  std::cout << name << ": " << std::flush;
 
   if(LDB == 0) {
     LDB = K;
@@ -181,7 +183,7 @@ std::tuple<T*, T*, T*, T*, T*, T*> pre(unsigned M, unsigned N, unsigned K, unsig
 }
 
 template <typename T>
-bool post(const std::string& name, unsigned M, unsigned N, unsigned K, unsigned* LDA, unsigned* LDB, unsigned LDC, T* ALPHA, T* BETA, T* A, T* B, T* C, T* Cref, T DELTA) {
+bool post(unsigned M, unsigned N, unsigned K, unsigned* LDA, unsigned* LDB, unsigned LDC, T* ALPHA, T* BETA, T* A, T* B, T* C, T* Cref, T DELTA) {
 
   if(*LDB == 0) {
     *LDB = K;
@@ -218,7 +220,7 @@ bool post(const std::string& name, unsigned M, unsigned N, unsigned K, unsigned*
 
   const std::string resultString = failed ? "fail" : "success";
 
-  std::cout << std::scientific << name << ": " << resultString << " " << failedCount << " / " << M*N << " (abs: " << diffAbsMax << ", rel: " << diffRelMax << ")" << std::endl;
+  std::cout << std::scientific << resultString << " " << failedCount << " / " << M*N << " (abs: " << diffAbsMax << ", rel: " << diffRelMax << ")" << std::endl;
 
   return !failed;
 }
@@ -241,10 +243,10 @@ setup_single_testcase = """
   {precision} alpha = {alpha};
   {precision} beta = {beta};
   {precision}* prefetch = nullptr;
-  auto pointers = pre<{precision}>({m}, {n}, {k}, lda, ldb, {ldc}, "{amtx}", "{bmtx}");
+  auto pointers = pre<{precision}>(\"{name}\", {m}, {n}, {k}, lda, ldb, {ldc}, "{amtx}", "{bmtx}");
   setup_prefetch(prefetch, std::get<4>(pointers), {n}, {ldc});
   {name}(std::get<{asparse}>(pointers), std::get<{bsparse}>(pointers), std::get<4>(pointers), {alpha}, {beta}, nullptr);
-  const auto result = post<{precision}>(\"{name}\", {m}, {n}, {k}, &lda, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<2>(pointers), std::get<4>(pointers), std::get<5>(pointers), {delta:.15e});
+  const auto result = post<{precision}>({m}, {n}, {k}, &lda, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<2>(pointers), std::get<4>(pointers), std::get<5>(pointers), {delta:.15e});
   
   if (result) {{
     ++correct;
