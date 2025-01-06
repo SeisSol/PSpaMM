@@ -119,7 +119,8 @@ class InlinePrinter(Visitor):
         self.addLine(s, stmt.comment)
 
     def visitJump(self, stmt: JumpStmt):
-        s = f"b.lo {stmt.destination.ugly}"
+        # TODO: use adds+b.ne instead?
+        s = f"cbnz {stmt.cmpreg.ugly}, {stmt.destination.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitMov(self, stmt: MovStmt):
