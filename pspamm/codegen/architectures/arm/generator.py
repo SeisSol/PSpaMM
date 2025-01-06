@@ -92,6 +92,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
     def init_block(self, size):
         return block("")
+    
+    class LoadStoreLocation:
+        def __init__(self, addr, register, comment):
+            self.addr = addr
+            self.register = register
+            self.comment = comment
 
     def move_register_block(self,
                             cursor: Cursor,
@@ -107,16 +113,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             ) -> Block:
 
         rows, cols = registers.shape
-        action = "Store" if store else "Load"
-        asm = block(f"{action} {cursor.name} register block @ {block_offset}")
 
-        cur11 = -1000
-        skipflag = False
+        locations = []
         for ic in range(cols):
             for ir in range(rows):
-                if skipflag:
-                    skipflag = False
-                    continue
                 if (mask is None) or (mask[ir,ic]):
                     all_coords = [Coords(down=ir*v_size+i,right=ic) for i in range(v_size)]
                     has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
@@ -128,43 +128,72 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     cell_offset = Coords(down=ir*v_size, right=ic)
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
                     addr.disp += self.precision.size() * load_offset
-                    next_offset = [0, 0]
-                    if ir+1 < rows:
-                        next_offset = [1, 0]
-                    elif ic +1 < cols:
-                        next_offset = [0, 1]
+                    locations += [self.LoadStoreLocation(addr, registers[ir,ic], comment)]
 
-                    addr_next, comment_next = cursor.look(cursor_ptr, block_offset, Coords(down=(ir+next_offset[0])*v_size, right=ic+next_offset[1]))
-                    addr_next.disp += self.precision.size() * load_offset
-                    if addr_next.disp == addr.disp + 16:
-                        skipflag = True
-                    if addr.disp > 255:
-                        if(addr.disp - cur11 > 0 and addr.disp - cur11 < 256):
-                            addr.disp = addr.disp - cur11
-                        else:
-                            asm.add(add(addr.disp, additional_regs[0], "", addr.base))
-                            cur11 = addr.disp
-                            addr.disp = 0
-                        addr.base = additional_regs[0]
-                    if skipflag and addr.disp % 16 != 0:
-                        asm.add(add(addr.disp, additional_regs[0], "", addr.base))
-                        cur11 = addr.disp
-                        addr.disp = 0
-                        addr.base = additional_regs[0]
-                
-                    if not skipflag:
-                        if store:
-                            asm.add(st(registers[ir,ic], addr, True, comment))
-                        else:
-                            asm.add(ld(addr, registers[ir,ic], True, comment))
+        return self.fuse_loadstore_block(locations, store, cursor.name, block_offset, additional_regs)
+
+    def fuse_loadstore_block(self, locations, store, name, block_offset, additional_regs):
+        offsets = list(sorted([(location.addr.disp,location) for location in locations]))
+
+        action = "Store" if store else "Load"
+        asm = block(f"{action} {name} register block @ {block_offset}")
+
+        cur11 = -1000
+        fuse_cache = False
+        fuse_addr = None
+        fuse_register = None
+        fuse_comment = None
+        for _,location in offsets:
+            if fuse_cache:
+                can_fuse = location.addr.disp == fuse_addr.disp + 16
+                if fuse_addr.disp > 255:
+                    if(fuse_addr.disp - cur11 > 0 and fuse_addr.disp - cur11 < 256):
+                        fuse_addr.disp = fuse_addr.disp - cur11
                     else:
-                        if store:
-                            asm.add(st(registers[ir,ic], addr, True, comment, registers[ir+next_offset[0],ic+next_offset[1]]))
-                        else:
-                            asm.add(ld(addr, registers[ir,ic], True, comment, registers[ir+next_offset[0],ic+next_offset[1]]))
+                        asm.add(add(fuse_addr.disp, additional_regs[0], "", fuse_addr.base))
+                        cur11 = fuse_addr.disp
+                        fuse_addr.disp = 0
+                    fuse_addr.base = additional_regs[0]
 
+                if can_fuse:
+                    if fuse_addr.disp % 16 != 0:
+                        asm.add(add(fuse_addr.disp, additional_regs[0], "", fuse_addr.base))
+                        cur11 = fuse_addr.disp
+                        fuse_addr.disp = 0
+                        fuse_addr.base = additional_regs[0]
+                    if store:
+                        asm.add(st(fuse_register, fuse_addr, True, f'{fuse_comment}, {location.comment}', location.register))
+                    else:
+                        asm.add(ld(fuse_addr, fuse_register, True, f'{fuse_comment}, {location.comment}', location.register))
+                else:
+                    if store:
+                        asm.add(st(fuse_register, fuse_addr, True, fuse_comment))
+                    else:
+                        asm.add(ld(fuse_addr, fuse_register, True, fuse_comment))                    
+                fuse_cache = not can_fuse
+            else:
+                fuse_cache = True
+
+            if fuse_cache:
+                fuse_addr = location.addr
+                fuse_register = location.register
+                fuse_comment = location.comment
+        
+        if fuse_cache:
+            if fuse_addr.disp > 255:
+                if(fuse_addr.disp - cur11 > 0 and fuse_addr.disp - cur11 < 256):
+                    fuse_addr.disp = fuse_addr.disp - cur11
+                else:
+                    asm.add(add(fuse_addr.disp, additional_regs[0], "", fuse_addr.base))
+                    cur11 = fuse_addr.disp
+                    fuse_addr.disp = 0
+                fuse_addr.base = additional_regs[0]
+            if store:
+                asm.add(st(fuse_register, fuse_addr, True, fuse_comment))
+            else:
+                asm.add(ld(fuse_addr, fuse_register, True, fuse_comment))
+        
         return asm
-
 
     def make_zero_block(self, registers: Matrix[Register], additional_regs) -> Block:
 
@@ -211,8 +240,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         elem128 = 16 // self.get_precision().size()
         vk = -(bk // -elem128)
 
+        # TODO: fuse loads here as well
         bs = []
-        cur11 = -1000
+        locations = []
         for Vmi in range(bm//v_size):
             for bni in range(bn):   # inside this n-block
                 for bki in range(bk):       # inside this k-block
@@ -222,23 +252,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
                         B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         if B_regs[bki_reg, bni] not in bs:
-                            if B_cell_addr.disp > 255:
-                                if(B_cell_addr.disp - cur11 > 0 and B_cell_addr.disp - cur11 < 256):
-                                    B_cell_addr.disp = B_cell_addr.disp - cur11
-                                else:
-                                    asm.add(add(B_cell_addr.disp, additional_regs[0], "", B_cell_addr.base))
-                                    cur11 = B_cell_addr.disp
-                                    B_cell_addr.disp = 0
-
-                                B_cell_addr.base = additional_regs[0]
-                  
-                            asm.add(ld(B_cell_addr, B_regs[bki_reg, bni], True, B_comment))
+                            locations += [self.LoadStoreLocation(B_cell_addr, B_regs[bki_reg, bni], B_comment)]
                             bs.append(B_regs[bki_reg, bni])
+        asm.add(self.fuse_loadstore_block(locations, False, B.name, to_B_block, additional_regs))
 
-        for Vmi in range(bm//v_size):
+        cell_indices = {}
+        for bki in range(bk):       # inside this k-block
             # TODO: refactor cell_indices into the cursors/blocks
-            cell_indices = {}
-            for bki in range(bk):       # inside this k-block
+            for Vmi in range(bm//v_size):
                 for bni in range(bn):   # inside this n-block
                     to_bcell = Coords(down=bki, right=bni)
                     to_acell = Coords(down=Vmi*v_size, right=bki)
@@ -246,8 +267,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         _, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
                         bki_reg = bki // elem128
-                        if (bki_reg, bni) not in cell_indices:
-                            cell_indices[(bki_reg, bni)] = 0
-                        asm.add(fma(B_regs[bki_reg, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=cell_indices[(bki_reg, bni)], sub=sub))
-                        cell_indices[(bki_reg, bni)] += 1
+                        if (Vmi, bki_reg, bni) not in cell_indices:
+                            cell_indices[(Vmi, bki_reg, bni)] = 0
+                        asm.add(fma(B_regs[bki_reg, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=cell_indices[(Vmi, bki_reg, bni)], sub=sub))
+                        cell_indices[(Vmi, bki_reg, bni)] += 1
         return asm

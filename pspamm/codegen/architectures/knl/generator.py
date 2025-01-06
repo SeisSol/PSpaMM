@@ -266,8 +266,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         Vm = max(self.ceil_div(bm, v_size), 1)
 
-        for Vmi in range(Vm):
-            for bki in range(bk):       # inside this k-block
+        for bki in range(bk):       # inside this k-block
+            for Vmi in range(Vm):
                 for bni in range(bn):   # inside this n-block
                     to_bcell = Coords(down=bki, right=bni)
                     to_acell = Coords(down=Vmi*v_size, right=bki)

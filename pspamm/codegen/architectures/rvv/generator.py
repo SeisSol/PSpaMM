@@ -298,10 +298,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                             asm.add(ld(B_cell_addr, B_regs[bki, bni], False, B_comment, pred=None, is_B=True))
                             bs.append(B_regs[bki, bni])
 
-        for Vmi in range(Vm):
-            p_merging = self.pred_n_trues(bm - Vmi * v_size, v_size, "m")
-            end_index = bm if Vmi + 1 == Vm else Vmi * v_size + v_size  # end_index helps us print the right index ranges
-            for bki in range(bk):  # inside this k-block
+        for bki in range(bk):  # inside this k-block
+            for Vmi in range(Vm):
+                p_merging = self.pred_n_trues(bm - Vmi * v_size, v_size, "m")
+                end_index = bm if Vmi + 1 == Vm else Vmi * v_size + v_size  # end_index helps us print the right index ranges
                 for bni in range(bn):  # inside this n-block
                     to_bcell = Coords(down=bki, right=bni)
                     to_acell = Coords(down=Vmi*v_size, right=bki)

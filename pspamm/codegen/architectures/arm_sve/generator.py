@@ -423,12 +423,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                                 asm.add(ld(B_cell_addr, B_regs[bki_reg, bni], True, B_comment, pred=p_zeroing, sub128=True))
                             bs.append(B_regs[bki_reg, bni])
 
-        for Vmi in range(Vm):
-            # TODO: refactor cell_indices into the cursors/blocks
-            cell_indices = {}
-            p_merging = self.pred_n_trues(bm - Vmi * v_size, v_size, "m")
-            end_index = bm if Vmi + 1 == Vm else Vmi * v_size + v_size  # end_index helps us print the right index ranges
-            for bki in range(bk):  # inside this k-block
+        # TODO: refactor cell_indices into the cursors/blocks
+        cell_indices = {}
+        for bki in range(bk):  # inside this k-block
+            for Vmi in range(Vm):
+                p_merging = self.pred_n_trues(bm - Vmi * v_size, v_size, "m")
+                end_index = bm if Vmi + 1 == Vm else Vmi * v_size + v_size  # end_index helps us print the right index ranges
                 for bni in range(bn):  # inside this n-block
                     to_bcell = Coords(down=bki, right=bni)
                     to_acell = Coords(down=Vmi*v_size, right=bki)
@@ -437,12 +437,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                         comment = f"C[{Vmi * v_size}:{end_index},{bni}] += A[{Vmi * v_size}:{end_index},{bki}]*{B_comment}"
                         
                         bki_reg = bki // elem128
-                        if (bki_reg, bni) not in cell_indices:
-                            cell_indices[(bki_reg, bni)] = 0
+                        if (Vmi, bki_reg, bni) not in cell_indices:
+                            cell_indices[(Vmi, bki_reg, bni)] = 0
                         if not self.inline_broadcast:
                             bcast = None
                         else:
-                            bcast = cell_indices[(bki_reg, bni)]
+                            bcast = cell_indices[(Vmi, bki_reg, bni)]
                         asm.add(fma(B_regs[bki_reg, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, pred=p_merging, bcast=bcast, sub=sub))
-                        cell_indices[(bki_reg, bni)] += 1
+                        cell_indices[(Vmi, bki_reg, bni)] += 1
         return asm

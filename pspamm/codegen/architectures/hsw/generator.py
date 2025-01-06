@@ -288,8 +288,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             # just to make sure we do not use registers differently in a block
                             assert bsv[bs.index(B_regs[bki, bni])].ugly == B_addr.ugly
 
-        for Vmi in range(Vm):
-            for bki in range(bk):       # inside this k-block
+        for bki in range(bk):       # inside this k-block
+            for Vmi in range(Vm):
                 if not self.preloadA and not (Vmi, bki) == (0,0):
                     asm.add(self.move_register_single(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, Vmi, bki, mask, store=False))
                 for bni in range(bn):   # inside this n-block

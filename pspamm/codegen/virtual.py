@@ -24,7 +24,7 @@ class VirtualRegister(Register):
     
     @property
     def ugly_scalar(self):
-        return self.register.ugly_scalar_1d if self.register is not None else f'vreg{id(self)}'
+        return self.register.ugly_scalar if self.register is not None else f'vreg{id(self)}'
     
     @property
     def ugly_xmm(self):
