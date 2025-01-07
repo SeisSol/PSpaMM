@@ -97,12 +97,9 @@ class InlinePrinter(Visitor):
                 s = f"mov x11, {stmt.src.ugly}"
                 self.addLine(s, "load lower 16 bit of immediate ")
 
-            if stmt.dest.ugly != "x11":
-                s = f"add {stmt.dest.ugly}, {stmt.dest.ugly}, x11"
-                self.addLine(s, stmt.comment)
-            if stmt.additional is not None:
-                s = f"add {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.additional.ugly}"
-                self.addLine(s, stmt.comment)
+            secondSource = stmt.additional if stmt.additional is not None else stmt.dest
+            s = f"add {stmt.dest.ugly}, {secondSource.ugly}, x11"
+            self.addLine(s, stmt.comment)
         else:
             if stmt.additional is not None:
                 s = f"add {stmt.dest.ugly}, {stmt.additional.ugly}, {stmt.src.ugly}"
