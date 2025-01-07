@@ -233,7 +233,7 @@ class AddStmt(AsmStmt):
 
     def reg_in_candidate(self):
         if self.additional is not None:
-            return (self.src,self.additional,self.pred)
+            return (self.src,self.dest,self.additional,self.pred)
         else:
             return (self.src,self.dest,self.pred)
     

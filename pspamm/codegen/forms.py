@@ -11,13 +11,15 @@ class Loop(Block):
                  iteration_var: Register,
                  final_val: int,
                  body_contents: Block = None,
-                 unroll: int = 1
+                 unroll: int = 1,
+                 overlap: bool = False
                 ) -> None:
 
         self.iteration_var = iteration_var
         self.final_val = final_val
         self.body_contents = body_contents
         self.unroll = unroll
+        self.may_overlap = overlap
 
         self.comment = f'loop {self.iteration_var.ugly} in range({self.final_val}), unroll {self.unroll}'
 
@@ -53,10 +55,10 @@ class Loop(Block):
         return self
     
     def normalize(self):
-        yield loop(self.iteration_var, self.final_val, self.unroll).body(*[substmt for stmt in self.body_contents.contents for substmt in stmt.normalize()])
+        yield loop(self.iteration_var, self.final_val, self.unroll, self.may_overlap).body(*[substmt for stmt in self.body_contents.contents for substmt in stmt.normalize()])
     
     def __str__(self):
         return f'loop {self.iteration_var.ugly} in range({self.final_val}), unroll {self.unroll}' + '{\n' + '\n'.join(str(content) for content in self.body_contents.contents) + '\n}'
 
-def loop(iter_var, final_val, unroll=1):
-    return Loop(iter_var, final_val, unroll=unroll)
+def loop(iter_var, final_val, unroll=1, overlap=False):
+    return Loop(iter_var, final_val, unroll=unroll, overlap=overlap)

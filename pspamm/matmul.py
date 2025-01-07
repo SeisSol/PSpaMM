@@ -315,7 +315,7 @@ class MatMul:
                 B_regs = Matrix([[VirtualRegister(self.B_regs[0,0].typeinfo, self.B_pool) for _ in range(self.B_regs.shape[1])] for _ in range(self.B_regs.shape[0])])
                 asm.add(self.generator.make_microkernel(self.A, self.B, A_ptr_in, B_ptr_in, A_regs, B_regs, regs, self.v_size, self.additional_regs, to_A, to_B, sub))
 
-        self.loopwrap(asm, kernelK, Bk, k_overhead > 0, unroll, self.loop_regs[2], [self.A, self.B], [A_ptr, B_ptr], ['right', 'down'], 1)
+        self.loopwrap(asm, kernelK, Bk, k_overhead > 0, unroll, self.loop_regs[2], [self.A, self.B], [A_ptr, B_ptr], ['right', 'down'], loopunroll=1, overlap=True)
 
         if self.alpha not in [-1.0, 1.0]:
             store_block = block("")
@@ -398,7 +398,7 @@ class MatMul:
 
         self.loopwrap(asm, outerLoop, *outerArgs)
 
-    def loopwrap(self, asm, inner, length, overhead, unroll, loopreg, matrices, ptrs, directions, loopunroll=1):
+    def loopwrap(self, asm, inner, length, overhead, unroll, loopreg, matrices, ptrs, directions, loopunroll=1, overlap=False):
         if unroll:
             for i in range(length):
                 inner(asm, i)
@@ -413,7 +413,7 @@ class MatMul:
                 loopblock = block("kernel")
                 inner(loopblock, 0)
                 loopblock.add(makeMove(1))
-                return loop(loopreg, until, unroll=loopunroll).body(loopblock)
+                return loop(loopreg, until, unroll=loopunroll, overlap=overlap).body(loopblock)
             if length == 1:
                 inner(asm, 0)
                 return True
@@ -449,8 +449,9 @@ class MatMul:
 
         assignVirtualRegisters(asm, [self.A_pool, self.B_pool, self.C_pool])
 
-        return asm
+        if self.arch.startswith("hsw") or self.arch.startswith("knl") or True:
+            return asm
+        else:
+            import pspamm.codegen.schedule as sched
 
-        #import pspamm.codegen.schedule as sched
-
-        #return block("", *prune(sched.moveLoads(list(asm.normalize()))))
+            return block("", *prune(sched.moveLoads(list(asm.normalize()))))
