@@ -43,6 +43,9 @@ jobs:
     runs-on: ubuntu-24.04
     needs: install-pspamm
     # include all vector lengths manually for now
+    # not supported:
+    # * RVV >= 1024
+    # * ARM/SVE which is not a power of 2
     strategy:
       fail-fast: false
       matrix:
@@ -62,8 +65,6 @@ jobs:
           - rvv256
           - rvv512
           - rvv1024
-          - rvv2048
-          - rvv4096
     steps:
       - name: apt-get
         run: |
