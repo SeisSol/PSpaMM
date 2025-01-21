@@ -271,18 +271,17 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         for ic in range(cols):
             for ir in range(rows):
                 if (mask is None) or (mask[ir, ic]):
-                    all_coords = [Coords(down=ir*v_size+i,right=ic) for i in range(process_size)]
+                    processed = ir * process_size
+                    size = min(process_size, b_row - processed)
+                    all_coords = [Coords(down=ir*v_size+i,right=ic) for i in range(size)]
                     has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
                     if not any(has_nonzero):
                         continue
                     elif any(has_nonzero) and not all(has_nonzero) and not is_B:
                         raise NotImplementedError("Element-wise sparsity in A is not yet implemented.")
 
-                    processed = ir * process_size
-                    if processed >= b_row:
-                        continue
-                    p = self.pred_n_trues(min(b_row - processed, process_size), v_size) if not is_B else self.pred_n_trues(process_size, v_size)
-                    p_zeroing = self.pred_n_trues(min(b_row - processed, process_size), v_size, "z") if not is_B else self.pred_n_trues(process_size, v_size, "z")
+                    p = self.pred_n_trues(size, v_size) if not is_B else self.pred_n_trues(process_size, v_size)
+                    p_zeroing = self.pred_n_trues(size, v_size, "z") if not is_B else self.pred_n_trues(process_size, v_size, "z")
                     cell_offset = Coords(down=ir * v_size, right=ic)
 
                     # addr = base "pointer" + relative offset in bytes

@@ -126,7 +126,7 @@ class DenseCursor(Cursor):
                          src_loc: CursorLocation,
                          dest_block: Coords,
                          dest_cell: Coords) -> bool:
-        return True
+        return self.offsets.shape[0] > dest_cell.down and self.offsets.shape[1] > dest_cell.right
 
     def start(self) -> CursorLocation:
         return CursorLocation()

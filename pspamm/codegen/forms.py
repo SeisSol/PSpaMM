@@ -62,3 +62,34 @@ class Loop(Block):
 
 def loop(iter_var, final_val, unroll=1, overlap=False):
     return Loop(iter_var, final_val, unroll=unroll, overlap=overlap)
+
+class Loop(Block):
+
+    _labels = []
+    def __init__(self,
+                 skipreg: Register
+                ) -> None:
+
+        self.skipreg = skipreg
+
+        self.comment = f'if {self.checkreg} != 0'
+
+    @property
+    def contents(self):
+        self.label = "skip_" + str(len(Loop._labels))
+        Loop._labels.append(self.label)
+
+        return [jump(self.label, self.skipreg, backwards=True)] + body + [label(self.label)]
+
+    def body(self, *args):
+        self.body_contents = block("Skip body", *args)
+        return self
+    
+    def normalize(self):
+        yield skip(self.checkreg).body(*[substmt for stmt in self.body_contents.contents for substmt in stmt.normalize()])
+    
+    def __str__(self):
+        return f'if {self.checkreg} != 0' + '{\n' + '\n'.join(str(content) for content in self.body_contents.contents) + '\n}'
+
+def skip(checkreg):
+    return Skip(checkreg)

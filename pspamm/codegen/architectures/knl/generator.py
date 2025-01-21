@@ -173,19 +173,22 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 if (mask is None) or (mask[ir,ic]):
                     # no register-based scaling here (for now)
 
-                    all_coords = [Coords(down=ir*v_size+i,right=ic) for i in range(process_size)]
-                    has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
                     processed = ir * process_size
+
+                    size = min(process_size, b_row - processed)
+
+                    all_coords = [Coords(down=ir*v_size+i,right=ic) for i in range(size)]
+                    has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
                     if any(has_nonzero):
                         contiguous = True
                         firsti = 0
                         lasti = None
-                        for i in range(process_size):
+                        for i in range(size):
                             if has_nonzero[i]:
                                 firsti = i
                                 break
                         bitmask = 0
-                        for i in range(process_size):
+                        for i in range(size):
                             if has_nonzero[i]:
                                 bitmask |= 1 << i
                                 if lasti is not None:
@@ -194,7 +197,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                                 if lasti is None:
                                     lasti = i
                         if lasti is None:
-                            lasti = process_size
+                            lasti = size
                         addr, comment = cursor.look(cursor_ptr, block_offset, all_coords[firsti])
                         addr.disp += self.precision.size() * load_offset
                         # assume contiguous memory here
@@ -202,7 +205,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         maskFound = False
                         needsExpand = not (firsti == 0 and contiguous)
                         if not needsExpand:
-                            if lasti == process_size:
+                            if lasti == v_size:
                                 pred = None
                                 maskFound = True
                             elif lasti in self.predicates:
@@ -215,6 +218,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             asm.add(mov(bitmask, additional_regs[0], False))
                             asm.add(mov(additional_regs[0], maskreg, False))
                             pred = Predicate(maskreg, True)
+                        
+                        print(f'{firsti} {lasti} {pred}')
 
                         if store:
                             asm.add(mov(registers[ir,ic], addr, True, comment, pred=pred, expand=needsExpand))
