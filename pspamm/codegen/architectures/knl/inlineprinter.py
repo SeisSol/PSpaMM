@@ -161,15 +161,20 @@ class InlinePrinter(Visitor):
                 s = f"movq {src_str}, {stmt.dest.ugly}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
-                s = f"vpxord {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly} {mask}"
+                suffix = 'd' if self.bpsuffix == 'w' else self.bpsuffix
+                s = f"vpxor{suffix} {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly} {mask}"
             elif stmt.expand:
                 if isinstance(stmt.src, MemoryAddress):
                     s = f"vpexpand{self.bpsuffix} {src_str}, {stmt.dest.ugly} {mask}"
                 else:
                     s = f"vpcompress{self.bpsuffix} {src_str}, {stmt.dest.ugly} {mask}"
             else:
+                if self.bpsuffix == 'w' and stmt.pred is not None:
+                    instr = "vmovsh"
+                else:
+                    instr = f"vmovup{self.psuffix}"
                 mask = self.maskformat(stmt.pred, True)
-                s = f"vmovupd {src_str}, {stmt.dest.ugly} {mask}"
+                s = f"{instr} {src_str}, {stmt.dest.ugly} {mask}"
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
