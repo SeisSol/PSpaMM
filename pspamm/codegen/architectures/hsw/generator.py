@@ -158,6 +158,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             store: bool = False,
                             prefetching: str = None,
                             load_offset: int = 0,
+                            pf_cursor: Cursor = None,
+                            pf_cursor_ptr: CursorLocation = None,
                             temp = None
                            ) -> Block:
 
@@ -177,8 +179,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         self.reg_based_scaling(asm, addr, additional_regs)
                         if store:
                             asm.add(mov(registers[ir,ic], addr, True, comment))
-                            if prefetching == 'BL2viaC':
-                                asm.add(prefetch(mem(additional_regs[0], addr.disp)))
+                            if prefetching == 'BL2viaC' and pf_cursor is not None:
+                                addr, comment = pf_cursor.look(pf_cursor_ptr, block_offset, cell_offset)
+                                addr.disp += self.precision.size() * load_offset
+                                self.reg_based_scaling(asm, addr, additional_regs)
+                                asm.add(prefetch(addr))
                         else:
                             asm.add(mov(addr, registers[ir,ic], True, comment))
                     elif any(has_nonzero):

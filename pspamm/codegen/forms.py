@@ -63,7 +63,7 @@ class Loop(Block):
 def loop(iter_var, final_val, unroll=1, overlap=False):
     return Loop(iter_var, final_val, unroll=unroll, overlap=overlap)
 
-class Loop(Block):
+class Skip(Block):
 
     _labels = []
     def __init__(self,

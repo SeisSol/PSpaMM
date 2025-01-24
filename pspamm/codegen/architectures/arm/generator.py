@@ -109,7 +109,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             mask: Matrix[bool] = None,
                             store: bool = False,
                             prefetching: str = None,
-                            load_offset: int = 0
+                            load_offset: int = 0,
+                            pf_cursor: Cursor = None,
+                            pf_cursor_ptr: CursorLocation = None
                             ) -> Block:
 
         rows, cols = registers.shape

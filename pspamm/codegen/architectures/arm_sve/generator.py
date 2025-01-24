@@ -240,6 +240,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                             store: bool = False,
                             prefetching: str = None,
                             load_offset: int = 0,
+                            pf_cursor: Cursor = None,
+                            pf_cursor_ptr: CursorLocation = None,
                             is_B: bool = False
                             ) -> Block:
 

@@ -188,7 +188,8 @@ class InlinePrinter(Visitor):
         self.addLine(s, stmt.comment)
 
     def visitPrefetch(self, stmt: PrefetchStmt):
-        pass
+        s = f'prefetch.r {stmt.dest.ugly}'
+        self.addLine(s, stmt.comment)
     
     def visitRVSetVLStmt(self, stmt: RVSetVLStmt):
         opcode = 'setivli' if isinstance(stmt.requested, Constant) else 'setvli'

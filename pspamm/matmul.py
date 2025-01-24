@@ -271,9 +271,13 @@ class MatMul:
             regs = regs[:, :n_overhead]
         if BmEnd and m_overhead > 0:
             regs = regs[:vm_overhead, :]
+        
+        C_ptr_in = CursorLocation(Coords(right=Bni, down=Bmi, absolute=True))
+        to_C = Coords()
+        C_ptr_pf_in = C_ptr_in
 
         if self.alpha in [-1.0, 1.0] and self.beta != 0.0:
-            asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, False))
+            asm.add(self.generator.move_register_block(self.C, C_ptr_in, to_C, regs, self.v_size, self.additional_regs, None, False))
             if self.beta != 1.0:
                 if self.use_bcst:
                     asm.add(bcst(self.beta_bcst_reg, self.beta_reg[1], "Broadcast beta"))
@@ -329,7 +333,7 @@ class MatMul:
                 A_regs = Matrix([[VirtualRegister(self.A_regs[0,0].typeinfo, self.A_pool) for _ in range(self.A_regs.shape[1])] for _ in range(self.A_regs.shape[0])])
                 A_regs_cut = A_regs[0:min(self.A_regs.shape[0], regs.shape[0]), 0:regs.shape[1]-x]
                 if self.beta != 0.0:
-                    store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, False, None, self.ldc * x))
+                    store_block.add(self.generator.move_register_block(self.C, C_ptr_in, to_C, A_regs_cut, self.v_size, self.additional_regs, None, False, None, self.ldc * x))
 
                 for ir in range(A_regs_cut.shape[0]):
                     for ic in range(A_regs_cut.shape[1]):
@@ -341,10 +345,10 @@ class MatMul:
                             store_block.add(mul(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = alpha * AB", pred=pred_m))
                         else:
                             store_block.add(fma(regs[ir, x + ic], self.alpha_reg[1], A_regs_cut[ir, ic], "C = C + alpha * AB", None, pred=pred_m))
-                store_block.add(self.generator.move_register_block(self.C, C_ptr, Coords(), A_regs_cut, self.v_size, self.additional_regs, None, True, self.prefetching, self.ldc * x))
+                store_block.add(self.generator.move_register_block(self.C, C_ptr_in, to_C, A_regs_cut, self.v_size, self.additional_regs, None, True, self.prefetching, self.ldc * x, self.C_pf, C_pf_ptr))
             asm.add(store_block)
         else:
-            asm.add(self.generator.move_register_block(self.C, C_ptr, Coords(), regs, self.v_size, self.additional_regs, None, True, self.prefetching))
+            asm.add(self.generator.move_register_block(self.C, C_ptr_in, to_C, regs, self.v_size, self.additional_regs, None, True, self.prefetching, 0, self.C_pf, C_pf_ptr))
 
     def blockloop(self, asm, A_ptr, B_ptr, C_ptr, C_pf_ptr):
         Bn = self.n // self.bn
