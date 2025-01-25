@@ -275,9 +275,9 @@ def generateMTX(k, n, nnz, bk=1, bn=1):
     random.seed(k*n + nnz)
 
     if k < bk:
-      k = bk
+      bk = k
     if n < bn:
-      n = bn
+      bn = n
 
     assert k % bk == 0
     assert n % bn == 0
