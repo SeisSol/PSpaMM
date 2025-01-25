@@ -66,7 +66,7 @@ class MaxK:
     def ARM_condition(cls, bm, bn, bk, v_size, elem128):
         # ceiling division
         vkext = -(bk // -elem128)
-        isvkext = bn*vkext < 16 if elem128 == 2 else bn*vkext < 8
+        isvkext = bn*vkext <= 16 if elem128 == 2 else bn*vkext <= 8
         vm = -(bm // -v_size)
         vk = vkext if isvkext else bk
         return (bn + bk) * vm + bn*vk <= 32
@@ -105,7 +105,7 @@ class Cube:
     def ARM_condition(cls, bm, bn, bk, v_size, elem128):
         # ceiling division
         vkext = -(bk // -elem128)
-        isvkext = bn*vkext < 16 if elem128 == 2 else bn*vkext < 8
+        isvkext = bn*vkext <= 16 if elem128 == 2 else bn*vkext <= 8
         vm = -(bm // -v_size)
         vk = vkext if isvkext else bk
         return (bn + bk) * vm + bn*vk <= 32

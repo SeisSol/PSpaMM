@@ -86,7 +86,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         # inline broadcasting is only allowed for the lower-numbered registers
         self.inline_broadcast = False
-        if bn*vkext < 16 if self.get_precision().size() == 8 else bn*vkext < 8:
+        if bn*vkext <= 16 if self.get_precision().size() == 8 else bn*vkext <= 8:
             self.inline_broadcast = True
         if bk == 1:
             self.inline_broadcast = False
