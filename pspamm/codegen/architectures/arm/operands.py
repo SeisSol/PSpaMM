@@ -95,7 +95,11 @@ class MemoryAddress_ARM(MemoryAddress):
     @property
     def ugly_base(self):
         return f"[{self.base.ugly}]"
-
+    
+    @property
+    def ugly_offset(self):
+        # TODO: is this already dynamic? -> if precision is single, we need LSL #2
+        return str(self.disp)
 
 def mem(base, offset):
     return MemoryAddress_ARM(base, offset)

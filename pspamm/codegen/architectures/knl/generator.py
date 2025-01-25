@@ -220,15 +220,13 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             asm.add(mov(bitmask, additional_regs[0], False))
                             asm.add(mov(additional_regs[0], maskreg, False))
                             pred = Predicate(maskreg, True)
-                        
-                        print(f'{firsti} {lasti} {pred}')
 
                         if store:
                             asm.add(mov(registers[ir,ic], addr, True, comment, pred=pred, expand=needsExpand))
                             if prefetching == 'BL2viaC' and pf_cursor is not None:
                                 addr, comment = pf_cursor.look(pf_cursor_ptr, block_offset, all_coords[firsti])
                                 addr.disp += self.precision.size() * load_offset
-                                asm.add(prefetch(addr))
+                                asm.add(prefetch(addr, closeness="L2"))
                         else:
                             asm.add(mov(addr, registers[ir,ic], True, comment, pred=pred, expand=needsExpand))
         return asm

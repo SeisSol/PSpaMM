@@ -453,9 +453,5 @@ class MatMul:
 
         assignVirtualRegisters(asm, [self.A_pool, self.B_pool, self.C_pool])
 
-        if self.arch.startswith("hsw") or self.arch.startswith("knl") or True:
-            return asm
-        else:
-            import pspamm.codegen.schedule as sched
-
-            return block("", *prune(sched.moveLoads(list(asm.normalize()))))
+        return asm
+        # return block("", *prune(sched.moveLoads(list(asm.normalize()))))

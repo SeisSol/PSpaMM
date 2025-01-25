@@ -9,15 +9,15 @@ from pspamm.matmul import *
 from pspamm.codegen.ccode import *
 from pspamm.codegen.architectures import *
 
+from pspamm.metagen.metagen import *
+
 
 mtx_formats = ['any','csc','csr','bsc','bsr','bcsc','bcsr']
 
 
 def generate(alg: MatMul) -> None:
-
-    block = alg.make()
-
-    text = make_cfunc(alg.output_funcname, alg.generator.get_template(), block, alg.flop, alg.starting_regs, alg.generator.get_precision())
+    metagen = MetaGenerator()
+    text = metagen.generate(alg)
 
     if alg.output_filename is None:
         print(text)

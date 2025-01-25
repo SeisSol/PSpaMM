@@ -25,7 +25,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 }}}}
 """
 
-    prefetch_reg = None
     prefetch_count = 0
     is_sparse = False
     v_len = 4 # vector register length: v_len * 128 bit
@@ -250,9 +249,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         asm = block(f"{action} {cursor.name} register block @ {block_offset}")
         prec = self.get_precision()
 
-        # Determine whether we use prefetching and if we are currently operating on C
-        do_prefetch = self.prefetch_reg is not None and cursor.name == "C" and store
-
         b_row, b_col, i, _ = cursor.get_block(cursor_ptr, block_offset)
 
         cur11 = 0
@@ -315,13 +311,13 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                         asm.add(st(registers[ir, ic], addr, True, comment, pred=p, scalar_offs=False,
                                    add_reg=additional_regs[2]))
                         # perform prefetching after a store instruction, similar to KNL case
-                        if do_prefetch and self.prefetch_count % threshold == 0:
+                        if prefetching:
+                            addr, comment = pf_cursor.look(pf_cursor_ptr, block_offset, cell_offset)
+                            addr.disp += self.precision.size() * load_offset
                             if prev_disp > 0:
-                                asm.add(add(prev_disp, additional_regs[3], "increment the prefetch register", self.prefetch_reg))
-                            asm.add(prefetch(mem(additional_regs[3] if prev_disp > 0 else self.prefetch_reg, addr.disp),
-                                             "", p, prec, access_type="ST"))
-                            self.prefetch_count = 0
-                        self.prefetch_count += 1
+                                asm.add(add(prev_disp, additional_regs[3], "increment the prefetch register", addr.base))
+                            asm.add(prefetch(mem(additional_regs[3] if prev_disp > 0 else addr.base, (addr.disp - prev_disp) // mul_vl),
+                                             "", p, prec, access_type="LD", closeness="L2", temporality="KEEP"))
                     else:
                         asm.add(ld(addr, registers[ir, ic], True, comment, pred=p_zeroing, is_B=is_B, scalar_offs=False,
                                    add_reg=additional_regs[2]))

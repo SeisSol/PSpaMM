@@ -14,7 +14,7 @@ elif [[ ${1:0:3} == "arm" ]]; then
     qemu-aarch64-static -cpu max build/${1}-test
 elif [[ ${1:0:3} == "rvv" ]]; then
     BITLEN=${1:3:6}
-    riscv64-linux-gnu-g++ -static -march=rv64gvzvl${BITLEN}b build/${1}_testsuite.cpp -o build/${1}-test
+    riscv64-linux-gnu-g++ -static -march=rv64g_v_zvl${BITLEN}b_zicbop build/${1}_testsuite.cpp -o build/${1}-test
     qemu-riscv64-static -cpu max,g=on,v=on,vlen=${BITLEN} build/${1}-test
 elif [[ ${1:0:3} == "hsw" ]]; then
     BITLEN=${1:3:6}

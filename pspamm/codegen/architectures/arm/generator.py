@@ -74,13 +74,15 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         beta_reg = [v(b_reg + 1, prec), v(b_reg + 1, prec)]
 
 
-        starting_regs = [r(0), r(1), r(2), r(3), r(4), r(11)]
+        starting_regs = [r(0), r(1), r(2), r(3), r(4), r(5), r(11)]
 
-        additional_regs = [r(8), xzr]
+        additional_regs = [r(8), xzr, r(10)]
 
         loop_regs = [r(12), r(13), r(14)]
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, [], False
+        prefetch_reg = prefetch is not None
+
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, [], prefetch_reg
 
     def make_scaling_offsets(self,
                          additional_regs: List[Register],
@@ -94,10 +96,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         return block("")
     
     class LoadStoreLocation:
-        def __init__(self, addr, register, comment):
+        def __init__(self, addr, register, comment, pfaddr=None):
             self.addr = addr
             self.register = register
             self.comment = comment
+            self.pfaddr = pfaddr
 
     def move_register_block(self,
                             cursor: Cursor,
@@ -130,7 +133,13 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     cell_offset = Coords(down=ir*v_size, right=ic)
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
                     addr.disp += self.precision.size() * load_offset
-                    locations += [self.LoadStoreLocation(addr, registers[ir,ic], comment)]
+
+                    if prefetching:
+                        pfaddr, _ = pf_cursor.look(pf_cursor_ptr, block_offset, cell_offset)
+                        pfaddr.disp += self.precision.size() * load_offset
+                    else:
+                        pfaddr = None
+                    locations += [self.LoadStoreLocation(addr, registers[ir,ic], comment, pfaddr)]
 
         return self.fuse_loadstore_block(locations, store, cursor.name, block_offset, additional_regs)
 
@@ -140,6 +149,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         action = "Store" if store else "Load"
         asm = block(f"{action} {name} register block @ {block_offset}")
 
+        curpf = 0
         cur11 = -1000
         fuse_cache = []
         def try_flush_cache(force, cur11):
@@ -200,6 +210,18 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 cur11 = try_flush_cache(not can_fuse or max_length, cur11)
 
             fuse_cache += [location]
+
+            if location.pfaddr is not None:
+                if location.pfaddr.disp - curpf >= 32768:
+                    asm.add(add(location.pfaddr.disp, additional_regs[2], "increment the prefetch register", location.pfaddr.base))
+                    curpf = location.pfaddr.disp
+                if curpf > 0:
+                    reg = additional_regs[2]
+                    disp = location.pfaddr.disp - curpf
+                else:
+                    reg = location.pfaddr.base
+                    disp = location.pfaddr.disp
+                asm.add(prefetch(mem(reg, disp), "", access_type="LD", closeness="L2", temporality="KEEP"))
 
         cur11 = try_flush_cache(True, cur11)
         

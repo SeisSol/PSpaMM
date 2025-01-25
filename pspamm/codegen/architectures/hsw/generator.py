@@ -183,7 +183,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                                 addr, comment = pf_cursor.look(pf_cursor_ptr, block_offset, cell_offset)
                                 addr.disp += self.precision.size() * load_offset
                                 self.reg_based_scaling(asm, addr, additional_regs)
-                                asm.add(prefetch(addr))
+                                asm.add(prefetch(addr, closeness="L2"))
                         else:
                             asm.add(mov(addr, registers[ir,ic], True, comment))
                     elif any(has_nonzero):
@@ -197,12 +197,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         # assume contiguous memory here
 
                         asm.add(mov(self.make_expand_predicate(all_coords), additional_regs[0], False))
-                        if store:
-                            asm.add(mov(registers[ir,ic], addr, True, comment, pred=additional_regs[0], expand=True, temp=temp))
-                            if prefetching == 'BL2viaC':
-                                asm.add(prefetch(mem(additional_regs[0], addr.disp)))
-                        else:
-                            asm.add(mov(addr, registers[ir,ic], True, comment, pred=additional_regs[0], expand=True, temp=temp))
         return asm
 
     def move_register_single(self,

@@ -185,7 +185,13 @@ class InlinePrinter(Visitor):
         self.addLine(s, stmt.comment)
 
     def visitPrefetch(self, stmt: PrefetchStmt):
-        s = f"prefetcht1 {stmt.dest.ugly}"
+        if stmt.closeness == "L3":
+            suffix = "t2"
+        if stmt.closeness == "L2":
+            suffix = "t1"
+        if stmt.closeness == "L1":
+            suffix = "t0"
+        s = f"prefetch{suffix} {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitBlock(self, block: Block):

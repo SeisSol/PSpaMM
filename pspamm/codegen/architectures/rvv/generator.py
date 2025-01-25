@@ -23,8 +23,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 }}}};
 """
 
-    prefetch_reg = None
-    prefetch_count = 0
     is_sparse = False
     v_len = 1 # vector register length: v_len * 128 bit
     predicates = {}
@@ -42,7 +40,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         return False
 
     def has_masks(self):
-        return True
+        return False # not yet
 
     def pred_n_trues(self, num_trues: int, v_size: int, suffix: str = None) -> Register_RV:
         return None
@@ -84,15 +82,17 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         beta_reg = [f(1), f(1)]
 
         # TODO: move x(5) out of here
-        starting_regs = [x(10), x(11), x(12), f(0), f(1), x(5)]
+        starting_regs = [x(10), x(11), x(12), f(0), f(1), x(6), x(5)]
 
-        additional_regs = [x(13), x(14), x(15), x(16), x(17), x(31), x(6), x(7)]
+        additional_regs = [x(13), x(14), x(15), x(16), x(17), x(31), x(7)]
 
         loop_regs = [x(28), x(29), x(30)]
 
         mask_regs = []
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs, False
+        prefetch_reg = prefetch is not None
+
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs, prefetch_reg
 
     def make_scaling_offsets(self,
                              additional_regs: List[Register],
@@ -142,9 +142,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         action = "Store" if store else "Load"
         asm = block(f"{action} {cursor.name} register block @ {block_offset}")
         prec = self.get_precision()
-
-        # Determine whether we use prefetching and if we are currently operating on C
-        do_prefetch = self.prefetch_reg is not None and cursor.name == "C" and store
 
         b_row, b_col, i, _ = cursor.get_block(cursor_ptr, block_offset)
 
@@ -209,13 +206,13 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                         asm.add(st(registers[ir, ic], addr, True, comment, pred=p, scalar_offs=False,
                                    add_reg=additional_regs[2]))
                         # perform prefetching after a store instruction, similar to KNL case
-                        if do_prefetch and self.prefetch_count % threshold == 0:
+                        if prefetching:
+                            addr, comment = pf_cursor.look(pf_cursor_ptr, block_offset, cell_offset)
+                            addr.disp += self.precision.size() * load_offset
                             if prev_disp > 0:
-                                asm.add(add(prev_disp, additional_regs[3], "increment the prefetch register", self.prefetch_reg))
-                            asm.add(prefetch(mem(additional_regs[3] if prev_disp > 0 else self.prefetch_reg, addr.disp),
-                                             "", p, prec, access_type="ST"))
-                            self.prefetch_count = 0
-                        self.prefetch_count += 1
+                                asm.add(add(prev_disp, additional_regs[3], "increment the prefetch register", addr.base))
+                            asm.add(prefetch(mem(additional_regs[3] if prev_disp > 0 else addr.base, addr.disp - prev_disp),
+                                             "", p, prec, access_type="r", closeness="L2", temporality="KEEP"))
                     else:
                         asm.add(ld(addr, registers[ir, ic], True, comment, pred=p_zeroing, is_B=is_B, scalar_offs=False,
                                    add_reg=additional_regs[2]))

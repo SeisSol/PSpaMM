@@ -245,7 +245,7 @@ setup_single_testcase = """
   {precision}* prefetch = nullptr;
   auto pointers = pre<{precision}>(\"{name}\", {m}, {n}, {k}, lda, ldb, {ldc}, "{amtx}", "{bmtx}");
   setup_prefetch(prefetch, std::get<4>(pointers), {n}, {ldc});
-  {name}(std::get<{asparse}>(pointers), std::get<{bsparse}>(pointers), std::get<4>(pointers), {alpha}, {beta}, nullptr);
+  {name}(std::get<{asparse}>(pointers), std::get<{bsparse}>(pointers), std::get<4>(pointers), {alpha}, {beta}, prefetch);
   const auto result = post<{precision}>({m}, {n}, {k}, &lda, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<2>(pointers), std::get<4>(pointers), std::get<5>(pointers), {delta:.15e});
   
   if (result) {{
@@ -384,6 +384,7 @@ def make(kernels, arch):
             additional_args = ['--output_funcname', name, '--output_filename', os.path.join(BASEDIR, arch, name + '.h'),
                                '--output_overwrite']
             additional_args += ['--bm', str(bm), '--bn', str(bn), '--bk', str(bk), '--arch', arch]
+            additional_args += ['--prefetching', 'BL2viaC']
 
             try:
                 print(' '.join(arguments + additional_args))

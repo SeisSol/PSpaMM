@@ -178,7 +178,14 @@ class InlinePrinter(Visitor):
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
+    
+    def visitPrefetch(self, stmt: PrefetchStmt):
+        cache_level = stmt.closeness
+        temporality = stmt.temporality
+        src_string = stmt.dest.ugly
 
+        s = f'pfrm P{stmt.access_type}{cache_level}{temporality}, {src_string}'
+        self.addLine(s, stmt.comment)
 
     def visitBlock(self, block: Block):
         self.stack.append(block)
