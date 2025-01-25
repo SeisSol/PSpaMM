@@ -184,7 +184,7 @@ class InlinePrinter(Visitor):
         temporality = stmt.temporality
         src_string = stmt.dest.ugly
 
-        s = f'pfrm P{stmt.access_type}{cache_level}{temporality}, {src_string}'
+        s = f'prfm P{stmt.access_type}{cache_level}{temporality}, {src_string}'
         self.addLine(s, stmt.comment)
 
     def visitBlock(self, block: Block):
