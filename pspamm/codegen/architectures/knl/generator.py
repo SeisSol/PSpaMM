@@ -179,7 +179,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
                     size = min(process_size, b_row - processed)
 
-                    all_coords = [Coords(down=ir*v_size+i,right=ic) for i in range(size)]
+                    all_coords = [Coords(down=ir*process_size+i,right=ic) for i in range(size)]
                     has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
                     if any(has_nonzero):
                         contiguous = True

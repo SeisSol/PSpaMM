@@ -271,7 +271,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                 if (mask is None) or (mask[ir, ic]):
                     processed = ir * process_size
                     size = min(process_size, b_row - processed)
-                    all_coords = [Coords(down=ir*v_size+i,right=ic) for i in range(size)]
+                    all_coords = [Coords(down=ir*process_size+i,right=ic) for i in range(size)]
                     has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
                     if not any(has_nonzero):
                         continue
@@ -280,7 +280,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
                     p = self.pred_n_trues(size, v_size) if not is_B else self.pred_n_trues(process_size, v_size)
                     p_zeroing = self.pred_n_trues(size, v_size, "z") if not is_B else self.pred_n_trues(process_size, v_size, "z")
-                    cell_offset = Coords(down=ir * v_size, right=ic)
+                    cell_offset = Coords(down=ir * process_size, right=ic)
 
                     # addr = base "pointer" + relative offset in bytes
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)

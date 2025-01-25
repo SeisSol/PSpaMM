@@ -364,7 +364,7 @@ def make(kernels, arch):
                 continue
             elif arch.startswith("arm_sve"):
               vkext = -(bk // -elem128)
-              isvkext = bn*vkext < 16 if elem128 == 2 else bn*vkext < 8
+              isvkext = bn*vkext <= 16 if elem128 == 2 else bn*vkext <= 8
               vk = vkext if isvkext else bk
               if not ((bn+bk) * vm + bn * vk <= 32):
                 print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
