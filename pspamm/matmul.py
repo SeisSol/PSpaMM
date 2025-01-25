@@ -243,6 +243,14 @@ class MatMul:
         self.unroll_n = ldb == 0
         self.unroll_m = lda == 0
 
+        # use unused loop registers for scaling instead
+        if self.unroll_m:
+            self.additional_regs += [self.loop_regs[0]]
+        if self.unroll_n:
+            self.additional_regs += [self.loop_regs[1]]
+        if self.unroll_m or self.unroll_n:
+            self.additional_regs += [self.loop_regs[2]]
+
     def microkernel(self, asm, Bmi, Bni, unroll, A_ptr, B_ptr, C_ptr, C_pf_ptr):
         Bn = self.n // self.bn
         Bk = self.k // self.bk
