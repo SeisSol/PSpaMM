@@ -119,7 +119,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         starting_regs = [r(0), r(1), r(2), r(3), r(4), r(5), r(6), r(11)]  # r6 is needed for predicate creation, r5 is added in init_prefetching()
 
-        additional_regs = [r(8), l("0.0"), r(10)]  # r10 used for scaling offsets
+        additional_regs = [r(8), l("0.0"), r(10), r(6)]  # r10 used for scaling offsets
 
         loop_regs = [r(12), r(13), r(14)]
 
