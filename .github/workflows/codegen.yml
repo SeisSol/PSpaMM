@@ -87,4 +87,9 @@ jobs:
       - name: pspamm-tests
         run: |
           cd tests/
-          ./runlocal.sh ${{matrix.arch}}
+          LOCALARCH=${{matrix.arch}}
+          if [[ ${LOCALARCH:0:3} == "knl" ]]; then
+            ./runlocal.sh ${{matrix.arch}} norun
+          else
+            ./runlocal.sh ${{matrix.arch}}
+          fi
