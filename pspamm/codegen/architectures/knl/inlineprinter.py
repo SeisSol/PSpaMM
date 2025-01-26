@@ -173,7 +173,8 @@ class InlinePrinter(Visitor):
                     instr = "vmovsh"
                 else:
                     instr = f"vmovup{self.psuffix}"
-                mask = self.maskformat(stmt.pred, True)
+                if isinstance(stmt.dest, MemoryAddress):
+                    mask = self.maskformat(stmt.pred, True)
                 s = f"{instr} {src_str}, {stmt.dest.ugly} {mask}"
         else:
             raise NotImplementedError()

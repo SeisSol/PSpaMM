@@ -209,6 +209,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
                         maskFound = False
                         needsExpand = not (firsti == 0 and contiguous)
+                        # TODO: if firsti > 0, set addr.disp -= firsti
                         if not needsExpand:
                             if lasti == v_size:
                                 pred = None
