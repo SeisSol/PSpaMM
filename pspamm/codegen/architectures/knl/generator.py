@@ -124,8 +124,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         asm = block("Optimize usage of offsets when accessing B Matrix")
 
-        for i in range(1, min(len(additional_regs), 5)):
-            asm.add(mov(c(1024 + (i-1) * 2048), additional_regs[i], False))
+        scale = self.scale_base()
+        for i in range(1, len(additional_regs)):
+            asm.add(mov(c((2*i-1) * scale), additional_regs[i], False))
         
         return asm
 
