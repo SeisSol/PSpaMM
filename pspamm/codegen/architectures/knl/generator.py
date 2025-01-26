@@ -171,6 +171,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         process_size = min(v_size, cursor.br)
 
+        maskcache = RegisterCache([kmask(3), kmask(4), kmask(5), kmask(6), kmask(7)])
+
         for ic in range(cols):
             for ir in range(rows):
                 if (mask is None) or (mask[ir,ic]):
@@ -214,12 +216,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             elif lasti in self.predicates:
                                 pred = Predicate(self.predicates[lasti], True)
                                 maskFound = True
-
+                        
                         if not maskFound:
-                            maskreg = kmask(3)
-
-                            asm.add(mov(bitmask, additional_regs[0], False))
-                            asm.add(mov(additional_regs[0], maskreg, False))
+                            maskreg, needsAssign = maskcache.get(bitmask)
+                            if needsAssign:
+                                asm.add(mov(bitmask, additional_regs[0], False))
+                                asm.add(mov(additional_regs[0], maskreg, False))
                             pred = Predicate(maskreg, True)
 
                         if store:
