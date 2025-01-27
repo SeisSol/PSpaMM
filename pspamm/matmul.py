@@ -7,7 +7,7 @@ from pspamm.codegen.precision import *
 
 import pspamm.scripts.old_arm
 import pspamm.scripts.max_bn_knl
-import pspamm.scripts.max_bn_hsw
+import pspamm.scripts.max_hsw
 import pspamm.scripts.max_arm_sve
 
 from pspamm.cursors import *
@@ -137,7 +137,7 @@ class MatMul:
             if arch == 'knl':
                 (self.bm, self.bn) = pspamm.scripts.max_bn_knl.getBlocksize(m, n, bk, self.v_size)
             elif arch == 'hsw':
-                (self.bm, self.bn) = pspamm.scripts.max_bn_hsw.getBlocksize(m, n, bk, self.v_size)
+                (self.bm, self.bn) = pspamm.scripts.max_hsw.getBlocksize(m, n, bk)
             elif arch == 'arm':
                 (self.bm, self.bn) = pspamm.scripts.old_arm.getBlocksize(m, n, bk, self.v_size)
             elif arch == 'arm_sve':
