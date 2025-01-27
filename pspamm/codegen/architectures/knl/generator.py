@@ -217,6 +217,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             elif lasti in self.predicates:
                                 pred = Predicate(self.predicates[lasti], True)
                                 maskFound = True
+                            else:
+                                # mostly implemented, but there are still bugs
+                                raise NotImplementedError("Element-wise sparsity in A is not yet implemented")
+                        else:
+                            raise NotImplementedError("Element-wise sparsity in A is not yet implemented")
                         
                         if not maskFound:
                             maskreg, needsAssign = maskcache.get(bitmask)
