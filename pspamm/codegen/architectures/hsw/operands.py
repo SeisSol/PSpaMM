@@ -12,7 +12,7 @@ class Constant_HSW(Constant):
 
     @property
     def ugly(self):
-        return "${}".format(self.value)
+        return f"${self.value}"
 
 
 def c(n):
@@ -37,6 +37,10 @@ class Register_HSW(Register):
     @property
     def ugly(self):
         return "%%" + self.value
+    
+    @property
+    def ugly_xmm(self):
+        return "%%x" + self.value[1:]
 
 
 rax = Register_HSW(AsmType.i64, "rax")
@@ -68,8 +72,11 @@ class MemoryAddress_HSW(MemoryAddress):
     @property
     def ugly(self):
         if self.index is None:
-            return "{}({})".format(self.disp,self.base.ugly)
-        return "{}({},{},{})".format(self.disp,self.base.ugly,self.index.ugly,self.scaling)
+            return f"{self.disp}({self.base.ugly})"
+        return f"{self.disp}({self.base.ugly},{self.index.ugly},{self.scaling})"
+    
+    def registers(self):
+        return [self.base, self.index]
 
 def mem(base, offset, index=None, scaling=None):
     return MemoryAddress_HSW(base, offset, index, scaling)

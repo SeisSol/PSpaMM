@@ -10,19 +10,19 @@ class Operand_ARM:
 class Constant_ARM(Constant):
     @property
     def ugly(self):
-        return "#{}".format(self.value)
+        return f"#{self.value}"
 
     @property
     def ugly_large(self):
-        return "={}".format(self.value)
+        return f"={self.value}"
 
     @property
     def ugly_lower16(self):
-        return "#:lower16:{}".format(self.value)
+        return f"#:lower16:{self.value}"
 
     @property
     def ugly_upper16(self):
-        return "#:upper16:{}".format(self.value)
+        return f"#:upper16:{self.value}"
 
 
 def c(n):
@@ -52,12 +52,18 @@ class Register_ARM(Register):
 
     @property
     def ugly_lsl_shift(self):
-        return 3 if self.ugly_precision == "d" else 2
+        return {
+            "d": 3,
+            "s": 2,
+            "h": 1
+        }[self.ugly_precision]
 
     @property
     def clobbered(self):
+        if self.value == "xzr":
+            return None
         # removed [this comment should stay here for now---in case there's some compiler expecting it]: .replace("x", "r")
-        return (self.value.split(".")[0])
+        return (self.value.split(".")[0].split("/")[0])
 
     @property
     def ugly_scalar(self):
@@ -68,15 +74,11 @@ class Register_ARM(Register):
         #turns "Vn.2d" into "Dn"
         return (self.value.split(".")[0]).replace("v", "d")
 
-    @property
-    def ugly_1d(self):
-        return self.value.replace("2d", "1d")
-
 
 r = lambda n: Register_ARM(AsmType.i64, "x" + str(n))
 xzr = Register_ARM(AsmType.i64, "xzr")
 z = lambda n, prec: Register_ARM(AsmType.f64x8, "z" + str(n) + "." + prec)
-
+p = lambda n: Register_ARM(AsmType.i64, "p" + str(n))
 
 class MemoryAddress_ARM(MemoryAddress):
     @property
@@ -87,7 +89,7 @@ class MemoryAddress_ARM(MemoryAddress):
         # in-memory size, irrespective of predication, and added to the base address. Inactive elements will not
         # not cause a read from Device memory or signal a fault, and are set to zero in the destination vector.
         # MUL VL should multiply 64 on top of the immediate offset?
-        return "[{}, {}, MUL VL]".format(self.base.ugly, self.disp)
+        return f"[{self.base.ugly}, {self.disp}, MUL VL]"
 
     @property
     def clobbered(self):
@@ -95,16 +97,16 @@ class MemoryAddress_ARM(MemoryAddress):
 
     @property
     def ugly_no_vl_scaling(self):
-        return "[{}, {}]".format(self.base.ugly, self.disp)
+        return f"[{self.base.ugly}, {self.disp}]"
 
     @property
     def ugly_base(self):
-        return "{}".format(self.base.ugly)
+        return str(self.base.ugly)
 
     @property
     def ugly_offset(self):
         # TODO: is this already dynamic? -> if precision is single, we need LSL #2
-        return "{}".format(self.disp)
+        return str(self.disp)
 
 
 def mem(base, offset):

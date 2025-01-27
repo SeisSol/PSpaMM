@@ -20,8 +20,32 @@ class InlinePrinter(Visitor):
     def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
-        assert precision in [Precision.SINGLE, Precision.DOUBLE]
-        self.precision = 'd' if precision == Precision.DOUBLE else 's'
+        assert precision in (Precision.BFLOAT16, Precision.HALF, Precision.SINGLE, Precision.DOUBLE)
+        self.precision = precision
+        self.psuffix = {
+            Precision.DOUBLE: 'd',
+            Precision.SINGLE: 's',
+            Precision.HALF: 'h',
+            Precision.BFLOAT16: 'h'
+        }[precision]
+        self.alupsuffix = {
+            Precision.DOUBLE: 'pd',
+            Precision.SINGLE: 'ps',
+            Precision.HALF: 'ph',
+            Precision.BFLOAT16: 'nepbf16'
+        }[precision]
+        self.bpsuffix = {
+            Precision.DOUBLE: "q",
+            Precision.SINGLE: "d",
+            Precision.HALF: "w",
+            Precision.BFLOAT16: "w",
+        }[precision]
+        self.broadcast_multiplier = {
+            Precision.DOUBLE: 2,
+            Precision.SINGLE: 4,
+            Precision.HALF: 8,
+            Precision.BFLOAT16: 8
+        }[precision]
 
     def show(self):
         print("\n".join(self.output))
@@ -43,78 +67,132 @@ class InlinePrinter(Visitor):
 
         self.output.append(line)
 
-
+    def maskformat(self, pred, ignoreZero = False):
+        if pred is None:
+            return ''
+        elif pred.zero and not ignoreZero:
+            return f'%{{{pred.register.ugly}%}}%{{z%}}'
+        else:
+            return f'%{{{pred.register.ugly}%}}'
 
     def visitFma(self, stmt: FmaStmt):
+        mask = self.maskformat(stmt.pred)
         b = stmt.bcast_src.ugly
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
-        if stmt.bcast:
-            s = "vfmadd231p{} {}%{{1to{}%}}, {}, {}".format(self.precision, b, 8 if self.precision == 'd' else 16, m, a)
+        regsize = stmt.add_dest.size() // 16
+        extent = regsize * self.broadcast_multiplier
+        op = "nmadd" if stmt.sub else "madd"
+        if stmt.bcast is not None:
+            s = f"vf{op}231{self.alupsuffix} {b}%{{1to{extent}%}}, {m}, {a} {mask}"
         else:
             if stmt.mult_src.typeinfo == AsmType.i64:
                 # in this case, m is a Register that points to alpha; manually format to be a memory address
-                s = "vfmadd231p{} 0({})%{{1to{}%}}, {}, {}".format(self.precision, m, 8 if self.precision == 'd' else 16, b, a)
+                s = f"vf{op}231{self.alupsuffix} 0({m})%{{1to{extent}%}}, {b}, {a} {mask}"
             else:
-                s = "vfmadd231p{} {}, {}, {}".format(self.precision, b,m,a)
+                s = f"vf{op}231{self.alupsuffix} {b}, {m}, {a} {mask}"
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
+        mask = self.maskformat(stmt.pred)
         b = stmt.src.ugly
         m = stmt.mult_src.ugly
         a = stmt.dest.ugly
+        regsize = stmt.dest.size() // 16
+        extent = regsize * self.broadcast_multiplier
         if stmt.mult_src.typeinfo == AsmType.i64:
             # in this case, m is a Register that points to alpha/beta; manually format to be a memory address
-            s = "vmulp{} 0({})%{{1to{}%}}, {}, {}".format(self.precision, m, 8 if self.precision == 'd' else 16, b, a)
+            s = f"vmul{self.alupsuffix} 0({m})%{{1to{extent}%}}, {b}, {a} {mask}"
         else:
-            s = "vmulp{} {}, {}, {}".format(self.precision, b,m,a)
+            s = f"vmul{self.alupsuffix} {b}, {m}, {a} {mask}"
         self.addLine(s, stmt.comment)
 
     def visitBcst(self, stmt: BcstStmt):
+        mask = self.maskformat(stmt.pred)
         b = stmt.bcast_src.ugly
         a = stmt.dest.ugly
-        s = "vbroadcasts{} {}, {}".format(self.precision, b,a)
+        regsize = stmt.dest.size()
+        if self.precision == Precision.HALF or self.precision == Precision.BFLOAT16:
+            instruction = 'vpbroadcastw'
+        elif self.precision == Precision.DOUBLE and regsize == 16:
+            instruction = 'vmovddup'
+        else:
+            instruction = f"vbroadcasts{self.psuffix}"
+        s = f"{instruction} {b}, {a} {mask}"
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):
-        s = "addq {}, {}".format(stmt.src.ugly,stmt.dest.ugly)
+        if isinstance(stmt.src, Constant) and stmt.src.value == 0:
+            # avoid 0 instructions
+            return
+        
+        # only used for scalar addition right now
+        s = f"addq {stmt.src.ugly}, {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitLabel(self, stmt: LabelStmt):
-        s = "{}:".format(stmt.label.ugly)
+        self.addLine('.align 16', 'Align label')
+        s = f"{stmt.label.ugly}:"
         self.addLine(s, stmt.comment)
 
     def visitCmp(self, stmt: CmpStmt):
-        s = "cmp {}, {}".format(stmt.lhs.ugly,stmt.rhs.ugly)
+        mask = self.maskformat(stmt.pred)
+        s = f"cmp {stmt.lhs.ugly}, {stmt.rhs.ugly} {mask}"
         self.addLine(s, stmt.comment)
 
     def visitJump(self, stmt: JumpStmt):
-        s = "jl {}".format(stmt.destination.ugly)
+        s = f"jl {stmt.destination.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitMov(self, stmt: MovStmt):
+        mask = self.maskformat(stmt.pred)
+
         if isinstance(stmt.src, Label):
             src_str = "$" + stmt.src.ugly
         else:
             src_str = stmt.src.ugly
 
         if stmt.typ == AsmType.i64:
-            s = "movq {}, {}".format(src_str,stmt.dest.ugly)
+            assert(stmt.pred == None)
+            # FIXME: no hack
+            if stmt.dest.ugly[2] == 'k':
+                s = f"kmovq {src_str}, {stmt.dest.ugly}"
+            else:
+                s = f"movq {src_str}, {stmt.dest.ugly}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
-                s = "vpxord {}, {}, {}".format(stmt.dest.ugly,stmt.dest.ugly,stmt.dest.ugly)
+                suffix = 'd' if self.bpsuffix == 'w' else self.bpsuffix
+                s = f"vpxor{suffix} {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly} {mask}"
+            elif stmt.expand:
+                if isinstance(stmt.src, MemoryAddress):
+                    s = f"vpexpand{self.bpsuffix} {src_str}, {stmt.dest.ugly} {mask}"
+                else:
+                    s = f"vpcompress{self.bpsuffix} {src_str}, {stmt.dest.ugly} {mask}"
             else:
-                s = "vmovup{} {}, {}".format(self.precision, src_str,stmt.dest.ugly)
+                if self.bpsuffix == 'w' and stmt.pred is not None:
+                    instr = "vmovsh"
+                else:
+                    instr = f"vmovup{self.psuffix}"
+                if isinstance(stmt.dest, MemoryAddress):
+                    mask = self.maskformat(stmt.pred, True)
+                s = f"{instr} {src_str}, {stmt.dest.ugly} {mask}"
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
 
     def visitLea(self, stmt: LeaStmt):
-        s = "leaq {}({}), {}".format(stmt.offset,stmt.src.ugly,stmt.dest.ugly)
+        mask = self.maskformat(stmt.pred)
+        s = f"leaq {stmt.offset}({stmt.src.ugly}), {stmt.dest.ugly} {mask}"
         self.addLine(s, stmt.comment)
 
     def visitPrefetch(self, stmt: PrefetchStmt):
-        s = "prefetcht1 {}".format(stmt.dest.ugly)
+        if stmt.closeness == "L3":
+            suffix = "t2"
+        if stmt.closeness == "L2":
+            suffix = "t1"
+        if stmt.closeness == "L1":
+            suffix = "t0"
+        s = f"prefetch{suffix} {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitBlock(self, block: Block):

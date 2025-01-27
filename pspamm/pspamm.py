@@ -9,15 +9,15 @@ from pspamm.matmul import *
 from pspamm.codegen.ccode import *
 from pspamm.codegen.architectures import *
 
+from pspamm.metagen.metagen import *
+
 
 mtx_formats = ['any','csc','csr','bsc','bsr','bcsc','bcsr']
 
 
 def generate(alg: MatMul) -> None:
-
-    block = alg.make()
-
-    text = make_cfunc(alg.output_funcname, alg.generator.get_template(), block, alg.flop, alg.starting_regs, alg.generator.get_precision())
+    metagen = MetaGenerator()
+    text = metagen.generate(alg)
 
     if alg.output_filename is None:
         print(text)
@@ -50,12 +50,15 @@ def main() -> None:
     parser.add_argument("--bk", type=int, help="Size of k-blocks")
 
     parser.add_argument("--arch", help="Architecture", default="knl")
-    parser.add_argument("--precision", help="Single (s) or double (d) precision", default="d")
+    parser.add_argument("--precision", help="Precision of the matrix multiplication, either half (h), single (s), or double (d)", default="d")
 
     parser.add_argument("--prefetching", help="Prefetching")
 
     parser.add_argument("--mtx_filename", help="Path to MTX file describing the sparse matrix")
     parser.add_argument("--mtx_format", help="Constraint on sparsity pattern", choices=mtx_formats, default="Any")
+
+    parser.add_argument("--amtx_filename", help="Path to MTX file describing the sparse matrix")
+    parser.add_argument("--bmtx_filename", help="Path to MTX file describing the sparse matrix")
 
     parser.add_argument("--output_funcname", help="Name for generated C++ function")
     parser.add_argument("--output_filename", help="Path to destination C++ file")

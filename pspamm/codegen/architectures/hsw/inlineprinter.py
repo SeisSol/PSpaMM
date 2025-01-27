@@ -20,12 +20,19 @@ class InlinePrinter(Visitor):
     def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
-        assert precision in [Precision.SINGLE, Precision.DOUBLE]
-        self.precision = 'd' if precision == Precision.DOUBLE else 's'
+        assert precision in (Precision.SINGLE, Precision.DOUBLE)
+        self.precision = precision
+        self.psuffix = {
+            Precision.DOUBLE: "d",
+            Precision.SINGLE: "s"
+        }[precision]
+        self.bpsuffix = {
+            Precision.DOUBLE: "q",
+            Precision.SINGLE: "d"
+        }[precision]
 
     def show(self):
         print("\n".join(self.output))
-
 
     def addLine(self, stmt: str, comment: str):
 
@@ -43,22 +50,22 @@ class InlinePrinter(Visitor):
 
         self.output.append(line)
 
-
-
     def visitFma(self, stmt: FmaStmt):
         b = stmt.bcast_src.ugly
         m = stmt.mult_src.ugly
         a = stmt.add_dest.ugly
 
+        op = "nmadd" if stmt.sub else "madd"
+
         # no broadcasting supported inside the instruction (unlike AVX-512)
-        s = "vfmadd231p{} {}, {}, {}".format(self.precision, b,m,a)
+        s = f"vf{op}231p{self.psuffix} {b}, {m}, {a}"
         self.addLine(s, stmt.comment)
 
     def visitMul(self, stmt: MulStmt):
         b = stmt.src.ugly
         m = stmt.mult_src.ugly
         a = stmt.dest.ugly
-        s = "vmulp{} {}, {}, {}".format(self.precision, b,m,a)
+        s = f"vmulp{self.psuffix} {b}, {m}, {a}"
         self.addLine(s, stmt.comment)
 
     def visitBcst(self, stmt: BcstStmt):
@@ -67,24 +74,30 @@ class InlinePrinter(Visitor):
         # check if we broadcast a general register
         if isinstance(stmt.bcast_src, Register):
             # reformat bcast_src to be a memory address
-            b = "0({})".format(b)
-        s = "vbroadcasts{} {}, {}".format(self.precision, b, a)
+            b = f"0({b})"
+        regsize = stmt.dest.size()
+        instruction = "vmovddup" if self.precision == Precision.DOUBLE and regsize == 16 else f"vbroadcasts{self.psuffix}"
+        s = f"{instruction} {b}, {a}"
         self.addLine(s, stmt.comment)
 
     def visitAdd(self, stmt: AddStmt):
-        s = "addq {}, {}".format(stmt.src.ugly,stmt.dest.ugly)
+        if isinstance(stmt.src, Constant) and stmt.src.value == 0:
+            # avoid 0 instructions
+            return
+        s = f"addq {stmt.src.ugly}, {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitLabel(self, stmt: LabelStmt):
-        s = "{}:".format(stmt.label.ugly)
+        self.addLine('.align 16', 'Align label')
+        s = f"{stmt.label.ugly}:"
         self.addLine(s, stmt.comment)
 
     def visitCmp(self, stmt: CmpStmt):
-        s = "cmp {}, {}".format(stmt.lhs.ugly,stmt.rhs.ugly)
+        s = f"cmp {stmt.lhs.ugly}, {stmt.rhs.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitJump(self, stmt: JumpStmt):
-        s = "jl {}".format(stmt.destination.ugly)
+        s = f"jl {stmt.destination.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitMov(self, stmt: MovStmt):
@@ -94,22 +107,46 @@ class InlinePrinter(Visitor):
             src_str = stmt.src.ugly
 
         if stmt.typ == AsmType.i64:
-            s = "movq {}, {}".format(src_str,stmt.dest.ugly)
+            s = f"movq {src_str}, {stmt.dest.ugly}"
+            self.addLine(s, stmt.comment)
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
-                s = "vpxor {}, {}, {}".format(stmt.dest.ugly,stmt.dest.ugly,stmt.dest.ugly)
+                s = f"vxorps {stmt.dest.ugly_xmm}, {stmt.dest.ugly_xmm}, {stmt.dest.ugly_xmm}"
+                self.addLine(s, stmt.comment)
+            elif stmt.pred is not None:
+                self.addLine(f"vpxor {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly}", "")
+                self.addLine(f"vpblendd {src_str}, {stmt.dest.ugly}, {stmt.pred}, {stmt.dest.ugly}", "")
+            elif stmt.expand:
+                # TODO: unfinished
+                self.addLine(f"vpxor {stmt.temp.ugly}, {stmt.temp.ugly}, {stmt.temp.ugly}")
+                regsize = stmt.dest.size()
+                if self.precision == Precision.SINGLE and regsize == 32:
+                    self.addLine(f"vmovq {stmt.pred.ugly}, {stmt.dest.ugly_xmm}", "")
+                    self.addLine(f"vpmovzxb{self.bpsuffix} {stmt.dest.ugly_xmm}, {stmt.dest.ugly}", "")
+                    self.addLine(f"vpermd {src_str}, {stmt.dest.ugly}, {stmt.dest.ugly}", "")
+                elif regsize == 16:
+                    self.addLine(f"vpermilps {src_str}, MISSING_PREDICATE, {stmt.dest.ugly}", "")
+                elif self.precision == Precision.DOUBLE:
+                    self.addLine(f"vpermpd {src_str}, MISSING_PREDICATE, {stmt.dest.ugly}", "")
+                self.addLine(f"vpblendd {stmt.temp.ugly}, {stmt.dest.ugly}, MISSING_PREDICATE, {stmt.dest.ugly}", "")
             else:
-                s = "vmovup{} {}, {}".format(self.precision, src_str,stmt.dest.ugly)
+                s = f"vmovup{self.psuffix} {src_str}, {stmt.dest.ugly}"
+                self.addLine(s, stmt.comment)
         else:
             raise NotImplementedError()
-        self.addLine(s, stmt.comment)
 
     def visitLea(self, stmt: LeaStmt):
-        s = "leaq {}({}), {}".format(stmt.offset,stmt.src.ugly,stmt.dest.ugly)
+        s = f"leaq {stmt.offset}({stmt.src.ugly}), {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitPrefetch(self, stmt: PrefetchStmt):
-        s = "prefetcht1 {}".format(stmt.dest.ugly)
+        if stmt.closeness == "L3":
+            suffix = "t2"
+        if stmt.closeness == "L2":
+            suffix = "t1"
+        if stmt.closeness == "L1":
+            suffix = "t0"
+        s = f"prefetch{suffix} {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitBlock(self, block: Block):

@@ -5,51 +5,76 @@ from pspamm.codegen.ast import *
 from pspamm.codegen.sugar import *
 from pspamm.codegen.generator import *
 from pspamm.codegen.precision import *
-
+from pspamm.codegen.regcache import *
 
 class Generator(AbstractGenerator):
     template = """
-void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}* C, {{real_type}} alpha, {{real_type}} beta, {{real_type}} const* prefetch) {{{{
-  {{real_type}}* alpha_p = &alpha;
-  {{real_type}}* beta_p = &beta;
+void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, {real_type} const* prefetch) {{
+  {real_type}* alpha_p = &alpha;
+  {real_type}* beta_p = &beta;
   __asm__ __volatile__(
-    "movq %0, %%rdi\\n\\t"
-    "movq %1, %%rsi\\n\\t"
-    "movq %2, %%rdx\\n\\t"
-    "movq %3, %%rbx\\n\\t"
-    "movq %4, %%rcx\\n\\t"
-{prefetching_mov}
-{{body_text}}
-
-    : : "m"(A), "m"(B), "m"(C), "m"(alpha_p), "m"(beta_p){prefetching_decl} : {{clobbered}});
+{body_text}
+    : : {args} : {clobbered});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
     #pragma omp atomic
     #endif
-    pspamm_num_total_flops += {{flop}};
+    pspamm_num_total_flops += {flop};
     #endif
 
-}}}};
+}}
 """
+    v_len = 4
+    predicates = {0:kmask(0)}
+
     def get_v_size(self):
-        if self.precision == Precision.DOUBLE:
-          return 8
-        elif self.precision == Precision.SINGLE:
-          return 16
-        raise NotImplementedError
+        return (16 // self.precision.size()) * self.v_len
 
     def get_template(self):
         return Generator.template
 
-    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int):
-        assert(bm % v_size == 0)
-        vm = bm//v_size
-        assert((bn+bk) * vm <= 32)  # Needs to fit in AVX512 zmm registers
+    def use_broadcast(self):
+        return False
 
-        A_regs = Matrix([[zmm(vm*c + r) for c in range(bk)] for r in range(vm)])
-        B_regs = []
-        C_regs = Matrix([[zmm(32 - vm*bn + vm*c + r) for c in range(bn)]
+    def has_masks(self):
+        return True
+    
+    def scale_base(self):
+        # larger scaling range for B inline broadcasts
+        return self.precision.size() * 256
+
+    def pred_n_trues(self, count, v_size, mode):
+        # a bit hacky at the moment (won't work for all masks)
+        if count < v_size:
+            return Predicate(self.predicates[count], mode=='z')
+        else:
+            return None
+        
+    def make_argument_load(self, starting_regs, prefetch):
+        asm = block("Load arguments")
+        asm.add(mov(InputOperand(f'0', 'm', 'A'), starting_regs[0], False))
+        asm.add(mov(InputOperand(f'1', 'm', 'B'), starting_regs[1], False))
+        asm.add(mov(InputOperand(f'2', 'm', 'C'), starting_regs[2], False))
+        asm.add(mov(InputOperand(f'3', 'm', 'alpha_p'), starting_regs[3], False))
+        asm.add(mov(InputOperand(f'4', 'm', 'beta_p'), starting_regs[4], False))
+        if prefetch:
+            asm.add(mov(InputOperand(f'5', 'm', 'prefetch'), starting_regs[5], False))
+        return asm
+
+    def make_reg_blocks(self, bm:int, bn:int, bk:int, v_size:int, nnz:int, m:int, n:int, k:int, prefetch: str):
+        vm = self.ceil_div(bm, v_size)
+        assert((bn+bk) * vm <= 32)  # Needs to fit in AVX512 xmm/ymm/zmm registers
+
+        vmm = {
+            1: xmm,
+            2: ymm,
+            4: zmm
+        }[self.v_len]
+
+        A_regs = Matrix([[vmm(vm*c + r) for c in range(bk)] for r in range(vm)])
+        B_regs = Matrix([[]])
+        C_regs = Matrix([[vmm(32 - vm*bn + vm*c + r) for c in range(bn)]
                                                      for r in range(vm)])
 
         starting_regs = [rdi, rsi, rdx, rbx, rcx]
@@ -57,35 +82,39 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         alpha_reg = [rbx, rbx]
         beta_reg = [rcx, rcx]
 
-        available_regs = [r(9),r(10),r(11),r(13),r(14),r(15),rax]
+        additional_regs = [r(9),r(10),r(11),r(15),rax] # ,r(13),r(14)
 
-        additional_regs = [r(8)]
+        prefetch_reg = prefetch == 'BL2viaC'
+        if prefetch_reg:
+            starting_regs += [r(8)]
+        else:
+            additional_regs += [r(8)]
 
-        reg_count = 0
+        mask_regs = [kmask(1), kmask(2)]
 
-        for i in range(1024, min(max(nnz * self.precision.value, m*k*self.precision.value, m*n*self.precision.value),8000), 2048):
-            additional_regs.append(available_regs[reg_count])
-            reg_count += 1
+        loop_regs = [r(12), r(13), r(14)]
 
-        for i in range(8192, min(nnz * self.precision.value, 33000), 8192):
-            additional_regs.append(available_regs[reg_count])
-            reg_count += 1
+        # FIXME: a bit hacky to have the mask setup here
+        rest = bm % v_size
+        rest2 = (m % bm) % v_size
+        self.predicates[rest] = kmask(1)
+        self.predicates[rest2] = kmask(2)
+        self.predicates[0] = kmask(0)
 
-        loop_reg = r(12)
+        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs, prefetch_reg
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_reg, additional_regs
-
-
-    def bcst_alpha_beta(self,
-                        alpha_reg: Register,
-                        beta_reg: Register,
-                        ) -> Block:
-
-        asm = block("Broadcast alpha and beta using inline broadcasting")
-
-#        asm.add(bcst(alpha_reg[0], alpha_reg[1]))
-#        asm.add(bcst(beta_reg[0], beta_reg[1]))
-        
+    def init_mask(self, m, bm, v_size, tempreg, maskregs):
+        rest = bm % v_size
+        rest2 = (m % bm) % v_size
+        asm = block("Set mask registers")
+        if rest > 0:
+            restval = (1 << rest) - 1
+            asm.add(mov(restval, tempreg, False))
+            asm.add(mov(tempreg, maskregs[0], False))
+        if rest2 > 0:
+            restval2 = (1 << rest2) - 1
+            asm.add(mov(restval2, tempreg, False))
+            asm.add(mov(tempreg, maskregs[1], False))
         return asm
 
     def make_scaling_offsets(self,
@@ -95,47 +124,29 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
 
         asm = block("Optimize usage of offsets when accessing B Matrix")
 
-        for i in range(1, min(len(additional_regs), 5)):
-            asm.add(mov(c(1024 + (i-1) * 2048), additional_regs[i], False))
+        scale = self.scale_base()
+        for i in range(1, len(additional_regs)):
+            asm.add(mov(c((2*i-1) * scale), additional_regs[i], False))
         
         return asm
 
-    def make_b_pointers(self,
-                         B_reg: Register,
-                         additional_regs: List[Register],
-                         nnz: int
-                        ) -> Block:
+    def init_block(self, size):
+        return block("")
 
-        asm = block("Optimize usage of offsets when accessing B Matrix")
+    def reg_based_scaling(self, asm, addr: MemoryAddress, additional_regs: List[Register]):
+        halfscale = self.scale_base() // 2
+        if addr.disp >= halfscale:
+            base = (addr.disp + halfscale) // self.scale_base()
+            scaling = 1
+            while base % 2 == 0:
+                base >>= 1
+                scaling *= 2
+            register = base // 2 + 1
 
-        reg_count = 5
-
-        for i in range(8192, min(nnz * self.precision.value, 33000), 8192):
-            asm.add(lea(B_reg, additional_regs[reg_count], i))
-            reg_count += 1
-        
-        return asm
-
-
-    def reg_based_scaling(self, addr: MemoryAddress, additional_regs: List[Register], with_index: bool):
-        if addr.disp >= 1024 and ((addr.disp < 32768 and with_index) or addr.disp < 8192):
-            scaling_and_register = {
-                1: (1, 1),
-                2: (2, 1),
-                3: (1, 2),
-                4: (4, 1),
-                5: (1, 3),
-                6: (2, 2),
-                7: (1, 4)
-            }
-            if addr.disp % 8192 >= 1024:
-                addr.scaling, reg = scaling_and_register[ (addr.disp % 8192) // 1024 ]
-                addr.index = additional_regs[reg]
-
-            if addr.disp >= 8192:
-                addr.base = additional_regs[addr.disp // 8192 + 4]
-
-            addr.disp = addr.disp % 1024
+            if register < len(additional_regs) and scaling <= 8:
+                addr.index = additional_regs[register]
+                addr.scaling = scaling
+                addr.disp = ((addr.disp + halfscale) % self.scale_base()) - halfscale
 
     def move_register_block(self,
                             cursor: Cursor,
@@ -147,25 +158,86 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                             mask: Matrix[bool] = None,
                             store: bool = False,
                             prefetching: str = None,
-                            load_offset: int = 0
+                            load_offset: int = 0,
+                            pf_cursor: Cursor = None,
+                            pf_cursor_ptr: CursorLocation = None
                            ) -> Block:
 
         rows, cols = registers.shape
         action = "Store" if store else "Load"
-        asm = block("{} {} register block @ {}".format(action,cursor.name,block_offset))
+        asm = block(f"{action} {cursor.name} register block @ {block_offset}")
+
+        b_row, _, _, _ = cursor.get_block(cursor_ptr, block_offset)
+
+        process_size = min(v_size, cursor.br)
+
+        maskcache = RegisterCache([kmask(3), kmask(4), kmask(5), kmask(6), kmask(7)])
 
         for ic in range(cols):
             for ir in range(rows):
                 if (mask is None) or (mask[ir,ic]):
-                    cell_offset = Coords(down=ir*v_size, right=ic)
-                    addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
-                    addr.disp += self.precision.value * load_offset
-                    if store:
-                        asm.add(mov(registers[ir,ic], addr, True, comment))
-                        if prefetching == 'BL2viaC':
-                            asm.add(prefetch(mem(additional_regs[0], addr.disp)))
-                    else:
-                        asm.add(mov(addr, registers[ir,ic], True, comment))
+                    # no register-based scaling here (for now)
+
+                    processed = ir * process_size
+
+                    size = min(process_size, b_row - processed)
+
+                    all_coords = [Coords(down=ir*process_size+i,right=ic) for i in range(size)]
+                    has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
+                    if any(has_nonzero):
+                        contiguous = True
+                        firsti = 0
+                        lasti = None
+                        for i in range(size):
+                            if has_nonzero[i]:
+                                firsti = i
+                                break
+                        bitmask = 0
+                        for i in range(size):
+                            if has_nonzero[i]:
+                                bitmask |= 1 << i
+                                if lasti is not None:
+                                    contiguous = False
+                            elif i > firsti:
+                                if lasti is None:
+                                    lasti = i
+                        if lasti is None:
+                            lasti = size
+                        addr, comment = cursor.look(cursor_ptr, block_offset, all_coords[firsti])
+                        addr.disp += self.precision.size() * load_offset
+                        # assume contiguous memory here
+
+                        maskFound = False
+                        needsExpand = not (firsti == 0 and contiguous)
+                        # TODO: if firsti > 0, set addr.disp -= firsti
+                        if not needsExpand:
+                            if lasti == v_size:
+                                pred = None
+                                maskFound = True
+                            elif lasti in self.predicates:
+                                pred = Predicate(self.predicates[lasti], True)
+                                maskFound = True
+                            else:
+                                # mostly implemented, but there are still bugs
+                                raise NotImplementedError("Element-wise sparsity in A is not yet implemented")
+                        else:
+                            raise NotImplementedError("Element-wise sparsity in A is not yet implemented")
+                        
+                        if not maskFound:
+                            maskreg, needsAssign = maskcache.get(bitmask)
+                            if needsAssign:
+                                asm.add(mov(bitmask, additional_regs[0], False))
+                                asm.add(mov(additional_regs[0], maskreg, False))
+                            pred = Predicate(maskreg, True)
+
+                        if store:
+                            asm.add(mov(registers[ir,ic], addr, True, comment, pred=pred, expand=needsExpand))
+                            if prefetching == 'BL2viaC' and pf_cursor is not None:
+                                addr, comment = pf_cursor.look(pf_cursor_ptr, block_offset, all_coords[firsti])
+                                addr.disp += self.precision.size() * load_offset
+                                asm.add(prefetch(addr, closeness="L2"))
+                        else:
+                            asm.add(mov(addr, registers[ir,ic], True, comment, pred=pred, expand=needsExpand))
         return asm
 
     def make_zero_block(self, registers: Matrix[Register], additional_regs) -> Block:
@@ -191,7 +263,8 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
                          v_size:int,
                          additional_regs,
                          to_A_block: Coords = Coords(),
-                         to_B_block: Coords = Coords()
+                         to_B_block: Coords = Coords(),
+                         sub: bool = False
                         ) -> Block:
 
         """ make_microkernel generates a GEMM microkernel for two blocks using the outer-product formulation.
@@ -203,28 +276,20 @@ void {{funcName}} (const {{real_type}}* A, const {{real_type}}* B, {{real_type}}
         asm = block("Block GEMM microkernel")
         bm,bk,aidx,apattern = A.get_block(A_ptr, to_A_block)
         bk,bn,bidx,bpattern = B.get_block(B_ptr, to_B_block)
-        assert(bm % v_size == 0)
 
-        mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size)
+        mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size, True)
         asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
 
-        for Vmi in range(bm//v_size):
-            for bki in range(bk):       # inside this k-block
-                for bni in range(bn):   # inside this n-block
-                    to_cell = Coords(down=bki, right=bni)
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_cell):
-                        B_addr, B_comment = B.look(B_ptr, to_B_block, to_cell)
-                        self.reg_based_scaling(B_addr, additional_regs, True)
-                        comment = "C[{}:{},{}] += A[{}:{},{}]*{}".format(Vmi*v_size,Vmi*v_size+v_size,bni,Vmi*v_size,Vmi*v_size+v_size,bki,B_comment)
-                        asm.add(fma(B_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment))
-        return asm
+        Vm = max(self.ceil_div(bm, v_size), 1)
 
-    def init_prefetching(self, prefetching):
-        
-        if prefetching != 'BL2viaC':
-            Generator.template = Generator.template.format(prefetching_mov = "", prefetching_decl = "")    
-            return None
-        
-        prefetchReg = r(8)
-        Generator.template = Generator.template.format(prefetching_mov = '    "movq %5, {}\\n\\t"'.format(prefetchReg.ugly), prefetching_decl = ', "m"(prefetch)')
-        return prefetchReg
+        for bki in range(bk):       # inside this k-block
+            for Vmi in range(Vm):
+                for bni in range(bn):   # inside this n-block
+                    to_bcell = Coords(down=bki, right=bni)
+                    to_acell = Coords(down=Vmi*v_size, right=bki)
+                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
+                        B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+                        self.reg_based_scaling(asm, B_addr, additional_regs)
+                        comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
+                        asm.add(fma(B_addr, A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, bcast=0, sub=sub))
+        return asm

@@ -9,6 +9,25 @@ class AbstractGenerator(ABC):
 
     def get_precision(self):
       return self.precision
+    
+    def set_sparse(self):
+        pass
+
+    # taken from https://stackoverflow.com/questions/14822184/is-there-a-ceiling-equivalent-of-operator-in-python
+    def ceil_div(self, n, d):
+        return -(n // -d)
+
+    @abstractmethod
+    def init_mask(self, bm, v_size, tempreg, maskreg):
+        pass
+
+    @abstractmethod
+    def use_broadcast(self):
+        pass
+
+    @abstractmethod
+    def has_masks(self):
+        pass
 
     @abstractmethod
     def get_v_size(self):
@@ -51,10 +70,7 @@ class AbstractGenerator(ABC):
                          v_size:int,
                          additional_regs,
                          to_A_block: Coords = Coords(),
-                         to_B_block: Coords = Coords()
+                         to_B_block: Coords = Coords(),
+                         sub: bool = False
                          ) -> Block:
-        pass
-
-    @abstractmethod
-    def init_prefetching(self, prefetching):
         pass

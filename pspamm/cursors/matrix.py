@@ -66,9 +66,14 @@ class Matrix(Generic[T]):
     def any(self, axis=None, out=None):
         return self._underlying.any(axis, out)
 
-    def nnz(self) -> int:
-        return sum(self[r,c] != 0 for r in range(self.rows)
-                                  for c in range(self.cols))
+    def nnz(self, axis=None) -> Union[int, List[int]]:
+        if axis is None:
+            return sum(self[r,c] != 0 for r in range(self.rows)
+                                      for c in range(self.cols))
+        if axis == 1:
+            return [sum(self[r,c] != 0 for r in range(self.rows)) for c in range(self.cols)]
+        if axis == 0:
+            return [sum(self[r,c] != 0 for c in range(self.cols)) for r in range(self.rows)]
 
     @classmethod
     def load_pattern(cls, filename) -> "Matrix[bool]":

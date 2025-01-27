@@ -1,58 +1,41 @@
 from pspamm.codegen.operands import *
 
 
-class Operand_ARM:
+class Operand_RV:
     @property
     def ugly(self):
         raise NotImplementedError()
 
 
-# TODO: Rename this 'Immediate'
-class Constant_ARM(Constant):
-
+class Constant_RV(Constant):
     @property
     def ugly(self):
-        return f"#{self.value}"
-
-    @property
-    def ugly_large(self):
-        return f"={self.value}"
-
-    @property
-    def ugly_lower16(self):
-        return f"#:lower16:{self.value}"
-
-    @property
-    def ugly_upper16(self):
-        return f"#:upper16:{self.value}"
-
+        return str(self.value)
 
 def c(n):
     """Sugar for conveniently defining integer constants"""
-    return Constant_ARM(value=int(n))
+    return Constant_RV(value=int(n))
 
 
-class Label_ARM(Label):
-
+class Label_RV(Label):
     @property
     def ugly(self):
-        # return self.ordinal
         return self.value.upper() + "_%="
 
 
 def l(label: str):
-    return Label_ARM(label)
+    return Label_RV(label)
 
 
-class Register_ARM(Register):
+class Register_RV(Register):
     @property
     def ugly(self):
         return self.value
-    
+
     @property
     def ugly_precision(self):
         return self.value.split(".")[1]
-    
+
     @property
     def ugly_lsl_shift(self):
         return {
@@ -63,8 +46,6 @@ class Register_ARM(Register):
 
     @property
     def clobbered(self):
-        if self.value == "xzr":
-            return None
         # removed [this comment should stay here for now---in case there's some compiler expecting it]: .replace("x", "r")
         return (self.value.split(".")[0])
 
@@ -74,32 +55,34 @@ class Register_ARM(Register):
 
     @property
     def ugly_scalar_1d(self):
+        #turns "Vn.2d" into "Dn"
         return (self.value.split(".")[0]).replace("v", "d")
-    
-    @property
-    def ugly_b32(self):
-        return (self.value.split(".")[0]).replace("x", "w")
 
 
-r = lambda n: Register_ARM(AsmType.i64, "x" + str(n))
-xzr = Register_ARM(AsmType.i64, "xzr")
-v = lambda n, prec: Register_ARM(AsmType.f64x8, "v" + str(n) + "." + prec)
+x = lambda n: Register_RV(AsmType.i64, "x" + str(n))
+f = lambda n: Register_RV(AsmType.f64, "f" + str(n))
+v = lambda n: Register_RV(AsmType.f64x8, "v" + str(n))
 
-
-class MemoryAddress_ARM(MemoryAddress):
-
+class MemoryAddress_RV(MemoryAddress):
     @property
     def ugly(self):
-        return f"[{self.base.ugly}, {self.disp}]"
-    
+        if self.disp == 0:
+            return f'({self.base.ugly})'
+        else:
+            return f'{self.disp}({self.base.ugly})'
+
+    @property
+    def clobbered(self):
+        return self.base
+
     @property
     def ugly_base(self):
-        return f"[{self.base.ugly}]"
-    
+        return str(self.base.ugly)
+
     @property
     def ugly_offset(self):
-        # TODO: is this already dynamic? -> if precision is single, we need LSL #2
         return str(self.disp)
 
+
 def mem(base, offset):
-    return MemoryAddress_ARM(base, offset)
+    return MemoryAddress_RV(base, offset)

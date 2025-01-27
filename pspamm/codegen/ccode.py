@@ -14,12 +14,16 @@ def make_cfunc(funcName:str, template:str, body:Block, flop:int, starting_regs:L
     body_text = "\n".join(printer.output)
 
     analyzer = Analyzer(starting_regs)
-    body.accept(analyzer)
-    regs = ['"{}"'.format(reg.clobbered) for reg in analyzer.clobbered_registers]
-    regs.sort()
-    clobbered = ",".join(regs)
+    analyzer.collect(body)
+    regs = set(f'"{reg.clobbered}"' for reg in analyzer.clobbered_registers if reg.clobbered is not None)
+    regs.add('"memory"')
+    regs.add('"cc"')
+    # TODO: maybe regs.add('"redzone"') ?
+    clobbered = ", ".join(sorted(regs))
+    arglist = ", ".join(sorted(arg.arg for arg in analyzer.input_operands))
     return template.format(funcName = funcName,
                            body_text = body_text,
+                           args = arglist,
                            clobbered = clobbered,
                            flop = flop,
                            real_type = Precision.getCType(precision))

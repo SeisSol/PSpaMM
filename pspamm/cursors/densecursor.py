@@ -61,7 +61,7 @@ class DenseCursor(Cursor):
         else:
             dest_block_abs = src.current_block + dest_block
 
-        comment = "Move {} to {}".format(self.name,str(dest_block))
+        comment = f"Move {self.name} to {dest_block}"
         src_offset = self.offset(src.current_block, Coords(), src.current_cell)
         dest_offset = self.offset(src.current_block, dest_block, src.current_cell)
         rel_offset = (dest_offset - src_offset) * self.scalar_bytes
@@ -76,7 +76,7 @@ class DenseCursor(Cursor):
 
         assert(dest_cell.absolute == False)
 
-        comment = "{} [{},{}] [{},{}]".format(self.name,dest_block.down,dest_block.right,dest_cell.down,dest_cell.right)
+        comment = f"{self.name} [{dest_block.down},{dest_block.right}] [{dest_cell.down},{dest_cell.right}]"
 
         src_offset_abs = self.offset(src.current_block, Coords(), src.current_cell)
         dest_offset_abs = self.offset(src.current_block, dest_block, dest_cell)
@@ -96,7 +96,7 @@ class DenseCursor(Cursor):
                 if self.offsets[bri, bci] != -1:
                     return CursorLocation(dest_block, Coords(down=bri, right=bci, absolute=False))
 
-        raise Exception("Block {} has no starting location because it is empty!".format(dest_block))
+        raise Exception(f"Block {dest_block} has no starting location because it is empty!")
 
     def get_block(self, src: CursorLocation=None, dest_block: Coords=None) -> BlockInfo:
 
@@ -119,4 +119,14 @@ class DenseCursor(Cursor):
         pattern = cast(Matrix[bool], pattern)
         return BlockInfo(br, bc, index, pattern)
 
+    def has_nonzero_block(self, src: CursorLocation, dest_block: Coords) -> bool:
+        return True
+    
+    def has_nonzero_cell(self,
+                         src_loc: CursorLocation,
+                         dest_block: Coords,
+                         dest_cell: Coords) -> bool:
+        return self.offsets.shape[0] > dest_cell.down and self.offsets.shape[1] > dest_cell.right
 
+    def start(self) -> CursorLocation:
+        return CursorLocation()

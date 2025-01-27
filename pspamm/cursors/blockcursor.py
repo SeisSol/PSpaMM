@@ -84,7 +84,7 @@ class BlockCursor(Cursor):
              dest_block: Coords
             ) -> Tuple[AsmStmt, CursorLocation]:
 
-        comment = "Move {} to {str(dest_block)}".format(self.name)
+        comment = f"Move {self.name} to {str(dest_block)}"
 
         if dest_block.absolute:
             dest_loc = self.start_location(dest_block)
@@ -104,7 +104,7 @@ class BlockCursor(Cursor):
 
         dest_loc = CursorLocation(dest_block, dest_cell)
         offset_bytes = self.offset(src_loc, dest_loc) * self.scalar_bytes
-        comment = "{}[{},{}][{},{}]".format(self.name,dest_block.down,dest_block.right,dest_cell.down,dest_cell.right)
+        comment = f"{self.name}[{dest_block.down},{dest_block.right}][{dest_cell.down},{dest_cell.right}]"
 
         addr = pspamm.architecture.operands.mem(self.base_ptr, offset_bytes)
         
@@ -150,7 +150,7 @@ class BlockCursor(Cursor):
             dest_block += src_loc.current_block
 
         dest_cell += Coords(dest_block.down*self.br, dest_block.right*self.bc, True)
-        return self.offsets[dest_cell.down, dest_cell.right] != -1
+        return self.offsets.shape[0] > dest_cell.down and self.offsets.shape[1] > dest_cell.right and self.offsets[dest_cell.down, dest_cell.right] != -1
 
 
     def has_nonzero_block(self, src: CursorLocation, dest_block: Coords) -> bool:
@@ -172,7 +172,7 @@ class BlockCursor(Cursor):
                 if pat[bri,bci]:
                     return CursorLocation(dest_block, Coords(down=bri, right=bci, absolute=False))
 
-        raise Exception("Block {} has no starting location because it is empty!".format(dest_block))
+        raise Exception(f"Block {dest_block} has no starting location because it is empty!")
 
 
     def start(self) -> CursorLocation:
@@ -194,7 +194,7 @@ def sparse_mask(A_regs: Matrix[Register],
            B_ptr: CursorLocation,
            B_block_offset: Coords,
            v_size: int,
-           is_sve: bool = False
+           has_mask: bool = False
           ) -> Matrix[bool]:
 
     Vr, Vc = A_regs.shape
@@ -202,14 +202,14 @@ def sparse_mask(A_regs: Matrix[Register],
     A_br, A_bc, A_idx, A_pat = A.get_block(A_ptr, A_block_offset)
     B_br, B_bc, B_idx, B_pat = B.get_block(B_ptr, B_block_offset)
 
-    if not is_sve:
-        assert (Vr * v_size == A_br)    # bm must tile m exactly for now in NEON and AVX512
+    if not has_mask:
+        assert (A_br % v_size == 0)     # bm must tile m exactly for now in non-mask-supporting ISAs
     assert(Vc >= A_bc)                  # Matrix block must fit in register block
     assert(A_bc == B_br)                # Matrix blocks are compatible
 
-    # Mask out registers not used in current block, including zero-rows of B
+    # Mask out registers not used in current block, including zero-rows of B and A
     for Vci in range(A_bc):
         if B_pat[Vci,:].any(axis=1):
-            mask[:,Vci] = True
+            mask[:,Vci] = A_pat[:,Vci]
 
     return mask
