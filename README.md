@@ -1,6 +1,6 @@
 # PSpaMM
 
-A Code Generator For Small Sparse (and Dense) Matrix Multiplications.
+A code generator for small matrix multiplications.
 
 Currently supported:
 
@@ -10,15 +10,15 @@ Currently supported:
 
 ## Installation
 
-PspaMM is a Python package. I.e. you may do
+PspaMM is a Python package. I.e. after cloning, may install it via pip.
+
+Alternatively, you can install it directly by running
 
 ```bash
 
-pip install .
+pip install git+https://github.com/SeisSol/PSpaMM.git
 
 ```
-
-to install it.
 
 ## Usage
 

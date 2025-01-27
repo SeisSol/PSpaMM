@@ -20,7 +20,6 @@ def c(n):
 class Label_RV(Label):
     @property
     def ugly(self):
-        # return self.ordinal
         return self.value.upper() + "_%="
 
 

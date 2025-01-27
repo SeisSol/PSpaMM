@@ -261,7 +261,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size, True)
         asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
 
-        # x = 0;
         bs = []
         cur11 = -10000
         Vm = max(self.ceil_div(bm, v_size), 1)

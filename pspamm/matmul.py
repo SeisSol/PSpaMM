@@ -462,4 +462,3 @@ class MatMul:
         assignVirtualRegisters(asm, [self.A_pool, self.B_pool, self.C_pool])
 
         return asm
-        # return block("", *prune(sched.moveLoads(list(asm.normalize()))))

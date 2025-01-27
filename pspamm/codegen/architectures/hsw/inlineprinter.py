@@ -111,7 +111,6 @@ class InlinePrinter(Visitor):
             self.addLine(s, stmt.comment)
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
-                # s = f"vpxor {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly}"
                 s = f"vxorps {stmt.dest.ugly_xmm}, {stmt.dest.ugly_xmm}, {stmt.dest.ugly_xmm}"
                 self.addLine(s, stmt.comment)
             elif stmt.pred is not None:
