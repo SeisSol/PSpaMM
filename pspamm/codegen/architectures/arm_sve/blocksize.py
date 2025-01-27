@@ -11,7 +11,7 @@ class Max:
             while next_multiple % v_size != 0:
                 next_multiple += 1
             for j in range(1, n + 1):
-                if cls.ARM_condition(next_multiple, j, bk, v_size) and cls.tileable(m, i):
+                if cls.ARM_condition(next_multiple, j, bk, v_size):
                     if i * j >= maxval:
                         maxval = i * j
                         bm = i
@@ -48,7 +48,7 @@ class MaxK:
         for i in range(1, m + 1, 1):
             next_multiple = -(i // -v_size) * v_size
             for j in range(1, n + 1):
-                if cls.ARM_condition(next_multiple, j, bk, v_size, elem128) and cls.tileable(m, i):
+                if cls.ARM_condition(next_multiple, j, bk, v_size, elem128):
                     if i * j >= maxval:
                         maxval = i * j
                         bm = i
@@ -89,7 +89,7 @@ class Cube:
             next_multiple = -(i // -v_size) * v_size
             for j in range(1, n + 1):
                 for k in range(1, 200):
-                    if cls.ARM_condition(next_multiple, j, k, v_size, elem128) and cls.tileable(m, i):
+                    if cls.ARM_condition(next_multiple, j, k, v_size, elem128):
                         if i * j * k >= maxval:
                             maxval = i * j * k
                             bm = i

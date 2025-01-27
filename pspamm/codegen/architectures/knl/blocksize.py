@@ -48,7 +48,7 @@ class Max:
         for i in range(1, m+1):
             next_multiple = -(i // -v_size)
             for j in range(1, n+1):
-                if cls.KNL_condition(next_multiple, j, bk, v_size) and cls.tileable(m, i):
+                if cls.KNL_condition(next_multiple, j, bk, v_size):
                     if i*j >= maxval:
                         maxval = i*j
                         bm = i
