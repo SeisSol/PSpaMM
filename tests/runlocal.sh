@@ -34,4 +34,11 @@ elif [[ ${1:0:3} == "knl" ]]; then
     if [[ ${2} != "norun" ]]; then
         qemu-x86_64-static -cpu Skylake-Server build/${1}-test
     fi
+elif [[ ${1:0:3} == "lsx" ]]; then
+    BITLEN=${1:3:6}
+    # TODO: once established, remove the -14
+    loongarch64-linux-gnu-g++-14 -static -mlasx build/${1}_testsuite.cpp -o build/${1}-test
+    if [[ ${2} != "norun" ]]; then
+        qemu-loongarch64-static -cpu max build/${1}-test
+    fi
 fi

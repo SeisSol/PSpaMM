@@ -7,6 +7,7 @@ Currently supported:
 * x86_64: AVX2, AVX512/AVX10.1
 * ARM/AARCH64: NEON, SVE (128,256,512,1024,2048 bit)
 * RISC-V: V (128,256,512,1024,2048,4096,8192 bit)
+* LoongArch: LSX, LASX
 
 ## Installation
 
@@ -25,7 +26,7 @@ pip install git+https://github.com/SeisSol/PSpaMM.git
 ```bash
 
 pspamm-generator M N K LDA LDB LDC ALPHA BETA \
-    --arch {arm,arm_sve{128..2048},knl{128..512},hsw{128..256},rvv{128..8192}} \
+    --arch {arm,arm_sve{128..2048},knl{128..512},hsw{128..256},rvv{128..8192},lsx{128..256}} \
     --amtx_filename MTX_FILE_PATH --bmtx_filename MTX_FILE_PATH \
     --output_funcname FUNCTION_NAME --output_filename OUTPUT_NAME
 

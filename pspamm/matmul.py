@@ -140,6 +140,24 @@ class MatMul:
           # only 128 supported
           v_len_regs = 1
           arch = 'arm'
+        
+        if arch.startswith('lsx'):
+          if len(arch) == 3:
+            v_len_regs = 1
+          else:
+            v_len_bits = int(arch[3:])
+            assert v_len_bits in (128, 256)
+            v_len_regs = v_len_bits // 128
+          arch = 'lsx'
+        
+        if arch.startswith('lasx'):
+          if len(arch) == 4:
+            v_len_regs = 2
+          else:
+            v_len_bits = int(arch[4:])
+            assert v_len_bits in (128, 256)
+            v_len_regs = v_len_bits // 128
+          arch = 'lsx'
 
         self.arch = arch
         assert precision.lower() in ['bf16', 'h', 's', 'd']
