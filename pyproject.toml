@@ -31,4 +31,4 @@ version = {file = ["pspamm/VERSION"]}
 dependencies = {file = ["requirements.txt"]}
 
 [project.scripts]
-pspamm-generator = "pspamm.pspamm:main"
+pspamm-generator = "pspamm.cli:main"
