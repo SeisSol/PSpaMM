@@ -23,7 +23,8 @@ scripts = {
     "arm_sve": lambda blocksize: [blocksize.Max, blocksize.MaxK, blocksize.Cube],
     "knl": lambda blocksize: [blocksize.Old, blocksize.Max, blocksize.MaxBn, blocksize.CubeBn],
     "hsw": lambda blocksize: [blocksize.Old, blocksize.Max, blocksize.Cube],
-    "rvv": lambda blocksize: [blocksize.MaxBn, blocksize.CubeBn]
+    "rvv": lambda blocksize: [blocksize.MaxBn, blocksize.CubeBn],
+    "lsx": lambda blocksize: [blocksize.Max]
 }
 
 blocksize_algs = scripts[archname](blocksize) + [blocksize.Default]
