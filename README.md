@@ -11,7 +11,7 @@ Currently supported:
 
 ## Installation
 
-PspaMM is a Python package. I.e. after cloning, may install it via pip.
+PSpaMM is a Python package. I.e. after cloning, may install it via pip.
 
 Alternatively, you can install it directly by running
 

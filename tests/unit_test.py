@@ -3,7 +3,7 @@
 import testsuite_generator as generator
 from importlib import import_module
 
-from pspamm.codegen.precision import *
+from pypspamm.codegen.precision import *
 
 import sys
 import re
@@ -16,7 +16,7 @@ parsedarch = re.fullmatch(r'(?P<name>[a-zA-Z_]+)(?P<prec>\d+)', arch)
 archname = parsedarch.group('name')
 archprec = parsedarch.group('prec')
 
-blocksize = import_module("pspamm.codegen.architectures." + archname + ".blocksize")
+blocksize = import_module("pypspamm.codegen.architectures." + archname + ".blocksize")
 
 scripts = {
     "arm": lambda blocksize: [blocksize.Old, blocksize.Max, blocksize.MaxK, blocksize.Cube],
