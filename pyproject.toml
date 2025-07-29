@@ -12,8 +12,6 @@ authors = [
     { name = "Nathan Brei", email = "nathan.w.brei@gmail.com" },
     { name = "Alex Puscas", email = "alex-puscas@gmx.de" },
     { name = "David Schneller", email = "david.schneller@tum.de" },
-    { name = "Lukas Krenz", email = "lukas@krenz.land" },
-    { name = "Carsten Uphoff", email = "uphoff@in.tum.de" },
 ]
 maintainers = [
     { name = "David Schneller", email = "david.schneller@tum.de" },
