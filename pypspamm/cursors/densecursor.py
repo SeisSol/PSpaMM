@@ -1,7 +1,8 @@
 from typing import List, Tuple, cast
 
 from pypspamm.codegen.sugar import *
-from pypspamm.cursors import *
+from pypspamm.cursors.matrix import *
+from pypspamm.cursors.abstractcursor import *
 
 
 class DenseCursor(Cursor):

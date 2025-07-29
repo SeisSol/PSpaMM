@@ -10,7 +10,7 @@ with open("requirements.txt", "r") as fh:
     install_requires = [s.strip() for s in fh.readlines() if s.strip() != ""]
 
 setuptools.setup(
-    name="PspaMM",
+    name="PSpaMM",
     version=current_version,
     license="BSD-3-Clause",
     author="Peter Wauligmann, Nathan Brei, Alex Puscas, David Schneller",
@@ -24,7 +24,7 @@ setuptools.setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-    url="https://github.com/pspamm/pspamm",
+    url="https://github.com/seissol/pspamm",
     python_requires=">=3.7",
     install_requires=install_requires,
     include_package_data=True,

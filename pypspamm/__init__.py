@@ -1,1 +1,1 @@
-from pspamm import *
+from pypspamm import *
