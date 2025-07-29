@@ -1,10 +1,9 @@
-from pypspamm.cursors import *
-
 from pypspamm.codegen.architectures.arm_sve.operands import *
 from pypspamm.codegen.ast import *
-from pypspamm.codegen.sugar import *
 from pypspamm.codegen.generator import *
 from pypspamm.codegen.precision import *
+from pypspamm.codegen.sugar import *
+from pypspamm.cursors import *
 
 
 class Generator(AbstractGenerator):
@@ -27,7 +26,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
     prefetch_count = 0
     is_sparse = False
-    v_len = 4 # vector register length: v_len * 128 bit
+    v_len = 4  # vector register length: v_len * 128 bit
     predicates = {}
 
     def get_v_size(self):
@@ -38,31 +37,33 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
     def get_template(self):
         return self.template
-    
+
     def use_broadcast(self):
         return True
 
     def has_masks(self):
         return True
-    
+
     def make_argument_load(self, starting_regs, prefetch):
         asm = block("Load arguments")
-        asm.add(ld(InputOperand(f'0', 'm', 'A'), starting_regs[0], False))
-        asm.add(ld(InputOperand(f'1', 'm', 'B'), starting_regs[1], False))
-        asm.add(ld(InputOperand(f'2', 'm', 'C'), starting_regs[2], False))
-        asm.add(ld(InputOperand(f'3', 'm', 'alpha'), starting_regs[3], False))
-        asm.add(ld(InputOperand(f'4', 'm', 'beta'), starting_regs[4], False))
+        asm.add(ld(InputOperand(f"0", "m", "A"), starting_regs[0], False))
+        asm.add(ld(InputOperand(f"1", "m", "B"), starting_regs[1], False))
+        asm.add(ld(InputOperand(f"2", "m", "C"), starting_regs[2], False))
+        asm.add(ld(InputOperand(f"3", "m", "alpha"), starting_regs[3], False))
+        asm.add(ld(InputOperand(f"4", "m", "beta"), starting_regs[4], False))
         if prefetch:
-            asm.add(ld(InputOperand(f'5', 'm', 'prefetch'), starting_regs[5], False))
+            asm.add(ld(InputOperand(f"5", "m", "prefetch"), starting_regs[5], False))
         return asm
 
-    def pred_n_trues(self, num_trues: int, v_size: int, suffix: str = None) -> Register_ARM:
+    def pred_n_trues(
+        self, num_trues: int, v_size: int, suffix: str = None
+    ) -> Register_ARM:
         """pred takes num_trues=num of true elements and suffix=type of predicate (m or z) for merging or zeroing
-         we only use p7 as all-true predicate and p0 as overhead predicate
-         e.g. pred_n_trues(n=4, v_size=8, suffix="m") returns the predicate p0/m with the first 4 elements
-         set to true"""
-        assert (num_trues > 0)
-        assert (suffix == "m" or suffix == "z" or suffix is None)
+        we only use p7 as all-true predicate and p0 as overhead predicate
+        e.g. pred_n_trues(n=4, v_size=8, suffix="m") returns the predicate p0/m with the first 4 elements
+        set to true"""
+        assert num_trues > 0
+        assert suffix == "m" or suffix == "z" or suffix is None
 
         # we only use p7 or p0 as predicates (1 == p0, 8 == p7)
         index = 7 if num_trues >= v_size else self.predicates[num_trues]
@@ -77,8 +78,21 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     def set_sparse(self):
         self.is_sparse = True
 
-    def make_reg_blocks(self, bm: int, bn: int, bk: int, v_size: int, nnz: int, m: int, n: int, k: int, prefetch:str):
-        vm = self.ceil_div(bm, v_size)                  # vm can be 0 if bm < v_size -> makes ceil_div necessary
+    def make_reg_blocks(
+        self,
+        bm: int,
+        bn: int,
+        bk: int,
+        v_size: int,
+        nnz: int,
+        m: int,
+        n: int,
+        k: int,
+        prefetch: str,
+    ):
+        vm = self.ceil_div(
+            bm, v_size
+        )  # vm can be 0 if bm < v_size -> makes ceil_div necessary
 
         # k-broadcasting only works in 128-bit lanes
         elem128 = 16 // self.get_precision().size()
@@ -86,7 +100,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         # inline broadcasting is only allowed for the lower-numbered registers
         self.inline_broadcast = False
-        if bn*vkext <= 16 if self.get_precision().size() == 8 else bn*vkext <= 8:
+        if bn * vkext <= 16 if self.get_precision().size() == 8 else bn * vkext <= 8:
             self.inline_broadcast = True
         if bk == 1:
             self.inline_broadcast = False
@@ -95,8 +109,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             vk = vkext
         else:
             vk = bk
-        
-        assert ((bn + bk) * vm + bn * vk <= 32)     # Needs to fit in SVE z registers
+
+        assert (bn + bk) * vm + bn * vk <= 32  # Needs to fit in SVE z registers
 
         prec = {
             Precision.DOUBLE: "d",
@@ -107,17 +121,33 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         # make place for the two broadcasting registers
         a_offset = 1 if bn * vk == 1 else 0
-        assert ((bn + bk) * vm + bn * vk + a_offset <= 32)
+        assert (bn + bk) * vm + bn * vk + a_offset <= 32
 
-        A_regs = Matrix([[z(vm * c + r + bn * vk + a_offset, prec) for c in range(bk)] for r in range(vm)])
+        A_regs = Matrix(
+            [
+                [z(vm * c + r + bn * vk + a_offset, prec) for c in range(bk)]
+                for r in range(vm)
+            ]
+        )
         B_regs = Matrix([[z(bn * r + c, prec) for c in range(bn)] for r in range(vk)])
-        C_regs = Matrix([[z(32 - vm * bn + vm * c + r, prec) for c in range(bn)] for r in range(vm)])
+        C_regs = Matrix(
+            [[z(32 - vm * bn + vm * c + r, prec) for c in range(bn)] for r in range(vm)]
+        )
 
         b_reg = 0
         alpha_reg = [z(b_reg, prec), z(b_reg, prec)]
         beta_reg = [z(b_reg + 1, prec), z(b_reg + 1, prec)]
 
-        starting_regs = [r(0), r(1), r(2), r(3), r(4), r(5), r(6), r(11)]  # r6 is needed for predicate creation, r5 is added in init_prefetching()
+        starting_regs = [
+            r(0),
+            r(1),
+            r(2),
+            r(3),
+            r(4),
+            r(5),
+            r(6),
+            r(11),
+        ]  # r6 is needed for predicate creation, r5 is added in init_prefetching()
 
         additional_regs = [r(8), l("0.0"), r(10), r(6)]  # r10 used for scaling offsets
 
@@ -129,12 +159,20 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         prefetch_reg = prefetch is not None
 
-        return A_regs, B_regs, C_regs, starting_regs, alpha_reg, beta_reg, loop_regs, additional_regs, mask_regs, prefetch_reg
+        return (
+            A_regs,
+            B_regs,
+            C_regs,
+            starting_regs,
+            alpha_reg,
+            beta_reg,
+            loop_regs,
+            additional_regs,
+            mask_regs,
+            prefetch_reg,
+        )
 
-    def make_scaling_offsets(self,
-                             additional_regs: List[Register],
-                             nnz: int
-                             ) -> Block:
+    def make_scaling_offsets(self, additional_regs: List[Register], nnz: int) -> Block:
 
         asm = block("No register based scaling")
         return asm
@@ -142,25 +180,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
     def init_block(self, size):
         return block("")
 
-    def init_mask(self,
-                        m: int,
-                        bm: int,
-                        v_size: int,
-                        tempreg,
-                        maskreg
-                        ) -> Block:
+    def init_mask(self, m: int, bm: int, v_size: int, tempreg, maskreg) -> Block:
 
         asm = block("No register based scaling")
         return asm
 
-    def init_registers(self,
-                       m: int,
-                       bm: int,
-                       k: int,
-                       bk: int,
-                       v_size: int,
-                       nnz: int
-                       ) -> None:
+    def init_registers(
+        self, m: int, bm: int, k: int, bk: int, v_size: int, nnz: int
+    ) -> None:
 
         bmmod = bm % v_size
         elem128 = 16 // self.get_precision().size()
@@ -168,7 +195,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         kmod = (k % bk) % elem128 if self.inline_broadcast else 0
         mmod = (m % bm) % v_size
 
-        eol = "\\n\\t"                          # define the "end of line" sequence for easy assembly
+        eol = "\\n\\t"  # define the "end of line" sequence for easy assembly
         # determine the predicate suffix
         p_suffix = {
             Precision.DOUBLE: "d",
@@ -195,54 +222,91 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # https://developer.arm.com/documentation/ddi0596/2020-12/Shared-Pseudocode/AArch64-Functions?lang=en#impl-aarch64.DecodePredCount.2
         # 'ptrue' doesnt work for initialising overhead predicate when using single precision -> see valid patterns from above
         # overhead = "\"ptrue p0.{suffix}, #{overhead}{eol}\"\n\t" if bm != 0 else ""    # define overhead predicate
-        overhead_bm = "\"mov {gen_reg}{overhead_counter}, #{overhead_bm}{eol}\"\n\t\"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if bmmod != 0 else ""
-        overhead_bk = "\"mov {gen_reg}{overhead_counter}, #{overhead_bk}{eol}\"\n\t\"whilelo p1.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if self.has_bk_overhead else ""
-        overhead_k = "\"mov {gen_reg}{overhead_counter}, #{overhead_k}{eol}\"\n\t\"whilelo p2.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if self.has_k_overhead else ""
-        overhead_nnz = "\"mov {gen_reg}{overhead_counter}, #{overhead_nnz}{eol}\"\n\t\"whilelo p3.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if self.has_nnz_overhead else ""
-        overhead_m = "\"mov {gen_reg}{overhead_counter}, #{overhead_m}{eol}\"\n\t\"whilelo p4.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}\"\n\t" if mmod != 0 else ""
-        all_true = "\"ptrue p7.{suffix}, #31{eol}\""                             # define all true predicate
-        init_registers = (comment + overhead_bm + overhead_bk + overhead_k + overhead_nnz + overhead_m + all_true).format(suffix=p_suffix,
-                                                                                            gen_reg=gen_reg,
-                                                                                            overhead_counter=overhead_counter,
-                                                                                            v_size=v_size,
-                                                                                            overhead_bm=bmmod,
-                                                                                            overhead_bk=bkmod,
-                                                                                            overhead_k=kmod,
-                                                                                            overhead_m=mmod,
-                                                                                            overhead_nnz=nnz % elem128,
-                                                                                            eol=eol)
+        overhead_bm = (
+            '"mov {gen_reg}{overhead_counter}, #{overhead_bm}{eol}"\n\t"whilelo p0.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}"\n\t'
+            if bmmod != 0
+            else ""
+        )
+        overhead_bk = (
+            '"mov {gen_reg}{overhead_counter}, #{overhead_bk}{eol}"\n\t"whilelo p1.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}"\n\t'
+            if self.has_bk_overhead
+            else ""
+        )
+        overhead_k = (
+            '"mov {gen_reg}{overhead_counter}, #{overhead_k}{eol}"\n\t"whilelo p2.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}"\n\t'
+            if self.has_k_overhead
+            else ""
+        )
+        overhead_nnz = (
+            '"mov {gen_reg}{overhead_counter}, #{overhead_nnz}{eol}"\n\t"whilelo p3.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}"\n\t'
+            if self.has_nnz_overhead
+            else ""
+        )
+        overhead_m = (
+            '"mov {gen_reg}{overhead_counter}, #{overhead_m}{eol}"\n\t"whilelo p4.{suffix}, {gen_reg}zr, {gen_reg}{overhead_counter}{eol}"\n\t'
+            if mmod != 0
+            else ""
+        )
+        all_true = '"ptrue p7.{suffix}, #31{eol}"'  # define all true predicate
+        init_registers = (
+            comment
+            + overhead_bm
+            + overhead_bk
+            + overhead_k
+            + overhead_nnz
+            + overhead_m
+            + all_true
+        ).format(
+            suffix=p_suffix,
+            gen_reg=gen_reg,
+            overhead_counter=overhead_counter,
+            v_size=v_size,
+            overhead_bm=bmmod,
+            overhead_bk=bkmod,
+            overhead_k=kmod,
+            overhead_m=mmod,
+            overhead_nnz=nnz % elem128,
+            eol=eol,
+        )
 
         self.predicates[v_size] = 7
-        if bmmod != 0: self.predicates[bmmod] = 0
-        if bkmod != 0: self.predicates[bkmod] = 1
-        if kmod != 0: self.predicates[kmod] = 2
-        if mmod != 0: self.predicates[mmod] = 4
+        if bmmod != 0:
+            self.predicates[bmmod] = 0
+        if bkmod != 0:
+            self.predicates[bkmod] = 1
+        if kmod != 0:
+            self.predicates[kmod] = 2
+        if mmod != 0:
+            self.predicates[mmod] = 4
 
         # since .format() doesn't allow partial formatting, we need to re-include the
         # placeholders that are replaced at the end of generating a kernel
-        self.template = self.get_template().format(init_registers=init_registers,
-                                                   funcName="{funcName}",
-                                                   body_text="{body_text}",
-                                                   clobbered="{clobbered}",
-                                                   flop="{flop}",
-                                                   real_type="{real_type}",
-                                                   args="{args}")
+        self.template = self.get_template().format(
+            init_registers=init_registers,
+            funcName="{funcName}",
+            body_text="{body_text}",
+            clobbered="{clobbered}",
+            flop="{flop}",
+            real_type="{real_type}",
+            args="{args}",
+        )
 
-    def move_register_block(self,
-                            cursor: Cursor,
-                            cursor_ptr: CursorLocation,
-                            block_offset: Coords,
-                            registers: Matrix[Register],
-                            v_size: int,
-                            additional_regs,
-                            mask: Matrix[bool] = None,
-                            store: bool = False,
-                            prefetching: str = None,
-                            load_offset: int = 0,
-                            pf_cursor: Cursor = None,
-                            pf_cursor_ptr: CursorLocation = None,
-                            is_B: bool = False
-                            ) -> Block:
+    def move_register_block(
+        self,
+        cursor: Cursor,
+        cursor_ptr: CursorLocation,
+        block_offset: Coords,
+        registers: Matrix[Register],
+        v_size: int,
+        additional_regs,
+        mask: Matrix[bool] = None,
+        store: bool = False,
+        prefetching: str = None,
+        load_offset: int = 0,
+        pf_cursor: Cursor = None,
+        pf_cursor_ptr: CursorLocation = None,
+        is_B: bool = False,
+    ) -> Block:
 
         rows, cols = registers.shape
         action = "Store" if store else "Load"
@@ -252,13 +316,19 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         b_row, b_col, i, _ = cursor.get_block(cursor_ptr, block_offset)
 
         cur11 = 0
-        #TODO: figure out appropriate threshold (the 16 // self.v_len may still not be optimal; especially if 16 % self.v_len != 0, e.g. 384 bit)
-        threshold = 1 if self.is_sparse else (16 // self.v_len)  # uses whole 256 byte cache line, as one SVE-512 vector = 64 bytes
+        # TODO: figure out appropriate threshold (the 16 // self.v_len may still not be optimal; especially if 16 % self.v_len != 0, e.g. 384 bit)
+        threshold = (
+            1 if self.is_sparse else (16 // self.v_len)
+        )  # uses whole 256 byte cache line, as one SVE-512 vector = 64 bytes
 
         # DONE if another CPU implements SVE at VL != 64 bytes, rewrite mul_vl (maybe do this dynamically)
-        mul_vl = 16 * self.v_len   # e.g. A64FX has VL of 64 bytes in memory (thus, use v_len==4)
+        mul_vl = (
+            16 * self.v_len
+        )  # e.g. A64FX has VL of 64 bytes in memory (thus, use v_len==4)
         max_mem_ins_mult = 7  # A64FX allows a maximum positive offset of 7 in memory instructions, e.g. ld1d z1.d, p0/z, [x0, 7, MUL VL] (TODO: tune, if ever different)
-        max_offset = mul_vl * max_mem_ins_mult  # ld1d/st1d instruction encodes the immediate offset using 4 bits, multiplies it with MUL VL
+        max_offset = (
+            mul_vl * max_mem_ins_mult
+        )  # ld1d/st1d instruction encodes the immediate offset using 4 bits, multiplies it with MUL VL
 
         prev_disp = 0
         prev_overhead = True
@@ -271,15 +341,31 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                 if (mask is None) or (mask[ir, ic]):
                     processed = ir * process_size
                     size = min(process_size, b_row - processed)
-                    all_coords = [Coords(down=ir*process_size+i,right=ic) for i in range(size)]
-                    has_nonzero = [cursor.has_nonzero_cell(cursor_ptr, block_offset, offset) for offset in all_coords]
+                    all_coords = [
+                        Coords(down=ir * process_size + i, right=ic)
+                        for i in range(size)
+                    ]
+                    has_nonzero = [
+                        cursor.has_nonzero_cell(cursor_ptr, block_offset, offset)
+                        for offset in all_coords
+                    ]
                     if not any(has_nonzero):
                         continue
                     elif any(has_nonzero) and not all(has_nonzero) and not is_B:
-                        raise NotImplementedError("Element-wise sparsity in A is not yet implemented.")
+                        raise NotImplementedError(
+                            "Element-wise sparsity in A is not yet implemented."
+                        )
 
-                    p = self.pred_n_trues(size, v_size) if not is_B else self.pred_n_trues(process_size, v_size)
-                    p_zeroing = self.pred_n_trues(size, v_size, "z") if not is_B else self.pred_n_trues(process_size, v_size, "z")
+                    p = (
+                        self.pred_n_trues(size, v_size)
+                        if not is_B
+                        else self.pred_n_trues(process_size, v_size)
+                    )
+                    p_zeroing = (
+                        self.pred_n_trues(size, v_size, "z")
+                        if not is_B
+                        else self.pred_n_trues(process_size, v_size, "z")
+                    )
                     cell_offset = Coords(down=ir * process_size, right=ic)
 
                     # addr = base "pointer" + relative offset in bytes
@@ -289,13 +375,29 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     offset = addr.disp - prev_disp
 
                     # count how many elements we have processed between last step and this step
-                    cont_counter = (offset // mul_vl)
+                    cont_counter = offset // mul_vl
                     larger_max_offset = cont_counter > max_mem_ins_mult
                     non_dividing_offset = offset % mul_vl != 0
 
-                    if larger_max_offset or (prev_overhead and addr.disp > 0) or non_dividing_offset:
-                        offset_comment = f"disp > {max_offset}" if larger_max_offset else ("disp % VL != 0" if non_dividing_offset else "previous mem. instr. used p0")
-                        asm.add(add(addr.disp, additional_regs[0], offset_comment, addr.base))
+                    if (
+                        larger_max_offset
+                        or (prev_overhead and addr.disp > 0)
+                        or non_dividing_offset
+                    ):
+                        offset_comment = (
+                            f"disp > {max_offset}"
+                            if larger_max_offset
+                            else (
+                                "disp % VL != 0"
+                                if non_dividing_offset
+                                else "previous mem. instr. used p0"
+                            )
+                        )
+                        asm.add(
+                            add(
+                                addr.disp, additional_regs[0], offset_comment, addr.base
+                            )
+                        )
                         prev_disp = addr.disp
                         addr.base = additional_regs[0]
                         prev_base = addr.base
@@ -303,26 +405,72 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     # adjust addr.disp to a multiple of a SVE vector's length
                     if prev_base is None:
                         prev_base = addr.base
-                    
+
                     addr.base = prev_base
                     addr.disp = (addr.disp - prev_disp) // mul_vl
 
                     if store:
-                        asm.add(st(registers[ir, ic], addr, True, comment, pred=p, scalar_offs=False,
-                                   add_reg=additional_regs[2]))
+                        asm.add(
+                            st(
+                                registers[ir, ic],
+                                addr,
+                                True,
+                                comment,
+                                pred=p,
+                                scalar_offs=False,
+                                add_reg=additional_regs[2],
+                            )
+                        )
                         # perform prefetching after a store instruction, similar to KNL case
                         if prefetching:
-                            addr, comment = pf_cursor.look(pf_cursor_ptr, block_offset, cell_offset)
+                            addr, comment = pf_cursor.look(
+                                pf_cursor_ptr, block_offset, cell_offset
+                            )
                             addr.disp += self.precision.size() * load_offset
                             if prev_disp > 0:
-                                asm.add(add(prev_disp, additional_regs[3], "increment the prefetch register", addr.base))
-                            asm.add(prefetch(mem(additional_regs[3] if prev_disp > 0 else addr.base, (addr.disp - prev_disp) // mul_vl),
-                                             "", p, prec, access_type="LD", closeness="L2", temporality="KEEP"))
+                                asm.add(
+                                    add(
+                                        prev_disp,
+                                        additional_regs[3],
+                                        "increment the prefetch register",
+                                        addr.base,
+                                    )
+                                )
+                            asm.add(
+                                prefetch(
+                                    mem(
+                                        (
+                                            additional_regs[3]
+                                            if prev_disp > 0
+                                            else addr.base
+                                        ),
+                                        (addr.disp - prev_disp) // mul_vl,
+                                    ),
+                                    "",
+                                    p,
+                                    prec,
+                                    access_type="LD",
+                                    closeness="L2",
+                                    temporality="KEEP",
+                                )
+                            )
                     else:
-                        asm.add(ld(addr, registers[ir, ic], True, comment, pred=p_zeroing, is_B=is_B, scalar_offs=False,
-                                   add_reg=additional_regs[2]))
+                        asm.add(
+                            ld(
+                                addr,
+                                registers[ir, ic],
+                                True,
+                                comment,
+                                pred=p_zeroing,
+                                is_B=is_B,
+                                scalar_offs=False,
+                                add_reg=additional_regs[2],
+                            )
+                        )
 
-                    prev_overhead = p is None or int(p.ugly[1]) == 0  # determine if we previously used p0 (overhead predicate)
+                    prev_overhead = (
+                        p is None or int(p.ugly[1]) == 0
+                    )  # determine if we previously used p0 (overhead predicate)
 
         return asm
 
@@ -337,26 +485,26 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         return asm
 
-    def make_microkernel(self,
-                         A: Cursor,
-                         B: Cursor,
-                         A_ptr: CursorLocation,
-                         B_ptr: CursorLocation,
-                         A_regs: Matrix[Register],
-                         B_regs,
-                         C_regs: Matrix[Register],
-                         v_size: int,
-                         additional_regs,
-                         to_A_block: Coords = Coords(),
-                         to_B_block: Coords = Coords(),
-                         sub: bool = False
-                         ) -> Block:
-
-        """ make_microkernel generates a GEMM microkernel for two blocks using the outer-product formulation.
-          It is responsible for loading and unloading the A block,
-          It does not assume that the A or B cursors point to the start of the block.
-          Instead, the coordinates to the start of the block are passed separately.
-          It does not modify any cursor pointers.
+    def make_microkernel(
+        self,
+        A: Cursor,
+        B: Cursor,
+        A_ptr: CursorLocation,
+        B_ptr: CursorLocation,
+        A_regs: Matrix[Register],
+        B_regs,
+        C_regs: Matrix[Register],
+        v_size: int,
+        additional_regs,
+        to_A_block: Coords = Coords(),
+        to_B_block: Coords = Coords(),
+        sub: bool = False,
+    ) -> Block:
+        """make_microkernel generates a GEMM microkernel for two blocks using the outer-product formulation.
+        It is responsible for loading and unloading the A block,
+        It does not assume that the A or B cursors point to the start of the block.
+        Instead, the coordinates to the start of the block are passed separately.
+        It does not modify any cursor pointers.
         """
 
         asm = block("Block GEMM microkernel")
@@ -365,8 +513,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         bk, bn, bidx, bpattern = B.get_block(B_ptr, to_B_block)
 
         # tell sparse_mask() that we use sve
-        mask = sparse_mask(A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size, True)
-        asm.add(self.move_register_block(A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False))
+        mask = sparse_mask(
+            A_regs, A, A_ptr, to_A_block, B, B_ptr, to_B_block, v_size, True
+        )
+        asm.add(
+            self.move_register_block(
+                A, A_ptr, to_A_block, A_regs, v_size, additional_regs, mask, store=False
+            )
+        )
 
         # x = 0;
         bs = []
@@ -378,7 +532,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # for ld1rd (double prec): immediate offset is multiple of 8 in range of 0 to 504
         # in both cases: instruction encodes the immediate offset within 6 bits
         if not self.inline_broadcast:
-            max_offs = (2 ** 6 - 1) * multiple
+            max_offs = (2**6 - 1) * multiple
             divider = 1
             elem128 = 1
             vk = bk
@@ -388,8 +542,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             elem128 = 16 // self.get_precision().size()
             vk = -(bk // -elem128)
 
-        preg = self.pred_n_trues(elem128, elem128, 'z')
-        preg_last = preg if bk % elem128 == 0 else self.pred_n_trues(bk % elem128, elem128, 'z')
+        preg = self.pred_n_trues(elem128, elem128, "z")
+        preg_last = (
+            preg if bk % elem128 == 0 else self.pred_n_trues(bk % elem128, elem128, "z")
+        )
         firstloc = {}
         for Vmi in range(Vm):
             # set to all v_size predicates to true, we want to replicate a B element into a whole vector
@@ -397,33 +553,68 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                 for bki in range(bk):  # inside this k-block
                     bki_reg = bki // elem128
                     to_bcell = Coords(down=bki, right=bni)
-                    to_acell = Coords(down=Vmi*v_size, right=bki)
+                    to_acell = Coords(down=Vmi * v_size, right=bki)
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell):
                         if (bki_reg, bni) not in firstloc:
                             B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                             firstloc[(bki_reg, bni)] = (B_cell_addr, B_comment)
-                        if A.has_nonzero_cell(A_ptr, to_A_block, to_acell) and B_regs[bki_reg, bni] not in bs:
+                        if (
+                            A.has_nonzero_cell(A_ptr, to_A_block, to_acell)
+                            and B_regs[bki_reg, bni] not in bs
+                        ):
                             p_zeroing = preg_last if bki_reg + 1 == vk else preg
 
                             B_cell_addr = firstloc[(bki_reg, bni)][0]
                             B_comment = firstloc[(bki_reg, bni)][1]
 
                             # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
-                            if B_cell_addr.disp > max_offs or B_cell_addr.disp % divider != 0:
+                            if (
+                                B_cell_addr.disp > max_offs
+                                or B_cell_addr.disp % divider != 0
+                            ):
                                 moved = B_cell_addr.disp - cur11
-                                if moved > 0 and moved <= max_offs and moved % divider == 0:
+                                if (
+                                    moved > 0
+                                    and moved <= max_offs
+                                    and moved % divider == 0
+                                ):
                                     B_cell_addr.disp = moved
                                 else:
-                                    asm.add(add(B_cell_addr.disp, additional_regs[0], "", B_cell_addr.base))
+                                    asm.add(
+                                        add(
+                                            B_cell_addr.disp,
+                                            additional_regs[0],
+                                            "",
+                                            B_cell_addr.base,
+                                        )
+                                    )
                                     cur11 = B_cell_addr.disp
                                     B_cell_addr.disp = 0
 
                                 B_cell_addr.base = additional_regs[0]
-                            
+
                             if not self.inline_broadcast:
-                                asm.add(ld(B_cell_addr, B_regs[bki_reg, bni], True, B_comment, pred=p_zeroing, is_B=True))
+                                asm.add(
+                                    ld(
+                                        B_cell_addr,
+                                        B_regs[bki_reg, bni],
+                                        True,
+                                        B_comment,
+                                        pred=p_zeroing,
+                                        is_B=True,
+                                    )
+                                )
                             else:
-                                asm.add(ld(B_cell_addr, B_regs[bki_reg, bni], True, B_comment, pred=p_zeroing, sub128=True))
+                                asm.add(
+                                    ld(
+                                        B_cell_addr,
+                                        B_regs[bki_reg, bni],
+                                        True,
+                                        B_comment,
+                                        pred=p_zeroing,
+                                        sub128=True,
+                                    )
+                                )
                             bs.append(B_regs[bki_reg, bni])
 
         # TODO: refactor cell_indices into the cursors/blocks
@@ -431,23 +622,37 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         for bki in range(bk):  # inside this k-block
             for Vmi in range(Vm):
                 p_merging = self.pred_n_trues(bm - Vmi * v_size, v_size, "m")
-                end_index = bm if Vmi + 1 == Vm else Vmi * v_size + v_size  # end_index helps us print the right index ranges
+                end_index = (
+                    bm if Vmi + 1 == Vm else Vmi * v_size + v_size
+                )  # end_index helps us print the right index ranges
                 for bni in range(bn):  # inside this n-block
                     to_bcell = Coords(down=bki, right=bni)
-                    to_acell = Coords(down=Vmi*v_size, right=bki)
+                    to_acell = Coords(down=Vmi * v_size, right=bki)
                     bki_reg = bki // elem128
                     if (Vmi, bki_reg, bni) not in cell_indices:
                         cell_indices[(Vmi, bki_reg, bni)] = 0
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
+                    if B.has_nonzero_cell(
+                        B_ptr, to_B_block, to_bcell
+                    ) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
                         _, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         comment = f"C[{Vmi * v_size}:{end_index},{bni}] += A[{Vmi * v_size}:{end_index},{bki}]*{B_comment}"
-                        
+
                         if not self.inline_broadcast:
                             bcast = None
                         else:
                             bcast = cell_indices[(Vmi, bki_reg, bni)]
-                        asm.add(fma(B_regs[bki_reg, bni], A_regs[Vmi, bki], C_regs[Vmi, bni], comment=comment, pred=p_merging, bcast=bcast, sub=sub))
-                    
+                        asm.add(
+                            fma(
+                                B_regs[bki_reg, bni],
+                                A_regs[Vmi, bki],
+                                C_regs[Vmi, bni],
+                                comment=comment,
+                                pred=p_merging,
+                                bcast=bcast,
+                                sub=sub,
+                            )
+                        )
+
                     if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell):
                         cell_indices[(Vmi, bki_reg, bni)] += 1
         return asm

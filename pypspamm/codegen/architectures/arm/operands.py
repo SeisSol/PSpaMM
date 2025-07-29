@@ -48,25 +48,21 @@ class Register_ARM(Register):
     @property
     def ugly(self):
         return self.value
-    
+
     @property
     def ugly_precision(self):
         return self.value.split(".")[1]
-    
+
     @property
     def ugly_lsl_shift(self):
-        return {
-            "d": 3,
-            "s": 2,
-            "h": 1
-        }[self.ugly_precision]
+        return {"d": 3, "s": 2, "h": 1}[self.ugly_precision]
 
     @property
     def clobbered(self):
         if self.value == "xzr":
             return None
         # removed [this comment should stay here for now---in case there's some compiler expecting it]: .replace("x", "r")
-        return (self.value.split(".")[0])
+        return self.value.split(".")[0]
 
     @property
     def ugly_scalar(self):
@@ -75,7 +71,7 @@ class Register_ARM(Register):
     @property
     def ugly_scalar_1d(self):
         return (self.value.split(".")[0]).replace("v", "d")
-    
+
     @property
     def ugly_b32(self):
         return (self.value.split(".")[0]).replace("x", "w")
@@ -91,15 +87,16 @@ class MemoryAddress_ARM(MemoryAddress):
     @property
     def ugly(self):
         return f"[{self.base.ugly}, {self.disp}]"
-    
+
     @property
     def ugly_base(self):
         return f"[{self.base.ugly}]"
-    
+
     @property
     def ugly_offset(self):
         # TODO: is this already dynamic? -> if precision is single, we need LSL #2
         return str(self.disp)
+
 
 def mem(base, offset):
     return MemoryAddress_ARM(base, offset)

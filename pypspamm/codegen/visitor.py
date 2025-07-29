@@ -1,5 +1,6 @@
 from pypspamm.codegen.ast import *
 
+
 class Visitor:
 
     def visitStmt(self, stmt: GenericStmt) -> None:

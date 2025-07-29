@@ -12,6 +12,7 @@ class Constant_RV(Constant):
     def ugly(self):
         return str(self.value)
 
+
 def c(n):
     """Sugar for conveniently defining integer constants"""
     return Constant_RV(value=int(n))
@@ -38,16 +39,12 @@ class Register_RV(Register):
 
     @property
     def ugly_lsl_shift(self):
-        return {
-            "d": 3,
-            "s": 2,
-            "h": 1
-        }[self.ugly_precision]
+        return {"d": 3, "s": 2, "h": 1}[self.ugly_precision]
 
     @property
     def clobbered(self):
         # removed [this comment should stay here for now---in case there's some compiler expecting it]: .replace("x", "r")
-        return (self.value.split(".")[0])
+        return self.value.split(".")[0]
 
     @property
     def ugly_scalar(self):
@@ -55,7 +52,7 @@ class Register_RV(Register):
 
     @property
     def ugly_scalar_1d(self):
-        #turns "Vn.2d" into "Dn"
+        # turns "Vn.2d" into "Dn"
         return (self.value.split(".")[0]).replace("v", "d")
 
 
@@ -63,13 +60,14 @@ x = lambda n: Register_RV(AsmType.i64, "x" + str(n))
 f = lambda n: Register_RV(AsmType.f64, "f" + str(n))
 v = lambda n: Register_RV(AsmType.f64x8, "v" + str(n))
 
+
 class MemoryAddress_RV(MemoryAddress):
     @property
     def ugly(self):
         if self.disp == 0:
-            return f'({self.base.ugly})'
+            return f"({self.base.ugly})"
         else:
-            return f'{self.disp}({self.base.ugly})'
+            return f"{self.disp}({self.base.ugly})"
 
     @property
     def clobbered(self):

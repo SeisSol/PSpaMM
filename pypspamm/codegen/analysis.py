@@ -1,7 +1,8 @@
-from pypspamm.codegen.visitor import Visitor
-from pypspamm.codegen.sugar import *
-
 from typing import List, Set
+
+from pypspamm.codegen.sugar import *
+from pypspamm.codegen.visitor import Visitor
+
 
 class Analyzer:
     def __init__(self, starting_regs: List[Register] = None):

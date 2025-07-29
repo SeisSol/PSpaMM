@@ -1,8 +1,9 @@
 from typing import List
+
 from pypspamm.codegen.ast import *
-from pypspamm.codegen.visitor import Visitor
 from pypspamm.codegen.operands import *
 from pypspamm.codegen.precision import *
+from pypspamm.codegen.visitor import Visitor
 
 
 class InlinePrinter(Visitor):
@@ -16,27 +17,20 @@ class InlinePrinter(Visitor):
     output = None
     stack = None
 
-
     def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
         assert precision in (Precision.SINGLE, Precision.DOUBLE)
         self.precision = precision
-        self.psuffix = {
-            Precision.DOUBLE: "d",
-            Precision.SINGLE: "s"
-        }[precision]
-        self.bpsuffix = {
-            Precision.DOUBLE: "d",
-            Precision.SINGLE: "w"
-        }[precision]
+        self.psuffix = {Precision.DOUBLE: "d", Precision.SINGLE: "s"}[precision]
+        self.bpsuffix = {Precision.DOUBLE: "d", Precision.SINGLE: "w"}[precision]
 
     def show(self):
         print("\n".join(self.output))
 
     def addLine(self, stmt: str, comment: str):
 
-        line = " "*self.lmargin + self.indent*self.depth
+        line = " " * self.lmargin + self.indent * self.depth
 
         if stmt is not None and comment is not None and self.show_comments:
             stmt = '"' + stmt + '\\r\\n"'
@@ -51,16 +45,13 @@ class InlinePrinter(Visitor):
         self.output.append(line)
 
     def prefix(self, register):
-        return {
-            16: "v",
-            32: "xv"
-        }[register.size()]
-    
+        return {16: "v", 32: "xv"}[register.size()]
+
     def iname(self, root, refreg, bp):
         prefix = self.prefix(refreg)
         suffix = self.bpsuffix if bp else self.psuffix
         return f"{prefix}{root}.{suffix}"
-    
+
     def to_addi(self, value):
         ADDILENGTH = 12
         ADDIBLOCK = (1 << ADDILENGTH) - 1
@@ -98,9 +89,9 @@ class InlinePrinter(Visitor):
         a = stmt.dest.ugly
         # check if we broadcast a general register
         if isinstance(stmt.bcast_src, Register):
-            instruction = self.iname('replgr2vr', stmt.dest, True)
+            instruction = self.iname("replgr2vr", stmt.dest, True)
         else:
-            instruction = self.iname('ldrepl', stmt.dest, True)
+            instruction = self.iname("ldrepl", stmt.dest, True)
         s = f"{instruction} {a}, {b}"
         self.addLine(s, stmt.comment)
 
@@ -108,7 +99,9 @@ class InlinePrinter(Visitor):
         if isinstance(stmt.src, Constant) and stmt.src.value == 0:
             # avoid 0 instructions
             return
-        if isinstance(stmt.src, Constant) and (stmt.src.value > 2047 or stmt.src.value < -2048):
+        if isinstance(stmt.src, Constant) and (
+            stmt.src.value > 2047 or stmt.src.value < -2048
+        ):
             # we need an intermediate register here
 
             # TODO: do not hard-code x5 here, make well-defined
@@ -118,18 +111,32 @@ class InlinePrinter(Visitor):
                 addival, luival = self.to_addi(-stmt.src.value)
             else:
                 addival, luival = self.to_addi(stmt.src.value)
-            self.addLine(f"lu12i.w {itmp}, {luival}", f"Intermediate add: place upper 12 bits of {stmt.src.value}")
+            self.addLine(
+                f"lu12i.w {itmp}, {luival}",
+                f"Intermediate add: place upper 12 bits of {stmt.src.value}",
+            )
             if addival != 0:
-                self.addLine(f"addi.d {itmp}, {itmp}, {addival}", f"Intermediate add: place lower 12 bits of {stmt.src.value}")
+                self.addLine(
+                    f"addi.d {itmp}, {itmp}, {addival}",
+                    f"Intermediate add: place lower 12 bits of {stmt.src.value}",
+                )
             if stmt.src.value < 0:
-                self.addLine(f"sub.d {stmt.dest.ugly}, {stmt.dest.ugly}, {tmp}", stmt.comment)
+                self.addLine(
+                    f"sub.d {stmt.dest.ugly}, {stmt.dest.ugly}, {tmp}", stmt.comment
+                )
             else:
-                self.addLine(f"add.d {stmt.dest.ugly}, {stmt.dest.ugly}, {tmp}", stmt.comment)
+                self.addLine(
+                    f"add.d {stmt.dest.ugly}, {stmt.dest.ugly}, {tmp}", stmt.comment
+                )
         else:
             # if stmt.src is a Constant but outside of the above range of value < -2048 or value > 2047
             # we can simply add the Constant to a register
-            accumulate = stmt.dest.ugly if stmt.additional is None else stmt.additional.ugly
-            self.addLine(f"addi.d {stmt.dest.ugly}, {accumulate}, {stmt.src.ugly}", stmt.comment)
+            accumulate = (
+                stmt.dest.ugly if stmt.additional is None else stmt.additional.ugly
+            )
+            self.addLine(
+                f"addi.d {stmt.dest.ugly}, {accumulate}, {stmt.src.ugly}", stmt.comment
+            )
 
     def visitLabel(self, stmt: LabelStmt):
         s = f"{stmt.label.ugly}:"
@@ -145,24 +152,37 @@ class InlinePrinter(Visitor):
     def visitMov(self, stmt: MovStmt):
         if isinstance(stmt.src, Constant):
             if stmt.dest.typeinfo in [AsmType.f64x2, AsmType.f64x4]:
-                assert stmt.src.ugly == '0'
-                self.addLine(f"{self.prefix(stmt.dest)}ldi {stmt.dest.ugly}, {stmt.src.ugly}", stmt.comment)
+                assert stmt.src.ugly == "0"
+                self.addLine(
+                    f"{self.prefix(stmt.dest)}ldi {stmt.dest.ugly}, {stmt.src.ugly}",
+                    stmt.comment,
+                )
             else:
                 if stmt.src.value < 2**12:
-                    self.addLine(f"addi.w {stmt.dest.ugly}, $r0, {stmt.src.value}", stmt.comment)
+                    self.addLine(
+                        f"addi.w {stmt.dest.ugly}, $r0, {stmt.src.value}", stmt.comment
+                    )
                 elif stmt.src.value < 2**32:
                     addival, luival = self.to_addi(stmt.src.value)
-                    self.addLine(f"lu12i.w {stmt.dest.ugly}, {luival}", "Intermediate mov: place upper 12 bits")
+                    self.addLine(
+                        f"lu12i.w {stmt.dest.ugly}, {luival}",
+                        "Intermediate mov: place upper 12 bits",
+                    )
                     if addival != 0:
-                        self.addLine(f"addi.w {stmt.dest.ugly}, {stmt.dest.ugly}, {addival}", stmt.comment)
+                        self.addLine(
+                            f"addi.w {stmt.dest.ugly}, {stmt.dest.ugly}, {addival}",
+                            stmt.comment,
+                        )
                 else:
                     raise NotImplementedError()
         elif isinstance(stmt.src, Register):
             if stmt.dest.typeinfo in [AsmType.f64x2, AsmType.f64x4]:
-                iname = self.iname('replgr2vr', stmt.dest, True)
+                iname = self.iname("replgr2vr", stmt.dest, True)
                 self.addLine(f"{iname} {stmt.dest.ugly}, {stmt.src.ugly}", stmt.comment)
             else:
-                self.addLine(f"addi.w {stmt.dest.ugly}, {stmt.src.ugly}, 0", stmt.comment)
+                self.addLine(
+                    f"addi.w {stmt.dest.ugly}, {stmt.src.ugly}, 0", stmt.comment
+                )
         else:
             raise NotImplementedError()
 
@@ -176,14 +196,14 @@ class InlinePrinter(Visitor):
         # TODO: maybe preldx here?
         s = f"preld {hint}, {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
-    
+
     def visitLoad(self, stmt: LoadStmt):
         if stmt.dest.typeinfo == AsmType.f64:
             s = f"fl{self.ugly_precision} {stmt.dest.ugly}, {stmt.src.ugly}"
         elif stmt.dest.typeinfo == AsmType.i64:
             s = f"ld.d {stmt.dest.ugly}, {stmt.src.ugly}"
         elif stmt.dest.typeinfo in [AsmType.f64x2, AsmType.f64x4] and stmt.aligned:
-            instr = f'{self.prefix(stmt.dest)}ld'
+            instr = f"{self.prefix(stmt.dest)}ld"
             s = f"{instr} {stmt.dest.ugly}, {stmt.src.ugly}"
         else:
             raise NotImplementedError()
@@ -195,7 +215,7 @@ class InlinePrinter(Visitor):
         elif stmt.src.typeinfo == AsmType.i64:
             s = f"st.d {stmt.src.ugly}, {stmt.dest.ugly}"
         elif stmt.src.typeinfo in [AsmType.f64x2, AsmType.f64x4] and stmt.aligned:
-            instr = f'{self.prefix(stmt.src)}st'
+            instr = f"{self.prefix(stmt.src)}st"
             s = f"{instr} {stmt.src.ugly}, {stmt.dest.ugly}"
         else:
             raise NotImplementedError()
@@ -204,7 +224,7 @@ class InlinePrinter(Visitor):
     def visitBlock(self, block: Block):
         self.stack.append(block)
         self.depth += 1
-        if self.show_comments and block.comment != '':
+        if self.show_comments and block.comment != "":
             self.addLine(None, block.comment)
         for stmt in block.contents:
             stmt.accept(self)

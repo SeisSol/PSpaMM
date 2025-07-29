@@ -4,16 +4,16 @@ class Old:
 
         bm = m
         bn = n
-        
+
         if cls.KNL_condition(bm, bn, bk, v_size):
-            while cls.KNL_condition(bm, bn, bk+1, v_size):
+            while cls.KNL_condition(bm, bn, bk + 1, v_size):
                 bk += 1
             return (bm, bn)
 
         while not cls.KNL_condition(bm, bn, bk, v_size):
             bm, bn = cls.lowerToNextDiv(m, n, bm, bn, v_size)
 
-        while cls.KNL_condition(bm, bn, bk+1, v_size):
+        while cls.KNL_condition(bm, bn, bk + 1, v_size):
             bk += 1
 
         return (bm, bn)
@@ -35,7 +35,8 @@ class Old:
     def KNL_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn+bk) * vm  <= 32
+        return (bn + bk) * vm <= 32
+
 
 class Max:
     @classmethod
@@ -45,16 +46,16 @@ class Max:
         bn = 1
         maxval = 0
 
-        for i in range(1, m+1):
+        for i in range(1, m + 1):
             next_multiple = -(i // -v_size)
-            for j in range(1, n+1):
+            for j in range(1, n + 1):
                 if cls.KNL_condition(next_multiple, j, bk, v_size):
-                    if i*j >= maxval:
-                        maxval = i*j
+                    if i * j >= maxval:
+                        maxval = i * j
                         bm = i
-                        bn = j 
-        
-        while cls.KNL_condition(bm, bn, bk+1, v_size):
+                        bn = j
+
+        while cls.KNL_condition(bm, bn, bk + 1, v_size):
             bk += 1
 
         return (bm, bn, bk)
@@ -63,11 +64,12 @@ class Max:
     def KNL_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn+bk) * vm <= 32
+        return (bn + bk) * vm <= 32
 
     @classmethod
     def tileable(cls, m, bm):
         return m % bm == 0
+
 
 class MaxBn:
     @classmethod
@@ -76,11 +78,11 @@ class MaxBn:
         bm = v_size
         bn = 1
 
-        for j in range(1, n+1):
+        for j in range(1, n + 1):
             if cls.KNL_condition(bm, j, bk, v_size):
                 bn = j
 
-        while cls.KNL_condition(bm, bn, bk+1, v_size):
+        while cls.KNL_condition(bm, bn, bk + 1, v_size):
             bk += 1
 
         return (bm, bn, bk)
@@ -89,7 +91,8 @@ class MaxBn:
     def KNL_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn+bk) * vm <= 32
+        return (bn + bk) * vm <= 32
+
 
 class CubeBn:
     @classmethod
@@ -100,11 +103,11 @@ class CubeBn:
 
         maxval = 0
 
-        for j in range(1, n+1):
+        for j in range(1, n + 1):
             for k in range(1, 200):
                 if cls.KNL_condition(bm, j, k, v_size):
-                    if j*k >= maxval:
-                        maxval = j*k
+                    if j * k >= maxval:
+                        maxval = j * k
                         bn = j
                         bk = k
 
@@ -114,6 +117,7 @@ class CubeBn:
     def KNL_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn+bk) * vm <= 32
+        return (bn + bk) * vm <= 32
+
 
 Default = MaxBn

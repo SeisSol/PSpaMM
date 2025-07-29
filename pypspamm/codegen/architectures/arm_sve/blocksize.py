@@ -18,9 +18,11 @@ class Max:
                         bn = j
 
         if maxval == 0:
-            raise RuntimeError("Could not find an appropriate block size. We suggest padding the matrix dimensions")
+            raise RuntimeError(
+                "Could not find an appropriate block size. We suggest padding the matrix dimensions"
+            )
 
-        while cls.ARM_condition(bm, bn, bk+1, v_size):
+        while cls.ARM_condition(bm, bn, bk + 1, v_size):
             bk += 1
 
         return (bm, bn, bk)
@@ -28,12 +30,13 @@ class Max:
     @classmethod
     def ARM_condition(cls, bm, bn, bk, v_size):
         # ceiling division
-        vm = -(bm // -v_size)  
-        return (bn + bk) * vm + bn*bk <= 32
+        vm = -(bm // -v_size)
+        return (bn + bk) * vm + bn * bk <= 32
 
     @classmethod
     def tileable(cls, m, bm):
         return m % bm == 0
+
 
 class MaxK:
     @classmethod
@@ -55,9 +58,11 @@ class MaxK:
                         bn = j
 
         if maxval == 0:
-            raise RuntimeError("Could not find an appropriate block size. We suggest padding the matrix dimensions")
+            raise RuntimeError(
+                "Could not find an appropriate block size. We suggest padding the matrix dimensions"
+            )
 
-        while cls.ARM_condition(bm, bn, bk+1, v_size, elem128):
+        while cls.ARM_condition(bm, bn, bk + 1, v_size, elem128):
             bk += 1
 
         return (bm, bn, bk)
@@ -66,14 +71,15 @@ class MaxK:
     def ARM_condition(cls, bm, bn, bk, v_size, elem128):
         # ceiling division
         vkext = -(bk // -elem128)
-        isvkext = bn*vkext <= 16 if elem128 == 2 else bn*vkext <= 8
+        isvkext = bn * vkext <= 16 if elem128 == 2 else bn * vkext <= 8
         vm = -(bm // -v_size)
         vk = vkext if isvkext else bk
-        return (bn + bk) * vm + bn*vk <= 32
+        return (bn + bk) * vm + bn * vk <= 32
 
     @classmethod
     def tileable(cls, m, bm):
         return m % bm == 0
+
 
 class Cube:
     @classmethod
@@ -97,7 +103,9 @@ class Cube:
                             bk = k
 
         if maxval == 0:
-            raise RuntimeError("Could not find an appropriate block size. We suggest padding the matrix dimensions")
+            raise RuntimeError(
+                "Could not find an appropriate block size. We suggest padding the matrix dimensions"
+            )
 
         return (bm, bn, bk)
 
@@ -105,13 +113,14 @@ class Cube:
     def ARM_condition(cls, bm, bn, bk, v_size, elem128):
         # ceiling division
         vkext = -(bk // -elem128)
-        isvkext = bn*vkext <= 16 if elem128 == 2 else bn*vkext <= 8
+        isvkext = bn * vkext <= 16 if elem128 == 2 else bn * vkext <= 8
         vm = -(bm // -v_size)
         vk = vkext if isvkext else bk
-        return (bn + bk) * vm + bn*vk <= 32
+        return (bn + bk) * vm + bn * vk <= 32
 
     @classmethod
     def tileable(cls, m, bm):
         return m % bm == 0
+
 
 Default = MaxK

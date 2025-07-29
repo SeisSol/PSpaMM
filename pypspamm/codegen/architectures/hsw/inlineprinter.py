@@ -1,8 +1,9 @@
 from typing import List
+
 from pypspamm.codegen.ast import *
-from pypspamm.codegen.visitor import Visitor
 from pypspamm.codegen.operands import *
 from pypspamm.codegen.precision import *
+from pypspamm.codegen.visitor import Visitor
 
 
 class InlinePrinter(Visitor):
@@ -16,27 +17,20 @@ class InlinePrinter(Visitor):
     output = None
     stack = None
 
-
     def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
         assert precision in (Precision.SINGLE, Precision.DOUBLE)
         self.precision = precision
-        self.psuffix = {
-            Precision.DOUBLE: "d",
-            Precision.SINGLE: "s"
-        }[precision]
-        self.bpsuffix = {
-            Precision.DOUBLE: "q",
-            Precision.SINGLE: "d"
-        }[precision]
+        self.psuffix = {Precision.DOUBLE: "d", Precision.SINGLE: "s"}[precision]
+        self.bpsuffix = {Precision.DOUBLE: "q", Precision.SINGLE: "d"}[precision]
 
     def show(self):
         print("\n".join(self.output))
 
     def addLine(self, stmt: str, comment: str):
 
-        line = " "*self.lmargin + self.indent*self.depth
+        line = " " * self.lmargin + self.indent * self.depth
 
         if stmt is not None and comment is not None and self.show_comments:
             stmt = '"' + stmt + '\\r\\n"'
@@ -76,7 +70,11 @@ class InlinePrinter(Visitor):
             # reformat bcast_src to be a memory address
             b = f"0({b})"
         regsize = stmt.dest.size()
-        instruction = "vmovddup" if self.precision == Precision.DOUBLE and regsize == 16 else f"vbroadcasts{self.psuffix}"
+        instruction = (
+            "vmovddup"
+            if self.precision == Precision.DOUBLE and regsize == 16
+            else f"vbroadcasts{self.psuffix}"
+        )
         s = f"{instruction} {b}, {a}"
         self.addLine(s, stmt.comment)
 
@@ -88,7 +86,7 @@ class InlinePrinter(Visitor):
         self.addLine(s, stmt.comment)
 
     def visitLabel(self, stmt: LabelStmt):
-        self.addLine('.align 16', 'Align label')
+        self.addLine(".align 16", "Align label")
         s = f"{stmt.label.ugly}:"
         self.addLine(s, stmt.comment)
 
@@ -114,21 +112,40 @@ class InlinePrinter(Visitor):
                 s = f"vxorps {stmt.dest.ugly_xmm}, {stmt.dest.ugly_xmm}, {stmt.dest.ugly_xmm}"
                 self.addLine(s, stmt.comment)
             elif stmt.pred is not None:
-                self.addLine(f"vpxor {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly}", "")
-                self.addLine(f"vpblendd {src_str}, {stmt.dest.ugly}, {stmt.pred}, {stmt.dest.ugly}", "")
+                self.addLine(
+                    f"vpxor {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly}", ""
+                )
+                self.addLine(
+                    f"vpblendd {src_str}, {stmt.dest.ugly}, {stmt.pred}, {stmt.dest.ugly}",
+                    "",
+                )
             elif stmt.expand:
                 # TODO: unfinished
-                self.addLine(f"vpxor {stmt.temp.ugly}, {stmt.temp.ugly}, {stmt.temp.ugly}")
+                self.addLine(
+                    f"vpxor {stmt.temp.ugly}, {stmt.temp.ugly}, {stmt.temp.ugly}"
+                )
                 regsize = stmt.dest.size()
                 if self.precision == Precision.SINGLE and regsize == 32:
                     self.addLine(f"vmovq {stmt.pred.ugly}, {stmt.dest.ugly_xmm}", "")
-                    self.addLine(f"vpmovzxb{self.bpsuffix} {stmt.dest.ugly_xmm}, {stmt.dest.ugly}", "")
-                    self.addLine(f"vpermd {src_str}, {stmt.dest.ugly}, {stmt.dest.ugly}", "")
+                    self.addLine(
+                        f"vpmovzxb{self.bpsuffix} {stmt.dest.ugly_xmm}, {stmt.dest.ugly}",
+                        "",
+                    )
+                    self.addLine(
+                        f"vpermd {src_str}, {stmt.dest.ugly}, {stmt.dest.ugly}", ""
+                    )
                 elif regsize == 16:
-                    self.addLine(f"vpermilps {src_str}, MISSING_PREDICATE, {stmt.dest.ugly}", "")
+                    self.addLine(
+                        f"vpermilps {src_str}, MISSING_PREDICATE, {stmt.dest.ugly}", ""
+                    )
                 elif self.precision == Precision.DOUBLE:
-                    self.addLine(f"vpermpd {src_str}, MISSING_PREDICATE, {stmt.dest.ugly}", "")
-                self.addLine(f"vpblendd {stmt.temp.ugly}, {stmt.dest.ugly}, MISSING_PREDICATE, {stmt.dest.ugly}", "")
+                    self.addLine(
+                        f"vpermpd {src_str}, MISSING_PREDICATE, {stmt.dest.ugly}", ""
+                    )
+                self.addLine(
+                    f"vpblendd {stmt.temp.ugly}, {stmt.dest.ugly}, MISSING_PREDICATE, {stmt.dest.ugly}",
+                    "",
+                )
             else:
                 s = f"vmovup{self.psuffix} {src_str}, {stmt.dest.ugly}"
                 self.addLine(s, stmt.comment)
@@ -152,7 +169,7 @@ class InlinePrinter(Visitor):
     def visitBlock(self, block: Block):
         self.stack.append(block)
         self.depth += 1
-        if self.show_comments and block.comment != '':
+        if self.show_comments and block.comment != "":
             self.addLine(None, block.comment)
         for stmt in block.contents:
             stmt.accept(self)

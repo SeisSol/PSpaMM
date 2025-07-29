@@ -1,8 +1,9 @@
 from typing import List
+
 from pypspamm.codegen.ast import *
-from pypspamm.codegen.visitor import Visitor
 from pypspamm.codegen.operands import *
 from pypspamm.codegen.precision import *
+from pypspamm.codegen.visitor import Visitor
 
 
 class InlinePrinter(Visitor):
@@ -16,7 +17,6 @@ class InlinePrinter(Visitor):
     output = None
     stack = None
 
-
     def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
@@ -26,10 +26,9 @@ class InlinePrinter(Visitor):
     def show(self):
         print("\n".join(self.output))
 
-
     def addLine(self, stmt: str, comment: str):
 
-        line = " "*self.lmargin + self.indent*self.depth
+        line = " " * self.lmargin + self.indent * self.depth
 
         if stmt is not None and comment is not None and self.show_comments:
             stmt = '"' + stmt + '\\r\\n"'
@@ -42,8 +41,6 @@ class InlinePrinter(Visitor):
             line += "// " + comment
 
         self.output.append(line)
-
-
 
     def visitFma(self, stmt: FmaStmt):
         b = stmt.bcast_src.ugly
@@ -65,7 +62,11 @@ class InlinePrinter(Visitor):
         self.addLine(s, stmt.comment)
 
     def visitBcst(self, stmt: BcstStmt):
-        b = stmt.bcast_src.ugly if self.precision == Precision.DOUBLE else stmt.bcast_src.ugly_b32
+        b = (
+            stmt.bcast_src.ugly
+            if self.precision == Precision.DOUBLE
+            else stmt.bcast_src.ugly_b32
+        )
         a = stmt.dest.ugly
         s = f"dup {a}, {b}"
         self.addLine(s, stmt.comment)
@@ -74,25 +75,35 @@ class InlinePrinter(Visitor):
         if isinstance(stmt.src, Constant) and stmt.src.value == 0:
             # avoid 0 instructions
             return
-        if isinstance(stmt.src, Constant) and (stmt.src.value > 4095 or stmt.src.value < -4095):
+        if isinstance(stmt.src, Constant) and (
+            stmt.src.value > 4095 or stmt.src.value < -4095
+        ):
             if (stmt.src.value >> 16) & 0xFFFF > 0 and stmt.src.value < 0:
                 s = "mov x11, #-1"
                 val1 = (stmt.src.value) & 0xFFFF
                 s1 = f"movk x11, #{val1}"
-                val2 = ((stmt.src.value >> 16) & 0xFFFF)
+                val2 = (stmt.src.value >> 16) & 0xFFFF
                 s2 = f"movk x11, #{val2}, lsl #16"
 
                 self.addLine(s, "")
-                self.addLine(s1, "load lower 16 bit of immediate that requires more than 16 bit")
-                self.addLine(s2, "load upper 16 bit of immediate that requires more than 16 bit")
+                self.addLine(
+                    s1, "load lower 16 bit of immediate that requires more than 16 bit"
+                )
+                self.addLine(
+                    s2, "load upper 16 bit of immediate that requires more than 16 bit"
+                )
 
             elif (stmt.src.value >> 16) & 0xFFFF:
                 val1 = (stmt.src.value) & 0xFFFF
                 s1 = f"mov x11, #{val1}"
-                val2 = ((stmt.src.value >> 16) & 0xFFFF)
+                val2 = (stmt.src.value >> 16) & 0xFFFF
                 s2 = f"movk x11, #{val2}, lsl #16"
-                self.addLine(s1, "load lower 16 bit of immediate that requires more than 16 bit")
-                self.addLine(s2, "load upper 16 bit of immediate that requires more than 16 bit")
+                self.addLine(
+                    s1, "load lower 16 bit of immediate that requires more than 16 bit"
+                )
+                self.addLine(
+                    s2, "load upper 16 bit of immediate that requires more than 16 bit"
+                )
             else:
                 s = f"mov x11, {stmt.src.ugly}"
                 self.addLine(s, "load lower 16 bit of immediate ")
@@ -131,7 +142,6 @@ class InlinePrinter(Visitor):
             s = f"mov {stmt.dest.ugly}, {src_str}"
         self.addLine(s, stmt.comment)
 
-
     def visitLoad(self, stmt: LoadStmt):
         if isinstance(stmt.src, Label):
             src_str = "#" + stmt.src.ugly
@@ -142,10 +152,10 @@ class InlinePrinter(Visitor):
             s = f"ldr {stmt.dest.ugly}, {src_str}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if stmt.dest4 is not None:
-                dispadd = '' if stmt.src.disp == 0 else f', {stmt.src.disp}'
+                dispadd = "" if stmt.src.disp == 0 else f", {stmt.src.disp}"
                 s = f"ld1 {{ {stmt.dest.ugly},{stmt.dest2.ugly},{stmt.dest3.ugly},{stmt.dest4.ugly} }}, {stmt.src.ugly_base}{dispadd}"
             elif stmt.dest3 is not None:
-                dispadd = '' if stmt.src.disp == 0 else f', {stmt.src.disp}'
+                dispadd = "" if stmt.src.disp == 0 else f", {stmt.src.disp}"
                 s = f"ld1 {{ {stmt.dest.ugly},{stmt.dest2.ugly},{stmt.dest3.ugly} }}, {stmt.src.ugly_base}{dispadd}"
             elif stmt.dest2 is not None:
                 s = f"ldp {stmt.dest.ugly_scalar}, {stmt.dest2.ugly_scalar}, {src_str}"
@@ -154,7 +164,6 @@ class InlinePrinter(Visitor):
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
-
 
     def visitStore(self, stmt: StoreStmt):
         if isinstance(stmt.src, Label):
@@ -166,10 +175,10 @@ class InlinePrinter(Visitor):
             s = f"str {src_str}, {stmt.dest.ugly}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if stmt.src4 is not None:
-                dispadd = '' if stmt.dest.disp == 0 else f', {stmt.dest.disp}'
+                dispadd = "" if stmt.dest.disp == 0 else f", {stmt.dest.disp}"
                 s = f"ld1 {{ {stmt.src.ugly},{stmt.src2.ugly},{stmt.src3.ugly},{stmt.src4.ugly} }}, {stmt.dest.ugly_base}{dispadd}"
             elif stmt.src3 is not None:
-                dispadd = '' if stmt.dest.disp == 0 else f', {stmt.dest.disp}'
+                dispadd = "" if stmt.dest.disp == 0 else f", {stmt.dest.disp}"
                 s = f"ld1 {{ {stmt.src.ugly},{stmt.src2.ugly},{stmt.src3.ugly} }}, {stmt.dest.ugly_base}{dispadd}"
             elif stmt.src2 is not None:
                 s = f"stp {stmt.src.ugly_scalar}, {stmt.src2.ugly_scalar}, {stmt.dest.ugly}"
@@ -178,13 +187,13 @@ class InlinePrinter(Visitor):
         else:
             raise NotImplementedError()
         self.addLine(s, stmt.comment)
-    
+
     def visitPrefetch(self, stmt: PrefetchStmt):
         cache_level = stmt.closeness
         temporality = stmt.temporality
         src_string = stmt.dest.ugly
 
-        s = f'prfm P{stmt.access_type}{cache_level}{temporality}, {src_string}'
+        s = f"prfm P{stmt.access_type}{cache_level}{temporality}, {src_string}"
         self.addLine(s, stmt.comment)
 
     def visitBlock(self, block: Block):

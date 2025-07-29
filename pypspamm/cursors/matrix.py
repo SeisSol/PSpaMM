@@ -1,16 +1,17 @@
-
-
 # Need a native Python matrix type.
 # Lists of lists are too cumbersome, and scipy does not understand typing.
 # Also don't want to introduce a hard dependence on scipy if not necessary.
 
-from typing import TypeVar, Generic, Union, Tuple, List, overload, Any
-from scipy.sparse import csc_matrix
-from scipy.io import mmread, mmwrite
-import numpy as np
 import random
+from typing import Any, Generic, List, Tuple, TypeVar, Union, overload
 
-T = TypeVar('T')
+import numpy as np
+from scipy.io import mmread, mmwrite
+from scipy.sparse import csc_matrix
+
+T = TypeVar("T")
+
+
 class Matrix(Generic[T]):
 
     def __init__(self, data):
@@ -23,16 +24,16 @@ class Matrix(Generic[T]):
         self.cols = self.shape[1]
 
     @classmethod
-    def full(cls, rows:int, cols:int, initial_value:T):
+    def full(cls, rows: int, cols: int, initial_value: T):
         """Create a brand new matrix of given size"""
-        return cls(np.full((rows,cols), initial_value))
+        return cls(np.full((rows, cols), initial_value))
 
     def __repr__(self):
         col_str = []
         for ri in range(self.rows):
             row_str = []
             for ci in range(self.cols):
-                row_str.append(str(self._underlying[ri,ci]).rjust(8))
+                row_str.append(str(self._underlying[ri, ci]).rjust(8))
             col_str.append("".join(row_str))
         return "\n".join(col_str)
 
@@ -40,11 +41,11 @@ class Matrix(Generic[T]):
         return (self._underlying == other._underlying).all()
 
     @overload
-    def __getitem__(self, t: Tuple[slice,slice]) -> "Matrix[T]":
+    def __getitem__(self, t: Tuple[slice, slice]) -> "Matrix[T]":
         pass
 
     @overload
-    def __getitem__(self, t: Tuple[int,int]) -> T:
+    def __getitem__(self, t: Tuple[int, int]) -> T:
         pass
 
     def __getitem__(self, t) -> Union[T, "Matrix[T]"]:
@@ -54,7 +55,7 @@ class Matrix(Generic[T]):
         else:
             return result
 
-    def __setitem__(self, cell:Tuple[int,int], value:T):
+    def __setitem__(self, cell: Tuple[int, int], value: T):
         self._underlying[cell] = value
 
     def __or__(self, other):
@@ -68,12 +69,17 @@ class Matrix(Generic[T]):
 
     def nnz(self, axis=None) -> Union[int, List[int]]:
         if axis is None:
-            return sum(self[r,c] != 0 for r in range(self.rows)
-                                      for c in range(self.cols))
+            return sum(
+                self[r, c] != 0 for r in range(self.rows) for c in range(self.cols)
+            )
         if axis == 1:
-            return [sum(self[r,c] != 0 for r in range(self.rows)) for c in range(self.cols)]
+            return [
+                sum(self[r, c] != 0 for r in range(self.rows)) for c in range(self.cols)
+            ]
         if axis == 0:
-            return [sum(self[r,c] != 0 for c in range(self.cols)) for r in range(self.rows)]
+            return [
+                sum(self[r, c] != 0 for c in range(self.cols)) for r in range(self.rows)
+            ]
 
     @classmethod
     def load_pattern(cls, filename) -> "Matrix[bool]":

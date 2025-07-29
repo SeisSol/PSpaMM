@@ -1,8 +1,9 @@
 from typing import List
+
 from pypspamm.codegen.ast import *
-from pypspamm.codegen.visitor import Visitor
 from pypspamm.codegen.operands import *
 from pypspamm.codegen.precision import *
+from pypspamm.codegen.visitor import Visitor
 
 
 class InlinePrinter(Visitor):
@@ -16,23 +17,27 @@ class InlinePrinter(Visitor):
     output = None
     stack = None
 
-
     def __init__(self, precision: Precision):
         self.output = []
         self.stack = []
-        assert precision in (Precision.BFLOAT16, Precision.HALF, Precision.SINGLE, Precision.DOUBLE)
+        assert precision in (
+            Precision.BFLOAT16,
+            Precision.HALF,
+            Precision.SINGLE,
+            Precision.DOUBLE,
+        )
         self.precision = precision
         self.psuffix = {
-            Precision.DOUBLE: 'd',
-            Precision.SINGLE: 's',
-            Precision.HALF: 'h',
-            Precision.BFLOAT16: 'h'
+            Precision.DOUBLE: "d",
+            Precision.SINGLE: "s",
+            Precision.HALF: "h",
+            Precision.BFLOAT16: "h",
         }[precision]
         self.alupsuffix = {
-            Precision.DOUBLE: 'pd',
-            Precision.SINGLE: 'ps',
-            Precision.HALF: 'ph',
-            Precision.BFLOAT16: 'nepbf16'
+            Precision.DOUBLE: "pd",
+            Precision.SINGLE: "ps",
+            Precision.HALF: "ph",
+            Precision.BFLOAT16: "nepbf16",
         }[precision]
         self.bpsuffix = {
             Precision.DOUBLE: "q",
@@ -44,16 +49,15 @@ class InlinePrinter(Visitor):
             Precision.DOUBLE: 2,
             Precision.SINGLE: 4,
             Precision.HALF: 8,
-            Precision.BFLOAT16: 8
+            Precision.BFLOAT16: 8,
         }[precision]
 
     def show(self):
         print("\n".join(self.output))
 
-
     def addLine(self, stmt: str, comment: str):
 
-        line = " "*self.lmargin + self.indent*self.depth
+        line = " " * self.lmargin + self.indent * self.depth
 
         if stmt is not None and comment is not None and self.show_comments:
             stmt = '"' + stmt + '\\r\\n"'
@@ -67,13 +71,13 @@ class InlinePrinter(Visitor):
 
         self.output.append(line)
 
-    def maskformat(self, pred, ignoreZero = False):
+    def maskformat(self, pred, ignoreZero=False):
         if pred is None:
-            return ''
+            return ""
         elif pred.zero and not ignoreZero:
-            return f'%{{{pred.register.ugly}%}}%{{z%}}'
+            return f"%{{{pred.register.ugly}%}}%{{z%}}"
         else:
-            return f'%{{{pred.register.ugly}%}}'
+            return f"%{{{pred.register.ugly}%}}"
 
     def visitFma(self, stmt: FmaStmt):
         mask = self.maskformat(stmt.pred)
@@ -113,9 +117,9 @@ class InlinePrinter(Visitor):
         a = stmt.dest.ugly
         regsize = stmt.dest.size()
         if self.precision == Precision.HALF or self.precision == Precision.BFLOAT16:
-            instruction = 'vpbroadcastw'
+            instruction = "vpbroadcastw"
         elif self.precision == Precision.DOUBLE and regsize == 16:
-            instruction = 'vmovddup'
+            instruction = "vmovddup"
         else:
             instruction = f"vbroadcasts{self.psuffix}"
         s = f"{instruction} {b}, {a} {mask}"
@@ -125,13 +129,13 @@ class InlinePrinter(Visitor):
         if isinstance(stmt.src, Constant) and stmt.src.value == 0:
             # avoid 0 instructions
             return
-        
+
         # only used for scalar addition right now
         s = f"addq {stmt.src.ugly}, {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
 
     def visitLabel(self, stmt: LabelStmt):
-        self.addLine('.align 16', 'Align label')
+        self.addLine(".align 16", "Align label")
         s = f"{stmt.label.ugly}:"
         self.addLine(s, stmt.comment)
 
@@ -153,15 +157,15 @@ class InlinePrinter(Visitor):
             src_str = stmt.src.ugly
 
         if stmt.typ == AsmType.i64:
-            assert(stmt.pred == None)
+            assert stmt.pred == None
             # FIXME: no hack
-            if stmt.dest.ugly[2] == 'k':
+            if stmt.dest.ugly[2] == "k":
                 s = f"kmovq {src_str}, {stmt.dest.ugly}"
             else:
                 s = f"movq {src_str}, {stmt.dest.ugly}"
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
             if isinstance(stmt.src, Constant) and stmt.src.value == 0:
-                suffix = 'd' if self.bpsuffix == 'w' else self.bpsuffix
+                suffix = "d" if self.bpsuffix == "w" else self.bpsuffix
                 s = f"vpxor{suffix} {stmt.dest.ugly}, {stmt.dest.ugly}, {stmt.dest.ugly} {mask}"
             elif stmt.expand:
                 if isinstance(stmt.src, MemoryAddress):
@@ -169,7 +173,7 @@ class InlinePrinter(Visitor):
                 else:
                     s = f"vpcompress{self.bpsuffix} {src_str}, {stmt.dest.ugly} {mask}"
             else:
-                if self.bpsuffix == 'w' and stmt.pred is not None:
+                if self.bpsuffix == "w" and stmt.pred is not None:
                     instr = "vmovsh"
                 else:
                     instr = f"vmovup{self.psuffix}"
@@ -198,7 +202,7 @@ class InlinePrinter(Visitor):
     def visitBlock(self, block: Block):
         self.stack.append(block)
         self.depth += 1
-        if self.show_comments and block.comment != '':
+        if self.show_comments and block.comment != "":
             self.addLine(None, block.comment)
         for stmt in block.contents:
             stmt.accept(self)

@@ -1,11 +1,10 @@
-
 class RegisterCache:
     def __init__(self, registers):
         self.access = 0
         self.lru = [-1] * len(registers)
         self.registers = registers
         self.storage = {}
-    
+
     def get(self, value):
         self.access += 1
 

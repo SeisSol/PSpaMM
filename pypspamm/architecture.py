@@ -1,5 +1,6 @@
 from importlib import import_module
 
+
 def init():
     global arch
     global generator
@@ -8,5 +9,6 @@ def init():
     generator = None
     operands = None
 
-def get_class( kls ):
+
+def get_class(kls):
     return import_module(kls)

@@ -1,8 +1,9 @@
 from .operands import Register
 
+
 class VirtualRegister(Register):
     def __init__(self, typeinfo, pool):
-        super().__init__(typeinfo, '')
+        super().__init__(typeinfo, "")
         self.register = None
         self.pool = pool
 
@@ -16,29 +17,42 @@ class VirtualRegister(Register):
 
     @property
     def ugly(self):
-        return self.register.ugly if self.register is not None else f'vreg{id(self)}'
-    
+        return self.register.ugly if self.register is not None else f"vreg{id(self)}"
+
     @property
     def ugly_scalar_1d(self):
-        return self.register.ugly_scalar_1d if self.register is not None else f'vreg{id(self)}'
-    
+        return (
+            self.register.ugly_scalar_1d
+            if self.register is not None
+            else f"vreg{id(self)}"
+        )
+
     @property
     def ugly_scalar(self):
-        return self.register.ugly_scalar if self.register is not None else f'vreg{id(self)}'
-    
+        return (
+            self.register.ugly_scalar
+            if self.register is not None
+            else f"vreg{id(self)}"
+        )
+
     @property
     def ugly_xmm(self):
-        return self.register.ugly_xmm if self.register is not None else f'vreg{id(self)}'
-    
+        return (
+            self.register.ugly_xmm if self.register is not None else f"vreg{id(self)}"
+        )
+
     @property
     def clobbered(self):
-        return self.register.clobbered if self.register is not None else f'vreg{id(self)}'
-    
+        return (
+            self.register.clobbered if self.register is not None else f"vreg{id(self)}"
+        )
+
     def firstUsage(self):
         return None if len(self.usage) == 0 else self.usage[0]
-    
+
     def lastUsage(self):
         return None if len(self.usage) == 0 else self.usage[-1]
+
 
 class RegisterPool:
     def __init__(self, registers):
@@ -56,11 +70,13 @@ class RegisterPool:
                     if vreg.lastUsage() is instr:
                         unlive.append(vreg.register)
 
+
 def usagePass(asm):
     for instruction in asm.flatten():
         for reg in instruction.regs():
             if isinstance(reg, VirtualRegister):
                 reg.usage += [instruction]
+
 
 def assignVirtualRegisters(asm, pools):
     usagePass(asm)

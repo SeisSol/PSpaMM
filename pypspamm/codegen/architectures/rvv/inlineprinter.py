@@ -1,8 +1,9 @@
 from typing import List
+
 from pypspamm.codegen.ast import *
-from pypspamm.codegen.visitor import Visitor
 from pypspamm.codegen.operands import *
 from pypspamm.codegen.precision import *
+from pypspamm.codegen.visitor import Visitor
 
 
 class InlinePrinter(Visitor):
@@ -26,7 +27,12 @@ class InlinePrinter(Visitor):
             Precision.BFLOAT16: "h",
         }[self.precision]
 
-        assert precision in (Precision.BFLOAT16, Precision.HALF, Precision.SINGLE, Precision.DOUBLE)
+        assert precision in (
+            Precision.BFLOAT16,
+            Precision.HALF,
+            Precision.SINGLE,
+            Precision.DOUBLE,
+        )
 
     def to_addi(self, value):
         ADDILENGTH = 12
@@ -103,7 +109,9 @@ class InlinePrinter(Visitor):
         if isinstance(stmt.src, Constant) and stmt.src.value == 0:
             # avoid 0 instructions
             return
-        if isinstance(stmt.src, Constant) and (stmt.src.value > 2047 or stmt.src.value < -2048):
+        if isinstance(stmt.src, Constant) and (
+            stmt.src.value > 2047 or stmt.src.value < -2048
+        ):
             # we need an intermediate register here
 
             # TODO: do not hard-code x5 here, make well-defined
@@ -113,18 +121,32 @@ class InlinePrinter(Visitor):
                 addival, luival = self.to_addi(-stmt.src.value)
             else:
                 addival, luival = self.to_addi(stmt.src.value)
-            self.addLine(f"lui {itmp}, {luival}", f"Intermediate add: place upper 12 bits of {stmt.src.value}")
+            self.addLine(
+                f"lui {itmp}, {luival}",
+                f"Intermediate add: place upper 12 bits of {stmt.src.value}",
+            )
             if addival != 0:
-                self.addLine(f"addi {itmp}, {itmp}, {addival}", f"Intermediate add: place lower 12 bits of {stmt.src.value}")
+                self.addLine(
+                    f"addi {itmp}, {itmp}, {addival}",
+                    f"Intermediate add: place lower 12 bits of {stmt.src.value}",
+                )
             if stmt.src.value < 0:
-                self.addLine(f"sub {stmt.dest.ugly}, {stmt.dest.ugly}, {tmp}", stmt.comment)
+                self.addLine(
+                    f"sub {stmt.dest.ugly}, {stmt.dest.ugly}, {tmp}", stmt.comment
+                )
             else:
-                self.addLine(f"add {stmt.dest.ugly}, {stmt.dest.ugly}, {tmp}", stmt.comment)
+                self.addLine(
+                    f"add {stmt.dest.ugly}, {stmt.dest.ugly}, {tmp}", stmt.comment
+                )
         else:
             # if stmt.src is a Constant but outside of the above range of value < -2048 or value > 2047
             # we can simply add the Constant to a register
-            accumulate = stmt.dest.ugly if stmt.additional is None else stmt.additional.ugly
-            self.addLine(f"addi {stmt.dest.ugly}, {accumulate}, {stmt.src.ugly}", stmt.comment)
+            accumulate = (
+                stmt.dest.ugly if stmt.additional is None else stmt.additional.ugly
+            )
+            self.addLine(
+                f"addi {stmt.dest.ugly}, {accumulate}, {stmt.src.ugly}", stmt.comment
+            )
 
     def visitLabel(self, stmt: LabelStmt):
         s = f"{stmt.label.ugly}:"
@@ -143,12 +165,20 @@ class InlinePrinter(Visitor):
                 self.addLine(f"vmv.v.i {stmt.dest.ugly}, {stmt.src.ugly}", stmt.comment)
             else:
                 if stmt.src.value < 2**12:
-                    self.addLine(f"addi {stmt.dest.ugly}, x0, {stmt.src.value}", stmt.comment)
+                    self.addLine(
+                        f"addi {stmt.dest.ugly}, x0, {stmt.src.value}", stmt.comment
+                    )
                 elif stmt.src.value < 2**32:
                     addival, luival = self.to_addi(stmt.src.value)
-                    self.addLine(f"lui {stmt.dest.ugly}, {luival}", "Intermediate mov: place upper 12 bits")
+                    self.addLine(
+                        f"lui {stmt.dest.ugly}, {luival}",
+                        "Intermediate mov: place upper 12 bits",
+                    )
                     if addival != 0:
-                        self.addLine(f"addi {stmt.dest.ugly}, {stmt.dest.ugly}, {addival}", stmt.comment)
+                        self.addLine(
+                            f"addi {stmt.dest.ugly}, {stmt.dest.ugly}, {addival}",
+                            stmt.comment,
+                        )
                 else:
                     raise NotImplementedError()
         elif isinstance(stmt.src, Register):
@@ -188,11 +218,11 @@ class InlinePrinter(Visitor):
         self.addLine(s, stmt.comment)
 
     def visitPrefetch(self, stmt: PrefetchStmt):
-        s = f'prefetch.r {stmt.dest.ugly}'
+        s = f"prefetch.r {stmt.dest.ugly}"
         self.addLine(s, stmt.comment)
-    
+
     def visitRVSetVLStmt(self, stmt: RVSetVLStmt):
-        opcode = 'setivli' if isinstance(stmt.requested, Constant) else 'setvli'
+        opcode = "setivli" if isinstance(stmt.requested, Constant) else "setvli"
         s = f"v{opcode} {stmt.actual.ugly}, {stmt.requested.ugly}, e{self.precision.size() * 8}"
         self.addLine(s, stmt.comment)
 
@@ -209,7 +239,7 @@ class InlinePrinter(Visitor):
     def p_string(self, predicate: Register):
         # returns "pk{/z or /m}, " or an empty string "" with contents in {} being optional
         # at this point the contents are already generated, we simply turn them into a string
-        return f', {predicate}' if predicate is not None else ""
+        return f", {predicate}" if predicate is not None else ""
 
 
 def render(s: AsmStmt):

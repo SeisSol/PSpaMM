@@ -1,8 +1,9 @@
 from typing import List
+
 from pypspamm.codegen.ast import *
-from pypspamm.codegen.visitor import Visitor
 from pypspamm.codegen.operands import *
 from pypspamm.codegen.precision import *
+from pypspamm.codegen.visitor import Visitor
 
 
 class InlinePrinter(Visitor):
@@ -19,14 +20,19 @@ class InlinePrinter(Visitor):
         self.output = []
         self.stack = []
         self.precision = precision
-        self.ugly_precision ={
+        self.ugly_precision = {
             Precision.DOUBLE: "d",
             Precision.SINGLE: "w",
             Precision.HALF: "h",
             Precision.BFLOAT16: "h",
         }[self.precision]
 
-        assert precision in (Precision.BFLOAT16, Precision.HALF, Precision.SINGLE, Precision.DOUBLE)
+        assert precision in (
+            Precision.BFLOAT16,
+            Precision.HALF,
+            Precision.SINGLE,
+            Precision.DOUBLE,
+        )
 
     def show(self):
         print("\n".join(self.output))
@@ -89,7 +95,9 @@ class InlinePrinter(Visitor):
         if isinstance(stmt.src, Constant) and stmt.src.value == 0:
             # avoid 0 instructions
             return
-        if isinstance(stmt.src, Constant) and (stmt.src.value > 4095 or stmt.src.value < -4095):            
+        if isinstance(stmt.src, Constant) and (
+            stmt.src.value > 4095 or stmt.src.value < -4095
+        ):
             # This condition is probably related to immediate values being restricted to 12 bits for add instructions
             # https://developer.arm.com/documentation/dui0802/a/A64-General-Instructions/ADD--immediate-
             # https://developer.arm.com/documentation/ddi0596/2020-12/Base-Instructions/ADD--immediate---Add--immediate--
@@ -97,19 +105,27 @@ class InlinePrinter(Visitor):
                 s = "mov x11, #-1"
                 val1 = (stmt.src.value) & 0xFFFF
                 s1 = f"movk x11, #{val1}"
-                val2 = ((stmt.src.value >> 16) & 0xFFFF)
+                val2 = (stmt.src.value >> 16) & 0xFFFF
                 s2 = f"movk x11, #{val2}, lsl #16"
 
                 self.addLine(s, "")
-                self.addLine(s1, "load lower 16 bit of immediate that requires more than 16 bit")
-                self.addLine(s2, "load upper 16 bit of immediate that requires more than 16 bit")
+                self.addLine(
+                    s1, "load lower 16 bit of immediate that requires more than 16 bit"
+                )
+                self.addLine(
+                    s2, "load upper 16 bit of immediate that requires more than 16 bit"
+                )
             elif (stmt.src.value >> 16) != 0:
                 val1 = (stmt.src.value) & 0xFFFF
                 s1 = "mov x11, #{val1}"
-                val2 = ((stmt.src.value >> 16) & 0xFFFF)
+                val2 = (stmt.src.value >> 16) & 0xFFFF
                 s2 = "movk x11, #{val2}, lsl #16"
-                self.addLine(s1, "load lower 16 bit of immediate that requires more than 16 bit")
-                self.addLine(s2, "load upper 16 bit of immediate that requires more than 16 bit")
+                self.addLine(
+                    s1, "load lower 16 bit of immediate that requires more than 16 bit"
+                )
+                self.addLine(
+                    s2, "load upper 16 bit of immediate that requires more than 16 bit"
+                )
             else:
                 s = f"mov x11, {stmt.src.ugly}"
                 self.addLine(s, "load lower 16 bit of immediate ")
@@ -152,13 +168,18 @@ class InlinePrinter(Visitor):
     def visitLoad(self, stmt: LoadStmt):
         if isinstance(stmt.src, Label):
             src_str = "#" + stmt.src.ugly
-        elif isinstance(stmt.dest, MemoryAddress) and (stmt.src.ugly_offset != "0" and stmt.scalar_offs):
-            self.addLine(f"mov {stmt.add_reg.ugly}, #{stmt.src.ugly_offset}", f"move immediate offset into {stmt.add_reg.ugly}")
+        elif isinstance(stmt.dest, MemoryAddress) and (
+            stmt.src.ugly_offset != "0" and stmt.scalar_offs
+        ):
+            self.addLine(
+                f"mov {stmt.add_reg.ugly}, #{stmt.src.ugly_offset}",
+                f"move immediate offset into {stmt.add_reg.ugly}",
+            )
             # TODO: adapt ugly_lsl_shift to account for possible single precision instead of double precision
             src_str = f"[{stmt.src.ugly_base}, {stmt.add_reg.ugly}, LSL #{stmt.dest.ugly_lsl_shift}]"
         elif stmt.typ == AsmType.f64x4 or stmt.typ == AsmType.f64x2:
             # (note: the 128-bit and 256-bit broadcasts need the following more rudimentary format here)
-            if stmt.src.ugly_offset == '0':
+            if stmt.src.ugly_offset == "0":
                 src_str = f"[{stmt.src.ugly_base}]"
             else:
                 src_str = f"[{stmt.src.ugly_base}, #{stmt.src.ugly_offset}]"
@@ -186,9 +207,15 @@ class InlinePrinter(Visitor):
     def visitStore(self, stmt: StoreStmt):
         if isinstance(stmt.src, Label):
             src_str = "#" + stmt.src.ugly
-        elif isinstance(stmt.dest, MemoryAddress) and stmt.dest.ugly_offset != "0" and stmt.scalar_offs:
-            self.addLine(f"mov {stmt.add_reg.ugly}, #{stmt.dest.ugly_offset}",
-                         f"move immediate offset into {stmt.add_reg.ugly}")
+        elif (
+            isinstance(stmt.dest, MemoryAddress)
+            and stmt.dest.ugly_offset != "0"
+            and stmt.scalar_offs
+        ):
+            self.addLine(
+                f"mov {stmt.add_reg.ugly}, #{stmt.dest.ugly_offset}",
+                f"move immediate offset into {stmt.add_reg.ugly}",
+            )
             # TODO: adapt ugly_lsl_shift to account for possible single precision instead of double precision
             regsize = stmt.add_dest.size() // 16
             dest_str = f"[{stmt.dest.ugly_base}, {stmt.add_reg.ugly}, LSL #{stmt.src.ugly_lsl_shift}]"
