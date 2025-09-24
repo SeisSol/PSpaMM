@@ -13,12 +13,12 @@ jobs:
           sudo apt-get update
 
       - name: setup-python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: checkout-pspamm
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: pip-pspamm
         run: |
@@ -75,12 +75,12 @@ jobs:
           sudo apt-get install g++-aarch64-linux-gnu g++-riscv64-linux-gnu g++-14-loongarch64-linux-gnu qemu-user-static
 
       - name: setup-python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: checkout-pspamm
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: pip-pspamm
         run: |
