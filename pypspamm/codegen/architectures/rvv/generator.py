@@ -12,7 +12,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
   __asm__ __volatile__(
     {body_text}
     : : {args} : {clobbered});
-    
+
     #ifndef NDEBUG
     #ifdef _OPENMP
     #pragma omp atomic

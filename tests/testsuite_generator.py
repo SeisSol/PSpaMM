@@ -83,9 +83,9 @@ std::tuple<T*, T*, T*, T*, T*, T*> pre(const std::string& name, unsigned M, unsi
   T* C;
 
   int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, LDA*LDB*sizeof(T));
-  int resAsparse = posix_memalign(reinterpret_cast<void **>(&Asparse), 64, LDA*LDB*sizeof(T));  
+  int resAsparse = posix_memalign(reinterpret_cast<void **>(&Asparse), 64, LDA*LDB*sizeof(T));
   int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, LDB*N*sizeof(T));
-  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, LDB*N*sizeof(T));  
+  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, LDB*N*sizeof(T));
   int resCref = posix_memalign(reinterpret_cast<void **>(&Cref), 64, LDC*N*sizeof(T));
   int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, LDC*N*sizeof(T));
 
@@ -198,13 +198,13 @@ bool post(unsigned M, unsigned N, unsigned K, unsigned* LDA, unsigned* LDB, unsi
   }
 
   gemm_ref(M, N, K, *LDA, *LDB, LDC, *ALPHA, *BETA, A, B, Cref);
-  
+
   double diffAbsMax = 0;
   double diffRelMax = 0;
   int failedCount = 0;
   for(int i = 0; i < M; i++) {
     for(int j = 0; j < N; j++) {
-      // we use the relative error instead of the absolute error because of an issue we found for sparse single precision 
+      // we use the relative error instead of the absolute error because of an issue we found for sparse single precision
       // kernels presumably due to limited precision of floats
       const double diffAbs = std::abs((static_cast<double>(C[i + j * LDC]) - static_cast<double>(Cref[i + j * LDC])));
       const double diffRel = diffAbs / std::abs(static_cast<double>(Cref[i + j * LDC]));
@@ -252,7 +252,7 @@ setup_single_testcase = """
   setup_prefetch(prefetch, std::get<4>(pointers), {n}, {ldc});
   {name}(std::get<{asparse}>(pointers), std::get<{bsparse}>(pointers), std::get<4>(pointers), {alpha}, {beta}, prefetch);
   const auto result = post<{precision}>({m}, {n}, {k}, &lda, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<2>(pointers), std::get<4>(pointers), std::get<5>(pointers), {delta:.15e});
-  
+
   if (result) {{
     ++correct;
   }}

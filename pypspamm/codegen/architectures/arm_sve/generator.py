@@ -13,7 +13,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 {init_registers}
 {body_text}
     : : {args} : {clobbered});
-    
+
     #ifndef NDEBUG
     #ifdef _OPENMP
     #pragma omp atomic
