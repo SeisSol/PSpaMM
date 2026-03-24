@@ -1,14 +1,19 @@
-from collections import namedtuple
-import subprocess
-import numpy as np
-import random
-import sys
 import os.path
-from pspamm.codegen.precision import *
+import random
+import subprocess
+import sys
+from collections import namedtuple
 
-BASEDIR = 'build'
+import numpy as np
 
-TestKernel = namedtuple('TestKernel', 'name precision m n k lda ldb ldc alpha beta block_sizes amtx bmtx delta')
+from pypspamm.codegen.precision import *
+
+BASEDIR = "build"
+
+TestKernel = namedtuple(
+    "TestKernel",
+    "name precision m n k lda ldb ldc alpha beta block_sizes amtx bmtx delta",
+)
 
 head_of_testsuite = """#include <fstream>
 #include <sstream>
@@ -78,9 +83,9 @@ std::tuple<T*, T*, T*, T*, T*, T*> pre(const std::string& name, unsigned M, unsi
   T* C;
 
   int resA = posix_memalign(reinterpret_cast<void **>(&A), 64, LDA*LDB*sizeof(T));
-  int resAsparse = posix_memalign(reinterpret_cast<void **>(&Asparse), 64, LDA*LDB*sizeof(T));  
+  int resAsparse = posix_memalign(reinterpret_cast<void **>(&Asparse), 64, LDA*LDB*sizeof(T));
   int resB = posix_memalign(reinterpret_cast<void **>(&B), 64, LDB*N*sizeof(T));
-  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, LDB*N*sizeof(T));  
+  int resBsparse = posix_memalign(reinterpret_cast<void **>(&Bsparse), 64, LDB*N*sizeof(T));
   int resCref = posix_memalign(reinterpret_cast<void **>(&Cref), 64, LDC*N*sizeof(T));
   int resC = posix_memalign(reinterpret_cast<void **>(&C), 64, LDC*N*sizeof(T));
 
@@ -193,13 +198,13 @@ bool post(unsigned M, unsigned N, unsigned K, unsigned* LDA, unsigned* LDB, unsi
   }
 
   gemm_ref(M, N, K, *LDA, *LDB, LDC, *ALPHA, *BETA, A, B, Cref);
-  
+
   double diffAbsMax = 0;
   double diffRelMax = 0;
   int failedCount = 0;
   for(int i = 0; i < M; i++) {
     for(int j = 0; j < N; j++) {
-      // we use the relative error instead of the absolute error because of an issue we found for sparse single precision 
+      // we use the relative error instead of the absolute error because of an issue we found for sparse single precision
       // kernels presumably due to limited precision of floats
       const double diffAbs = std::abs((static_cast<double>(C[i + j * LDC]) - static_cast<double>(Cref[i + j * LDC])));
       const double diffRel = diffAbs / std::abs(static_cast<double>(Cref[i + j * LDC]));
@@ -247,7 +252,7 @@ setup_single_testcase = """
   setup_prefetch(prefetch, std::get<4>(pointers), {n}, {ldc});
   {name}(std::get<{asparse}>(pointers), std::get<{bsparse}>(pointers), std::get<4>(pointers), {alpha}, {beta}, prefetch);
   const auto result = post<{precision}>({m}, {n}, {k}, &lda, &ldb, {ldc}, &alpha, &beta, std::get<0>(pointers), std::get<2>(pointers), std::get<4>(pointers), std::get<5>(pointers), {delta:.15e});
-  
+
   if (result) {{
     ++correct;
   }}
@@ -272,12 +277,12 @@ end_of_testsuite = """
 
 
 def generateMTX(k, n, nnz, bk=1, bn=1):
-    random.seed(k*n + nnz)
+    random.seed(k * n + nnz)
 
     if k < bk:
-      bk = k
+        bk = k
     if n < bn:
-      bn = n
+        bn = n
 
     assert k % bk == 0
     assert n % bn == 0
@@ -286,36 +291,43 @@ def generateMTX(k, n, nnz, bk=1, bn=1):
 
     true_nzz = nnz * bk * bn
 
-    os.makedirs(os.path.join(BASEDIR, 'mtx'), exist_ok=True)
+    os.makedirs(os.path.join(BASEDIR, "mtx"), exist_ok=True)
 
-    filename = os.path.join(BASEDIR, 'mtx', f'{k}-{bk}-{n}-{bn}-{nnz}.mtx')
+    filename = os.path.join(BASEDIR, "mtx", f"{k}-{bk}-{n}-{bn}-{nnz}.mtx")
 
     if os.path.isfile(filename):
         return filename
 
-    with open(filename, 'w') as f:
+    with open(filename, "w") as f:
 
-      f.write(f'%%MatrixMarket matrix coordinate real general\n%\n{k} {n} {true_nzz}')
+        f.write(f"%%MatrixMarket matrix coordinate real general\n%\n{k} {n} {true_nzz}")
 
-      zeros = set()
+        zeros = set()
 
-      for i in range(1, k + 1, bk):
-        for j in range(1, n + 1, bn):
-          zeros.add((i, j))
+        for i in range(1, k + 1, bk):
+            for j in range(1, n + 1, bn):
+                zeros.add((i, j))
 
-      nonzeros = random.sample(sorted(zeros), nnz)
+        nonzeros = random.sample(sorted(zeros), nnz)
 
-      for entry in nonzeros:
-        for ii in range(bk):
-          for jj in range(bn):
-            f.write('\n' + str(entry[0] + ii) + ' ' + str(entry[1] + jj) + ' ' + str(random.uniform(0.00001, 1000)))
+        for entry in nonzeros:
+            for ii in range(bk):
+                for jj in range(bn):
+                    f.write(
+                        "\n"
+                        + str(entry[0] + ii)
+                        + " "
+                        + str(entry[1] + jj)
+                        + " "
+                        + str(random.uniform(0.00001, 1000))
+                    )
 
     return filename
 
 
 def make(kernels, arch):
     os.makedirs(os.path.join(BASEDIR, arch), exist_ok=True)
-    f = open(os.path.join(BASEDIR, f'{arch}_testsuite.cpp'), 'w')
+    f = open(os.path.join(BASEDIR, f"{arch}_testsuite.cpp"), "w")
 
     f.write(head_of_testsuite)
 
@@ -323,18 +335,29 @@ def make(kernels, arch):
 
     for kern in kernels:
 
-        arguments = ['pspamm-generator', str(kern.m), str(kern.n), str(kern.k), str(kern.lda), str(kern.ldb),
-                     str(kern.ldc), str(kern.alpha), str(kern.beta)]
+        arguments = [
+            "pspamm-generator",
+            str(kern.m),
+            str(kern.n),
+            str(kern.k),
+            str(kern.lda),
+            str(kern.ldb),
+            str(kern.ldc),
+            str(kern.alpha),
+            str(kern.beta),
+        ]
 
         if kern.amtx is not None:
-          arguments += ['--amtx_filename', kern.amtx]
+            arguments += ["--amtx_filename", kern.amtx]
         if kern.bmtx is not None:
-          arguments += ['--bmtx_filename', kern.bmtx]
+            arguments += ["--bmtx_filename", kern.bmtx]
 
-        prec = 's' if kern.precision == Precision.SINGLE else 'd'
-        arguments += ['--precision', prec]
+        prec = "s" if kern.precision == Precision.SINGLE else "d"
+        arguments += ["--precision", prec]
 
-        block_sizes = list(set(bs if len(bs) > 2 else (bs[0], bs[1], 1) for bs in kern.block_sizes))
+        block_sizes = list(
+            set(bs if len(bs) > 2 else (bs[0], bs[1], 1) for bs in kern.block_sizes)
+        )
 
         for bs in block_sizes:
             bm = bs[0]
@@ -342,9 +365,9 @@ def make(kernels, arch):
             bk = bs[2]
 
             if arch.startswith("arm_sve"):
-              veclen = int(arch[7:]) if arch[7:] != '' else 128
+                veclen = int(arch[7:]) if arch[7:] != "" else 128
             else:
-              veclen = int(arch[3:]) if arch[3:] != '' else 128
+                veclen = int(arch[3:]) if arch[3:] != "" else 128
             assert veclen % 128 == 0
             reglen = veclen // 128
             v_len = (16 // kern.precision.size()) * reglen
@@ -352,67 +375,113 @@ def make(kernels, arch):
             # ceiling division
             vm = -(bm // -v_len)
             v_size = v_len
-            elem128 = (16 // kern.precision.size())
+            elem128 = 16 // kern.precision.size()
 
             if arch.startswith("knl"):
-              if not ((bn+bk) * vm <= 32):
-                print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
-                continue
+                if not ((bn + bk) * vm <= 32):
+                    print(f"Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}")
+                    continue
             elif arch.startswith("hsw"):
-              if not ((bn+bk) * vm + bn * bk <= 16) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
-                print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
-                continue
+                if (
+                    not ((bn + bk) * vm + bn * bk <= 16)
+                    or not (kern.m % v_size) == 0
+                    or not (bm % v_size) == 0
+                ):
+                    print(f"Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}")
+                    continue
             elif arch.startswith("arm_sve"):
-              vkext = -(bk // -elem128)
-              isvkext = bn*vkext <= 16 if elem128 == 2 else bn*vkext <= 8
-              vk = vkext if isvkext else bk
-              if not ((bn+bk) * vm + bn * vk <= 32):
-                print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
-                continue
+                vkext = -(bk // -elem128)
+                isvkext = bn * vkext <= 16 if elem128 == 2 else bn * vkext <= 8
+                vk = vkext if isvkext else bk
+                if not ((bn + bk) * vm + bn * vk <= 32):
+                    print(f"Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}")
+                    continue
             elif arch.startswith("arm"):
-              vk = -(bk // -elem128)
-              if not ((bn+bk) * vm + bn * vk <= 32) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
-                print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
-                continue
+                vk = -(bk // -elem128)
+                if (
+                    not ((bn + bk) * vm + bn * vk <= 32)
+                    or not (kern.m % v_size) == 0
+                    or not (bm % v_size) == 0
+                ):
+                    print(f"Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}")
+                    continue
             elif arch.startswith("rvv"):
-              if not ((bn+bk) * vm <= 32) or not (bn*bk <= 30) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
-                print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
-                continue
+                if (
+                    not ((bn + bk) * vm <= 32)
+                    or not (bn * bk <= 30)
+                    or not (kern.m % v_size) == 0
+                    or not (bm % v_size) == 0
+                ):
+                    print(f"Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}")
+                    continue
             elif arch.startswith("lsx") or arch.startswith("lasx"):
-              if not ((bn+bk) * vm + bn * bk <= 32) or not (kern.m % v_size) == 0 or not (bm % v_size) == 0:
-                print(f'Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}')
-                continue
+                if (
+                    not ((bn + bk) * vm + bn * bk <= 32)
+                    or not (kern.m % v_size) == 0
+                    or not (bm % v_size) == 0
+                ):
+                    print(f"Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}")
+                    continue
 
-            name = f'{kern.name}_{kern.precision}_{bm}_{bn}_{bk}'
+            name = f"{kern.name}_{kern.precision}_{bm}_{bn}_{bk}"
 
-            additional_args = ['--output_funcname', name, '--output_filename', os.path.join(BASEDIR, arch, name + '.h'),
-                               '--output_overwrite']
-            additional_args += ['--bm', str(bm), '--bn', str(bn), '--bk', str(bk), '--arch', arch]
-            additional_args += ['--prefetching', 'BL2viaC']
+            additional_args = [
+                "--output_funcname",
+                name,
+                "--output_filename",
+                os.path.join(BASEDIR, arch, name + ".h"),
+                "--output_overwrite",
+            ]
+            additional_args += [
+                "--bm",
+                str(bm),
+                "--bn",
+                str(bn),
+                "--bk",
+                str(bk),
+                "--arch",
+                arch,
+            ]
+            additional_args += ["--prefetching", "BL2viaC"]
 
             try:
-                print(' '.join(arguments + additional_args))
-                subprocess.check_output(arguments + additional_args, stderr=subprocess.STDOUT)
+                print(" ".join(arguments + additional_args))
+                subprocess.check_output(
+                    arguments + additional_args, stderr=subprocess.STDOUT
+                )
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"The command\n{' '.join(e.cmd)}\n returned with an error (code {e.returncode}):\n{e.output.decode('utf-8')}")
+                raise RuntimeError(
+                    f"The command\n{' '.join(e.cmd)}\n returned with an error (code {e.returncode}):\n{e.output.decode('utf-8')}"
+                )
 
-            f.write('#include "' + arch + '/' + name + '.h"\n')
+            f.write('#include "' + arch + "/" + name + '.h"\n')
 
             testcases += [
-              setup_single_testcase.format(
-                m=kern.m, n=kern.n, k=kern.k, lda=kern.lda, ldb=kern.ldb, ldc=kern.ldc, alpha=kern.alpha,
-                beta=kern.beta, delta=kern.delta, name=name,
-                amtx=kern.amtx or '', bmtx = kern.bmtx or '',
-                asparse=1 if kern.lda == 0 else 0, bsparse=3 if kern.ldb == 0 else 2,
-                precision=kern.precision.ctype())
+                setup_single_testcase.format(
+                    m=kern.m,
+                    n=kern.n,
+                    k=kern.k,
+                    lda=kern.lda,
+                    ldb=kern.ldb,
+                    ldc=kern.ldc,
+                    alpha=kern.alpha,
+                    beta=kern.beta,
+                    delta=kern.delta,
+                    name=name,
+                    amtx=kern.amtx or "",
+                    bmtx=kern.bmtx or "",
+                    asparse=1 if kern.lda == 0 else 0,
+                    bsparse=3 if kern.ldb == 0 else 2,
+                    precision=kern.precision.ctype(),
+                )
             ]
 
-    f.write('\n')
+    f.write("\n")
 
     f.write(function_definitions)
     f.write(setup_main.format(arch=arch))
 
     for testcase in testcases:
-      f.write(testcase)
+        f.write(testcase)
 
     f.write(end_of_testsuite)

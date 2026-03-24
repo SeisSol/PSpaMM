@@ -12,8 +12,6 @@ authors = [
     { name = "Nathan Brei", email = "nathan.w.brei@gmail.com" },
     { name = "Alex Puscas", email = "alex-puscas@gmx.de" },
     { name = "David Schneller", email = "david.schneller@tum.de" },
-    { name = "Lukas Krenz", email = "lukas@krenz.land" },
-    { name = "Carsten Uphoff", email = "uphoff@in.tum.de" },
 ]
 maintainers = [
     { name = "David Schneller", email = "david.schneller@tum.de" },
@@ -27,8 +25,8 @@ dynamic = ["version", "readme", "dependencies"]
 
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"], content-type = "text/markdown"}
-version = {file = ["pspamm/VERSION"]}
+version = {file = ["pypspamm/VERSION"]}
 dependencies = {file = ["requirements.txt"]}
 
 [project.scripts]
-pspamm-generator = "pspamm.cli:main"
+pspamm-generator = "pypspamm.cli:main"
