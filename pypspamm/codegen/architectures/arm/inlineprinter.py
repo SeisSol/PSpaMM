@@ -6,6 +6,20 @@ from pypspamm.codegen.precision import *
 from pypspamm.codegen.visitor import Visitor
 
 
+def laneOperand(reg: str):
+    """Return the by-element operand form of a NEON vector register.
+
+    The vector-by-element FMLA/FMLS take an element type, not a full
+    arrangement specifier (ARM ARM: FMLA <Vd>.<T>, <Vn>.<T>, <Vm>.<Ts>[<index>]).
+    So the third operand has to be written as "v3.d[0]" rather than "v3.2d[0]".
+    GNU as tolerates the latter, but the LLVM integrated assembler rejects it.
+    """
+    if "." not in reg:
+        return reg
+    name, arrangement = reg.split(".")
+    return f"{name}.{arrangement[-1]}"
+
+
 class InlinePrinter(Visitor):
 
     show_comments = True
@@ -49,7 +63,7 @@ class InlinePrinter(Visitor):
 
         op = "s" if stmt.sub else "a"
         if stmt.bcast is not None:
-            s = f"fml{op} {a}, {m}, {b}[{stmt.bcast}]"
+            s = f"fml{op} {a}, {m}, {laneOperand(b)}[{stmt.bcast}]"
         else:
             s = f"fml{op} {a}, {m}, {b}"
         self.addLine(s, stmt.comment)
