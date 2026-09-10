@@ -2,6 +2,7 @@ from pypspamm.codegen.address import ScratchBase
 from pypspamm.codegen.architectures.rvv.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
+from pypspamm.codegen.microkernel import cells
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.sugar import *
 from pypspamm.codegen.target import TARGETS
@@ -351,48 +352,42 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         # in both cases: instruction encodes the immediate offset within 6 bits
         max_offs = 2047
 
-        for Vmi in range(Vm):
-            # set to all v_size predicates to true, we want to replicate a B element into a whole vector
-            for bni in range(bn):  # inside this n-block
-                for bki in range(bk):  # inside this k-block
-                    to_bcell = Coords(down=bki, right=bni)
-                    to_acell = Coords(down=Vmi * v_size, right=bki)
-                    if B.has_nonzero_cell(
-                        B_ptr, to_B_block, to_bcell
-                    ) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
-                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        if B_regs[bki, bni] not in bs:
+        for Vmi, bni, bki, to_acell, to_bcell in cells(
+            A, B, A_ptr, B_ptr, to_A_block, to_B_block, Vm, bn, bk, v_size
+        ):
+            B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+            if B_regs[bki, bni] not in bs:
 
-                            # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
-                            if B_cell_addr.disp > max_offs:
-                                moved = B_cell_addr.disp - cur11
-                                if moved > 0 and moved <= max_offs:
-                                    B_cell_addr.disp = moved
-                                else:
-                                    asm.add(
-                                        add(
-                                            B_cell_addr.disp,
-                                            additional_regs[0],
-                                            "",
-                                            B_cell_addr.base,
-                                        )
-                                    )
-                                    cur11 = B_cell_addr.disp
-                                    B_cell_addr.disp = 0
-
-                                B_cell_addr.base = additional_regs[0]
-
-                            asm.add(
-                                ld(
-                                    B_cell_addr,
-                                    B_regs[bki, bni],
-                                    False,
-                                    B_comment,
-                                    pred=None,
-                                    is_B=True,
-                                )
+                # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
+                if B_cell_addr.disp > max_offs:
+                    moved = B_cell_addr.disp - cur11
+                    if moved > 0 and moved <= max_offs:
+                        B_cell_addr.disp = moved
+                    else:
+                        asm.add(
+                            add(
+                                B_cell_addr.disp,
+                                additional_regs[0],
+                                "",
+                                B_cell_addr.base,
                             )
-                            bs.append(B_regs[bki, bni])
+                        )
+                        cur11 = B_cell_addr.disp
+                        B_cell_addr.disp = 0
+
+                    B_cell_addr.base = additional_regs[0]
+
+                asm.add(
+                    ld(
+                        B_cell_addr,
+                        B_regs[bki, bni],
+                        False,
+                        B_comment,
+                        pred=None,
+                        is_B=True,
+                    )
+                )
+                bs.append(B_regs[bki, bni])
 
         for bki in range(bk):  # inside this k-block
             for Vmi in range(Vm):

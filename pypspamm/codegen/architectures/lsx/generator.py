@@ -2,6 +2,7 @@ from pypspamm.codegen.address import ScratchBase
 from pypspamm.codegen.architectures.lsx.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
+from pypspamm.codegen.microkernel import cells
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.regcache import *
 from pypspamm.codegen.sugar import *
@@ -247,21 +248,16 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         max_offs, _ = self.target.memory_offset_limit(1)
 
         bs = []
-        for Vmi in range(Vm):
-            for bni in range(bn):  # inside this n-block
-                for bki in range(bk):  # inside this k-block
-                    to_bcell = Coords(down=bki, right=bni)
-                    to_acell = Coords(down=Vmi * v_size, right=bki)
-                    if B.has_nonzero_cell(
-                        B_ptr, to_B_block, to_bcell
-                    ) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
-                        B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        if B_regs[bki, bni] not in bs:
-                            # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
-                            base.place(asm, B_cell_addr, max_offs, 1)
+        for Vmi, bni, bki, to_acell, to_bcell in cells(
+            A, B, A_ptr, B_ptr, to_A_block, to_B_block, Vm, bn, bk, v_size
+        ):
+            B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+            if B_regs[bki, bni] not in bs:
+                # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
+                base.place(asm, B_cell_addr, max_offs, 1)
 
-                            asm.add(bcst(B_cell_addr, B_regs[bki, bni], B_comment))
-                            bs.append(B_regs[bki, bni])
+                asm.add(bcst(B_cell_addr, B_regs[bki, bni], B_comment))
+                bs.append(B_regs[bki, bni])
 
         for bki in range(bk):  # inside this k-block
             for Vmi in range(Vm):
