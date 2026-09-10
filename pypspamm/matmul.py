@@ -3,6 +3,7 @@ from typing import Tuple
 import numpy
 
 import pypspamm.architecture
+from pypspamm.codegen.architectures import registry
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.forms import *
 from pypspamm.codegen.precision import *
@@ -111,68 +112,8 @@ class MatMul:
         except:
             self.beta = "generic"
 
-        if arch.startswith("skx"):
-            arch = "knl" + arch[3:]
-
-        # hacky implementation of multi-register length
-        if arch.startswith("arm_sve"):
-            if len(arch) == 7:
-                v_len_regs = 4  # compatibility: arm_sve == arm_sve512
-            else:
-                v_len_bits = int(arch[7:])
-                assert v_len_bits % 128 == 0 and v_len_bits <= 2048
-                v_len_regs = v_len_bits // 128
-            arch = "arm_sve"
-
-        if arch.startswith("knl"):
-            if len(arch) == 3:
-                v_len_regs = 4
-            else:
-                v_len_bits = int(arch[3:])
-                assert v_len_bits in (128, 256, 512)
-                v_len_regs = v_len_bits // 128
-            arch = "knl"
-
-        if arch.startswith("hsw"):
-            if len(arch) == 3:
-                v_len_regs = 2
-            else:
-                v_len_bits = int(arch[3:])
-                assert v_len_bits in (128, 256)
-                v_len_regs = v_len_bits // 128
-            arch = "hsw"
-
-        if arch.startswith("rvv"):
-            if len(arch) == 3:
-                v_len_regs = 1
-            else:
-                v_len_bits = int(arch[3:])
-                assert v_len_bits in (128, 256, 512, 1024, 2048, 4096, 8192)
-                v_len_regs = v_len_bits // 128
-            arch = "rvv"
-
-        if arch.startswith("arm") and not arch.startswith("arm_sve"):
-            # only 128 supported
-            v_len_regs = 1
-            arch = "arm"
-
-        if arch.startswith("lsx"):
-            if len(arch) == 3:
-                v_len_regs = 1
-            else:
-                v_len_bits = int(arch[3:])
-                assert v_len_bits in (128, 256)
-                v_len_regs = v_len_bits // 128
-            arch = "lsx"
-
-        if arch.startswith("lasx"):
-            if len(arch) == 4:
-                v_len_regs = 2
-            else:
-                v_len_bits = int(arch[4:])
-                assert v_len_bits in (128, 256)
-                v_len_regs = v_len_bits // 128
-            arch = "lsx"
+        archspec, v_len_regs = registry.parse(arch)
+        arch = archspec.module
 
         self.arch = arch
         assert precision.lower() in ["bf16", "h", "s", "d"]
