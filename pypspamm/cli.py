@@ -4,6 +4,7 @@ import argparse
 
 import pypspamm.architecture
 from pypspamm.codegen.architectures import *
+from pypspamm.codegen.architectures import registry
 from pypspamm.codegen.ccode import *
 from pypspamm.matmul import *
 from pypspamm.metagen.metagen import *
@@ -11,17 +12,14 @@ from pypspamm.metagen.metagen import *
 mtx_formats = ["any", "csc", "csr", "bsc", "bsr", "bcsc", "bcsr"]
 
 
-def generate(alg: MatMul) -> None:
-    metagen = MetaGenerator()
-    text = metagen.generate(alg)
+def generate(archs, params) -> None:
+    text = MetaGenerator(archs).generate(dict(params))
 
-    if alg.output_filename is None:
+    if params["output_filename"] is None:
         print(text)
     else:
-        mode = "a"
-        if alg.output_overwrite:
-            mode = "w"
-        with open(alg.output_filename, mode) as f:
+        mode = "w" if params["output_overwrite"] else "a"
+        with open(params["output_filename"], mode) as f:
             f.write(text)
 
 
@@ -50,7 +48,18 @@ def main() -> None:
     parser.add_argument("--bn", type=int, help="Size of n-blocks")
     parser.add_argument("--bk", type=int, help="Size of k-blocks")
 
-    parser.add_argument("--arch", help="Architecture", default="knl")
+    parser.add_argument(
+        "--arch",
+        help=(
+            "Architecture, or a comma separated list of them, in which case a "
+            "dispatcher is generated that selects between them at run time. "
+            "List them from the most to the least capable; the last one is the "
+            "fallback. The presets "
+            + ", ".join(sorted(registry.PRESETS))
+            + " each stand for such a list."
+        ),
+        default="knl",
+    )
     parser.add_argument(
         "--precision",
         help="Precision of the matrix multiplication, either half (h), single (s), or double (d)",
@@ -90,8 +99,9 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-    alg = MatMul(**args.__dict__)
-    generate(alg)
+    params = dict(args.__dict__)
+    archs = [name.strip() for name in params.pop("arch").split(",")]
+    generate(archs, params)
 
 
 if __name__ == "__main__":
