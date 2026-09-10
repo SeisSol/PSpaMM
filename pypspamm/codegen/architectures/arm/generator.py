@@ -1,3 +1,4 @@
+from pypspamm.codegen.address import ScratchBase
 from pypspamm.codegen.architectures.arm.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
@@ -186,10 +187,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         asm = block(f"{action} {name} register block @ {block_offset}")
 
         curpf = 0
-        cur11 = -1000
+        base = ScratchBase(additional_regs[0])
         fuse_cache = []
 
-        def try_flush_cache(force, cur11):
+        def try_flush_cache(force):
             if len(fuse_cache) == 0:
                 return
 
@@ -199,10 +200,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 op3 = fuse_cache[2] if len(fuse_cache) > 2 else None
                 op4 = fuse_cache[3] if len(fuse_cache) > 3 else None
 
-                max_offset, div_offset = self.target.memory_offset_limit(
-                    len(fuse_cache)
-                )
-
                 comment = f"{op1.comment}"
                 if op2 is not None:
                     comment += f", {op2.comment}"
@@ -211,21 +208,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 if op4 is not None:
                     comment += f", {op4.comment}"
 
-                offset = op1.addr.disp - cur11 if cur11 >= 0 else op1.addr.disp
-
-                if cur11 >= 0:
-                    op1.addr.disp = offset
-                    op1.addr.base = additional_regs[0]
-
-                if offset > max_offset or offset % div_offset != 0:
-                    if cur11 < 0:
-                        asm.add(add(offset, additional_regs[0], "", op1.addr.base))
-                        cur11 = offset
-                    else:
-                        asm.add(add(offset, additional_regs[0], ""))
-                        cur11 += offset
-                    op1.addr.disp = 0
-                    op1.addr.base = additional_regs[0]
+                limit, granularity = self.target.memory_offset_limit(len(fuse_cache))
+                base.place(asm, op1.addr, limit, granularity)
 
                 op1r = op1.register
                 op2r = op2.register if op2 is not None else None
@@ -259,7 +243,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
                 fuse_cache.clear()
 
-            return cur11
+            return
 
         for _, location in offsets:
             if len(fuse_cache) > 0:
@@ -268,7 +252,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 # TODO: extend to 4?
                 max_length = len(fuse_cache) == 2
 
-                cur11 = try_flush_cache(not can_fuse or max_length, cur11)
+                try_flush_cache(not can_fuse or max_length)
 
             fuse_cache += [location]
 
@@ -299,7 +283,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     )
                 )
 
-        cur11 = try_flush_cache(True, cur11)
+        try_flush_cache(True)
 
         return asm
 
