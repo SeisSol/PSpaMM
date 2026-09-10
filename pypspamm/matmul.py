@@ -92,6 +92,7 @@ class MatMul:
         precision: str = "d",
         prefetching: str = None,
         scheduling: str = "none",
+        operand_copies: int = None,
         **kwargs,  # Accept and ignore args which don't belong
     ) -> None:
 
@@ -164,12 +165,14 @@ class MatMul:
         assert scheduling in ("none", "peephole", "pipeline")
         self.scheduling = scheduling
         # a rotated loop holds the operands of two iterations at once
-        self.operand_copies = (
-            2
-            if scheduling == "pipeline"
-            and self.generator.target.operand_copies_supported
-            else 1
-        )
+        if operand_copies is None:
+            operand_copies = (
+                2
+                if scheduling == "pipeline"
+                and self.generator.target.operand_copies_supported
+                else 1
+            )
+        self.operand_copies = operand_copies
 
         if self.operand_copies > 1:
             vm = self.generator.ceil_div(self.bm, self.v_size)
