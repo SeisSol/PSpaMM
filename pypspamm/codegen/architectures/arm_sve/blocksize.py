@@ -73,11 +73,8 @@ class MaxK:
     @classmethod
     def ARM_condition(cls, bm, bn, bk, v_size, elem128):
         # ceiling division
-        vkext = -(bk // -elem128)
-        isvkext = bn * vkext <= TARGETS["arm_sve"].indexed_limit(16 // elem128)
         vm = -(bm // -v_size)
-        vk = vkext if isvkext else bk
-        return (bn + bk) * vm + bn * vk <= TARGETS["arm_sve"].vector_registers
+        return TARGETS["arm_sve"].fits(bn, bk, vm, 16 // elem128)
 
     @classmethod
     def tileable(cls, m, bm):
@@ -115,11 +112,8 @@ class Cube:
     @classmethod
     def ARM_condition(cls, bm, bn, bk, v_size, elem128):
         # ceiling division
-        vkext = -(bk // -elem128)
-        isvkext = bn * vkext <= TARGETS["arm_sve"].indexed_limit(16 // elem128)
         vm = -(bm // -v_size)
-        vk = vkext if isvkext else bk
-        return (bn + bk) * vm + bn * vk <= TARGETS["arm_sve"].vector_registers
+        return TARGETS["arm_sve"].fits(bn, bk, vm, 16 // elem128)
 
     @classmethod
     def tileable(cls, m, bm):

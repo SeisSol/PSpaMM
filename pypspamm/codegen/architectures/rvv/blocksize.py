@@ -21,9 +21,7 @@ class MaxBn:
     def RVV_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm <= TARGETS[
-            "rvv"
-        ].vector_registers and bn * bk + 2 <= TARGETS["rvv"].vector_registers
+        return TARGETS["rvv"].fits(bn, bk, vm)
 
 
 class CubeBn:
@@ -49,9 +47,7 @@ class CubeBn:
     def RVV_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm <= TARGETS[
-            "rvv"
-        ].vector_registers and bn * bk + 2 <= TARGETS["rvv"].vector_registers
+        return TARGETS["rvv"].fits(bn, bk, vm)
 
 
 Default = MaxBn

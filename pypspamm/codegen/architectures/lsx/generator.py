@@ -62,7 +62,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         assert bm % v_size == 0
         vm = self.ceil_div(bm, v_size)
 
-        assert (bn + bk) * vm + bn * bk <= self.target.vector_registers
+        assert self.target.fits(bn, bk, vm)
 
         vmm = {1: vr, 2: xr}[self.v_len]
 

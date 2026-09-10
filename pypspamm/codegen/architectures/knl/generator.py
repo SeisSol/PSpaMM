@@ -72,7 +72,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         prefetch: str,
     ):
         vm = self.ceil_div(bm, v_size)
-        assert (bn + bk) * vm <= self.target.vector_registers
+        assert self.target.fits(bn, bk, vm)
 
         vmm = {1: xmm, 2: ymm, 4: zmm}[self.v_len]
 

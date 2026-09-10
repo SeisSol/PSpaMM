@@ -74,8 +74,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             bm, v_size
         )  # vm can be 0 if bm < v_size -> makes ceil_div necessary
 
-        assert bn * bk + 2 <= self.target.vector_registers
-        assert (bn + bk) * vm <= self.target.vector_registers
+        assert self.target.fits(bn, bk, vm)
 
         prec = {
             Precision.DOUBLE: "d",

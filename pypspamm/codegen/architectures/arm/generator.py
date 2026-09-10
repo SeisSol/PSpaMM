@@ -61,7 +61,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         vm = bm // v_size
         elem128 = 16 // self.get_precision().size()
         vk = -(bk // -elem128)
-        assert (bn + bk) * vm + bn * vk <= self.target.vector_registers
+        assert self.target.fits(bn, bk, vm, self.precision.size())
 
         prec = {
             Precision.DOUBLE: "2d",

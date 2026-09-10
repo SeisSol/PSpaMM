@@ -29,7 +29,7 @@ class Max:
     def LSX_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm + bn * bk <= TARGETS["lsx"].vector_registers
+        return TARGETS["lsx"].fits(bn, bk, vm)
 
 
 Default = Max

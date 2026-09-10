@@ -107,7 +107,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         else:
             vk = bk
 
-        assert (bn + bk) * vm + bn * vk <= self.target.vector_registers
+        assert self.target.fits(bn, bk, vm, self.precision.size())
 
         prec = {
             Precision.DOUBLE: "d",

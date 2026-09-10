@@ -94,8 +94,7 @@ class MaxK:
     def ARM_condition(cls, bm, bn, bk, v_size, elem128):
         # ceiling division
         vm = -(bm // -v_size)
-        vk = -(bk // -elem128)
-        return (bn + bk) * vm + bn * vk <= TARGETS["arm"].vector_registers
+        return TARGETS["arm"].fits(bn, bk, vm, 16 // elem128)
 
 
 class Cube:
@@ -123,8 +122,7 @@ class Cube:
     def ARM_condition(cls, bm, bn, bk, v_size, elem128):
         # ceiling division
         vm = -(bm // -v_size)
-        vk = -(bk // -elem128)
-        return (bn + bk) * vm + bn * vk <= TARGETS["arm"].vector_registers
+        return TARGETS["arm"].fits(bn, bk, vm, 16 // elem128)
 
 
 Default = MaxK

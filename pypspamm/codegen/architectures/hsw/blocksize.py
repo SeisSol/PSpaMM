@@ -38,7 +38,7 @@ class Old:
     def HSW_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm + bn * bk <= TARGETS["hsw"].vector_registers
+        return TARGETS["hsw"].fits(bn, bk, vm)
 
 
 class Max:
@@ -69,7 +69,7 @@ class Max:
     def HSW_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm + bn * bk <= TARGETS["hsw"].vector_registers
+        return TARGETS["hsw"].fits(bn, bk, vm)
 
     @classmethod
     def HSW_condition_extended(cls, bm, bn, bk, v_size):
@@ -105,7 +105,7 @@ class Cube:
     def HSW_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm + bn * bk <= TARGETS["hsw"].vector_registers
+        return TARGETS["hsw"].fits(bn, bk, vm)
 
     @classmethod
     def HSW_condition_extended(cls, bm, bn, bk, v_size):
