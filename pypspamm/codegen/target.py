@@ -8,7 +8,7 @@ and which register numbers an instruction may reach.
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 
 class BroadcastForm(Enum):
@@ -49,6 +49,14 @@ class TargetDescription:
     #: whether the generator can lay out room for the operands of more than
     #: one iteration, as a rotated loop needs
     operand_copies_supported: bool = False
+    #: largest byte offset a memory instruction can encode, and the granularity
+    #: that offset has to be a multiple of, by the number of registers the
+    #: instruction transfers at once
+    memory_offsets: Dict[int, Tuple[int, int]] = field(default_factory=dict)
+    #: for a target that counts the offset in whole vector registers rather
+    #: than in bytes, the largest such multiple. Zero says the instructions
+    #: take no immediate offset at all.
+    vector_offset_steps: Optional[int] = None
 
     @property
     def has_masks(self) -> bool:
@@ -58,6 +66,19 @@ class TargetDescription:
         """How many registers the indexed operand of an FMA may come from."""
 
         return self.indexed_operand_registers.get(scalar_bytes, self.vector_registers)
+
+    def memory_offset_limit(self, fused: int = 1, vector_bytes: int = 0):
+        """Largest byte offset of a memory instruction, and its granularity.
+
+        None where the encoding puts no useful limit on the offset, which is
+        the case for a target with a wide displacement field.
+        """
+
+        if self.vector_offset_steps is not None:
+            return self.vector_offset_steps * vector_bytes, max(vector_bytes, 1)
+        if fused in self.memory_offsets:
+            return self.memory_offsets[fused]
+        return None
 
     def broadcast_registers(
         self, bn: int, bk: int, scalar_bytes: Optional[int] = None
@@ -114,7 +135,13 @@ TARGETS = {
         operand_copies_supported=True,
     ),
     # 32 v registers, no masks
-    "arm": TargetDescription(vector_registers=32, broadcast=BroadcastForm.INDEXED),
+    "arm": TargetDescription(
+        vector_registers=32,
+        broadcast=BroadcastForm.INDEXED,
+        # one register reaches 65520 bytes, a pair 1008, and the three and four
+        # register forms only the fixed step they advance by
+        memory_offsets={1: (65520, 16), 2: (1008, 16), 3: (48, 24), 4: (64, 32)},
+    ),
     # 32 z registers, p0 to p7 as predicates. The indexed form of FMLA takes
     # its second operand from z0 to z15 for doubles and from z0 to z7 for
     # anything narrower.
@@ -123,6 +150,8 @@ TARGETS = {
         mask_registers=8,
         indexed_operand_registers={8: 16, 4: 8, 2: 8},
         broadcast=BroadcastForm.INDEXED,
+        # ld1d and st1d encode the offset as a multiple of the vector length
+        vector_offset_steps=7,
     ),
     # 32 v registers; the multiplication takes a scalar operand directly
     "rvv": TargetDescription(
@@ -131,6 +160,8 @@ TARGETS = {
         broadcast=BroadcastForm.SCALAR,
         scalar_registers=32,
         reserved_scalar_registers=2,
+        # the vector loads take no immediate offset
+        vector_offset_steps=0,
     ),
     # 32 v registers, no masks
     "lsx": TargetDescription(vector_registers=32),

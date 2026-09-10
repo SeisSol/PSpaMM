@@ -172,8 +172,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         mul_vl = (
             16 * self.v_len
         )  # e.g. A64FX has VL of 64 bytes in memory (thus, use v_len==4)
-        max_mem_ins_mult = 0
-        max_offset = 0  # ld1d/st1d instruction encodes the immediate offset using 4 bits, multiplies it with MUL VL
+        max_offset, _ = self.target.memory_offset_limit(vector_bytes=mul_vl)
 
         prev_disp = 0
         prev_base = None
@@ -223,7 +222,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
                     # count how many elements we have processed between last step and this step
                     cont_counter = offset // mul_vl
-                    larger_max_offset = cont_counter > max_mem_ins_mult
+                    larger_max_offset = cont_counter * mul_vl > max_offset
                     non_dividing_offset = offset % mul_vl != 0
 
                     # adjust addr.disp to a multiple of the RVV vector length

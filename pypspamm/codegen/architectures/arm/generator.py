@@ -199,8 +199,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 op3 = fuse_cache[2] if len(fuse_cache) > 2 else None
                 op4 = fuse_cache[3] if len(fuse_cache) > 3 else None
 
-                max_offset = [65520, 1008, 48, 64][len(fuse_cache) - 1]
-                div_offset = [16, 16, 24, 32][len(fuse_cache) - 1]
+                max_offset, div_offset = self.target.memory_offset_limit(
+                    len(fuse_cache)
+                )
 
                 comment = f"{op1.comment}"
                 if op2 is not None:
