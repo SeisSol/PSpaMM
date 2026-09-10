@@ -1,3 +1,6 @@
+from pypspamm.codegen.target import TARGETS
+
+
 class Old:
     @classmethod
     def getBlocksize(cls, m, n, bk, v_size, prec):
@@ -35,7 +38,7 @@ class Old:
     def HSW_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm + bn * bk <= 16
+        return (bn + bk) * vm + bn * bk <= TARGETS["hsw"].vector_registers
 
 
 class Max:
@@ -66,13 +69,13 @@ class Max:
     def HSW_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm + bn * bk <= 16
+        return (bn + bk) * vm + bn * bk <= TARGETS["hsw"].vector_registers
 
     @classmethod
     def HSW_condition_extended(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return bn * vm + bn * bk + 1 <= 16
+        return bn * vm + bn * bk + 1 <= TARGETS["hsw"].vector_registers
 
 
 class Cube:
@@ -102,13 +105,13 @@ class Cube:
     def HSW_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm + bn * bk <= 16
+        return (bn + bk) * vm + bn * bk <= TARGETS["hsw"].vector_registers
 
     @classmethod
     def HSW_condition_extended(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return bn * vm + bn * bk + 1 <= 16
+        return bn * vm + bn * bk + 1 <= TARGETS["hsw"].vector_registers
 
 
 Default = Max

@@ -2,10 +2,14 @@ from abc import ABC, abstractmethod
 
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.precision import *
+from pypspamm.codegen.target import TargetDescription
 from pypspamm.cursors import *
 
 
 class AbstractGenerator(ABC):
+    #: what the target offers; set by every concrete generator
+    target: TargetDescription = None
+
     def __init__(self, precision: Precision):
         self.precision = precision
 
@@ -23,13 +27,11 @@ class AbstractGenerator(ABC):
     def init_mask(self, bm, v_size, tempreg, maskreg):
         pass
 
-    @abstractmethod
     def use_broadcast(self):
-        pass
+        return self.target.scalar_broadcast
 
-    @abstractmethod
     def has_masks(self):
-        pass
+        return self.target.has_masks
 
     @abstractmethod
     def get_v_size(self):

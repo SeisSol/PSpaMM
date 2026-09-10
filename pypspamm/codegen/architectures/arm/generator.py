@@ -3,10 +3,12 @@ from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.sugar import *
+from pypspamm.codegen.target import TARGETS
 from pypspamm.cursors import *
 
 
 class Generator(AbstractGenerator):
+    target = TARGETS["arm"]
 
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, const {real_type}* prefetch) {{
@@ -28,12 +30,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
     def get_template(self):
         return Generator.template
-
-    def use_broadcast(self):
-        return True
-
-    def has_masks(self):
-        return False
 
     def init_mask(self, m, bm, v_size, tempreg, maskregs):
         return block("")
@@ -65,7 +61,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         vm = bm // v_size
         elem128 = 16 // self.get_precision().size()
         vk = -(bk // -elem128)
-        assert (bn + bk) * vm + bn * vk <= 32  # Needs to fit in NEON v registers
+        assert (bn + bk) * vm + bn * vk <= self.target.vector_registers
 
         prec = {
             Precision.DOUBLE: "2d",

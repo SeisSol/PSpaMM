@@ -1,3 +1,6 @@
+from pypspamm.codegen.target import TARGETS
+
+
 class Max:
     @classmethod
     def getBlocksize(cls, m, n, bk, v_size, prec):
@@ -26,7 +29,7 @@ class Max:
     def LSX_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm + bn * bk <= 32
+        return (bn + bk) * vm + bn * bk <= TARGETS["lsx"].vector_registers
 
 
 Default = Max

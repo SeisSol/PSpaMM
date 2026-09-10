@@ -4,10 +4,13 @@ from pypspamm.codegen.generator import *
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.regcache import *
 from pypspamm.codegen.sugar import *
+from pypspamm.codegen.target import TARGETS
 from pypspamm.cursors import *
 
 
 class Generator(AbstractGenerator):
+    target = TARGETS["lsx"]
+
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, {real_type} const* prefetch) {{
   __asm__ __volatile__(
@@ -29,12 +32,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
     def get_template(self):
         return Generator.template
-
-    def use_broadcast(self):
-        return True
-
-    def has_masks(self):
-        return False
 
     def init_mask(self, m, bm, v_size, tempreg, maskregs):
         return block("")
@@ -65,7 +62,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         assert bm % v_size == 0
         vm = self.ceil_div(bm, v_size)
 
-        assert (bn + bk) * vm + bn * bk <= 32
+        assert (bn + bk) * vm + bn * bk <= self.target.vector_registers
 
         vmm = {1: vr, 2: xr}[self.v_len]
 

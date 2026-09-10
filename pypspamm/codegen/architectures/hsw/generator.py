@@ -4,10 +4,13 @@ from pypspamm.codegen.generator import *
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.regcache import *
 from pypspamm.codegen.sugar import *
+from pypspamm.codegen.target import TARGETS
 from pypspamm.cursors import *
 
 
 class Generator(AbstractGenerator):
+    target = TARGETS["hsw"]
+
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, {real_type} const* prefetch) {{
   {real_type}* alpha_p = &alpha;
@@ -31,12 +34,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
     def get_template(self):
         return Generator.template
-
-    def use_broadcast(self):
-        return True
-
-    def has_masks(self):
-        return False
 
     def init_mask(self, m, bm, v_size, tempreg, maskregs):
         return block("")
@@ -88,12 +85,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         assert bm % v_size == 0
         vm = self.ceil_div(bm, v_size)
 
-        # Needs to fit in AVX/AVX2 ymm registers
-        if (bn + bk) * vm + bn * bk <= 16:
+        # A is kept in registers whenever the whole block fits
+        if (bn + bk) * vm + bn * bk <= self.target.vector_registers:
             self.preloadA = True
         else:
             self.preloadA = False
-            assert bn * vm + bn * bk + 1 <= 16
+            assert bn * vm + bn * bk + 1 <= self.target.vector_registers
 
         vmm = {1: xmm, 2: ymm}[self.v_len]
 

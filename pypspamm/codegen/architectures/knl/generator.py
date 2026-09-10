@@ -4,10 +4,13 @@ from pypspamm.codegen.generator import *
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.regcache import *
 from pypspamm.codegen.sugar import *
+from pypspamm.codegen.target import TARGETS
 from pypspamm.cursors import *
 
 
 class Generator(AbstractGenerator):
+    target = TARGETS["knl"]
+
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, {real_type} const* prefetch) {{
   {real_type}* alpha_p = &alpha;
@@ -33,12 +36,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
     def get_template(self):
         return Generator.template
-
-    def use_broadcast(self):
-        return False
-
-    def has_masks(self):
-        return True
 
     def scale_base(self):
         # larger scaling range for B inline broadcasts
@@ -75,7 +72,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         prefetch: str,
     ):
         vm = self.ceil_div(bm, v_size)
-        assert (bn + bk) * vm <= 32  # Needs to fit in AVX512 xmm/ymm/zmm registers
+        assert (bn + bk) * vm <= self.target.vector_registers
 
         vmm = {1: xmm, 2: ymm, 4: zmm}[self.v_len]
 

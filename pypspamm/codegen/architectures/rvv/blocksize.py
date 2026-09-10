@@ -1,3 +1,6 @@
+from pypspamm.codegen.target import TARGETS
+
+
 class MaxBn:
     @classmethod
     def getBlocksize(cls, m, n, bk, v_size, prec):
@@ -18,7 +21,9 @@ class MaxBn:
     def RVV_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm <= 32 and bn * bk + 2 <= 32
+        return (bn + bk) * vm <= TARGETS[
+            "rvv"
+        ].vector_registers and bn * bk + 2 <= TARGETS["rvv"].vector_registers
 
 
 class CubeBn:
@@ -44,7 +49,9 @@ class CubeBn:
     def RVV_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm <= 32 and bn * bk + 2 <= 32
+        return (bn + bk) * vm <= TARGETS[
+            "rvv"
+        ].vector_registers and bn * bk + 2 <= TARGETS["rvv"].vector_registers
 
 
 Default = MaxBn

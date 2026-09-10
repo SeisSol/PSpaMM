@@ -3,10 +3,13 @@ from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.sugar import *
+from pypspamm.codegen.target import TARGETS
 from pypspamm.cursors import *
 
 
 class Generator(AbstractGenerator):
+    target = TARGETS["arm_sve"]
+
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, const {real_type} alpha, const {real_type} beta, const {real_type}* prefetch) {{{{
   __asm__ __volatile__(
@@ -37,12 +40,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
     def get_template(self):
         return self.template
-
-    def use_broadcast(self):
-        return True
-
-    def has_masks(self):
-        return True
 
     def make_argument_load(self, starting_regs, prefetch):
         asm = block("Load arguments")
@@ -100,7 +97,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         # inline broadcasting is only allowed for the lower-numbered registers
         self.inline_broadcast = False
-        if bn * vkext <= 16 if self.get_precision().size() == 8 else bn * vkext <= 8:
+        if bn * vkext <= self.target.indexed_limit(self.get_precision().size()):
             self.inline_broadcast = True
         if bk == 1:
             self.inline_broadcast = False
@@ -110,7 +107,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         else:
             vk = bk
 
-        assert (bn + bk) * vm + bn * vk <= 32  # Needs to fit in SVE z registers
+        assert (bn + bk) * vm + bn * vk <= self.target.vector_registers
 
         prec = {
             Precision.DOUBLE: "d",
@@ -121,7 +118,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         # make place for the two broadcasting registers
         a_offset = 1 if bn * vk == 1 else 0
-        assert (bn + bk) * vm + bn * vk + a_offset <= 32
+        assert (bn + bk) * vm + bn * vk + a_offset <= self.target.vector_registers
 
         A_regs = Matrix(
             [

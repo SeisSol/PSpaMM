@@ -3,10 +3,13 @@ from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.sugar import *
+from pypspamm.codegen.target import TARGETS
 from pypspamm.cursors import *
 
 
 class Generator(AbstractGenerator):
+    target = TARGETS["rvv"]
+
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, const {real_type} alpha, const {real_type} beta, const {real_type}* prefetch) {{{{
   __asm__ __volatile__(
@@ -34,12 +37,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
     def get_template(self):
         return self.template
-
-    def use_broadcast(self):
-        return False
-
-    def has_masks(self):
-        return False  # not yet
 
     def pred_n_trues(
         self, num_trues: int, v_size: int, suffix: str = None
@@ -77,8 +74,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             bm, v_size
         )  # vm can be 0 if bm < v_size -> makes ceil_div necessary
 
-        assert bn * bk + 2 <= 32
-        assert (bn + bk) * vm <= 32
+        assert bn * bk + 2 <= self.target.vector_registers
+        assert (bn + bk) * vm <= self.target.vector_registers
 
         prec = {
             Precision.DOUBLE: "d",
