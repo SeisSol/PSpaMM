@@ -57,6 +57,9 @@ class TargetDescription:
     #: than in bytes, the largest such multiple. Zero says the instructions
     #: take no immediate offset at all.
     vector_offset_steps: Optional[int] = None
+    #: whether the original base is used whenever it reaches, rather than
+    #: staying on the scratch register once that is in use
+    prefer_original_base: bool = False
     #: range of the immediate an addition can carry, which decides whether a
     #: scratch base can be advanced by a difference or has to be recomputed
     #: from the original base
@@ -170,5 +173,12 @@ TARGETS = {
         scalar_immediate=(-2048, 2047),
     ),
     # 32 v registers, no masks
-    "lsx": TargetDescription(vector_registers=32),
+    "lsx": TargetDescription(
+        vector_registers=32,
+        # a twelve bit signed immediate, on the memory instructions and on the
+        # addition alike
+        memory_offsets={1: (2047, 1)},
+        scalar_immediate=(-2048, 2047),
+        prefer_original_base=True,
+    ),
 }

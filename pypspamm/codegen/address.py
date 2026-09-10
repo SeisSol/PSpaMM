@@ -56,7 +56,7 @@ class ScratchBase:
         Uses the base already in hand where it reaches, and otherwise brings
         the scratch register onto the address, advancing it by the difference
         where the addition carries that and recomputing it from the original
-        base where it does not.
+        base where it does not. Reports whether it had to do the latter.
         """
 
         original = addr.base
@@ -71,12 +71,12 @@ class ScratchBase:
                 absolute, limit, granularity
             ):
                 use(original, absolute)
-                return
+                return False
             if self.held is not None and self.fits(
                 absolute - self.held, limit, granularity
             ):
                 use(self.register, absolute - self.held)
-                return
+                return False
 
         if self.held is not None and self.reaches(absolute - self.held):
             asm.add(add(absolute - self.held, self.register, comment))
@@ -84,3 +84,4 @@ class ScratchBase:
             asm.add(add(absolute, self.register, comment, original))
         self.held = absolute
         use(self.register, 0)
+        return True

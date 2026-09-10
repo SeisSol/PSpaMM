@@ -1,3 +1,4 @@
+from pypspamm.codegen.address import ScratchBase
 from pypspamm.codegen.architectures.lsx.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
@@ -130,8 +131,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         action = "Store" if store else "Load"
         asm = block(f"{action} {cursor.name} register block @ {block_offset}")
 
-        max_offs = 2047
-        cur11 = 0
+        max_offs, _ = self.target.memory_offset_limit(1)
+        base = ScratchBase(
+            additional_regs[0],
+            immediate=self.target.scalar_immediate,
+            prefer_original=self.target.prefer_original_base,
+        )
 
         for ic in range(cols):
             for ir in range(rows):
@@ -149,20 +154,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                             cursor_ptr, block_offset, cell_offset
                         )
                         addr.disp += self.precision.size() * load_offset
-                        needsmove = False
-                        if addr.disp > max_offs:
-                            moved = addr.disp - cur11
-                            if moved > 0 and moved <= max_offs:
-                                addr.disp = moved
-                            else:
-                                asm.add(
-                                    add(addr.disp, additional_regs[0], "", addr.base)
-                                )
-                                cur11 = addr.disp
-                                addr.disp = 0
-                                needsmove = True
-
-                            addr.base = additional_regs[0]
+                        needsmove = base.place(asm, addr, max_offs, 1)
                         if store:
                             asm.add(st(registers[ir, ic], addr, True, comment))
                             if prefetching == "BL2viaC" and pf_cursor is not None:
@@ -171,7 +163,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                                 )
                                 addr.disp += self.precision.size() * load_offset
                                 if addr.disp > max_offs:
-                                    moved = addr.disp - cur11
+                                    moved = addr.disp - base.offset
                                     if needsmove:
                                         asm.add(
                                             add(
@@ -247,8 +239,12 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         )
 
         Vm = self.ceil_div(bm, v_size)
-        cur11 = 0
-        max_offs = 2047
+        base = ScratchBase(
+            additional_regs[0],
+            immediate=self.target.scalar_immediate,
+            prefer_original=self.target.prefer_original_base,
+        )
+        max_offs, _ = self.target.memory_offset_limit(1)
 
         bs = []
         for Vmi in range(Vm):
@@ -262,23 +258,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
                         if B_regs[bki, bni] not in bs:
                             # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
-                            if B_cell_addr.disp > max_offs:
-                                moved = B_cell_addr.disp - cur11
-                                if moved > 0 and moved <= max_offs:
-                                    B_cell_addr.disp = moved
-                                else:
-                                    asm.add(
-                                        add(
-                                            B_cell_addr.disp,
-                                            additional_regs[0],
-                                            "",
-                                            B_cell_addr.base,
-                                        )
-                                    )
-                                    cur11 = B_cell_addr.disp
-                                    B_cell_addr.disp = 0
-
-                                B_cell_addr.base = additional_regs[0]
+                            base.place(asm, B_cell_addr, max_offs, 1)
 
                             asm.add(bcst(B_cell_addr, B_regs[bki, bni], B_comment))
                             bs.append(B_regs[bki, bni])
