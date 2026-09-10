@@ -70,6 +70,13 @@ def main() -> None:
     )
 
     parser.add_argument(
+        "--scheduling",
+        help="Instruction scheduling level",
+        choices=["none", "peephole", "pipeline"],
+        default="none",
+    )
+
+    parser.add_argument(
         "--amtx_filename", help="Path to MTX file describing the sparse matrix"
     )
     parser.add_argument(

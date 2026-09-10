@@ -7,6 +7,7 @@ from pypspamm.codegen.ast import *
 from pypspamm.codegen.forms import *
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.prune import *
+from pypspamm.codegen.schedule import moveLoads
 from pypspamm.codegen.sugar import *
 from pypspamm.codegen.virtual import *
 from pypspamm.cursors import *
@@ -89,6 +90,7 @@ class MatMul:
         arch: str = "knl",
         precision: str = "d",
         prefetching: str = None,
+        scheduling: str = "none",
         **kwargs,  # Accept and ignore args which don't belong
     ) -> None:
 
@@ -217,6 +219,9 @@ class MatMul:
             self.bk = bk
 
         self.prefetching = prefetching
+
+        assert scheduling in ("none", "peephole", "pipeline")
+        self.scheduling = scheduling
 
         self.output_funcname = output_funcname
         self.output_filename = output_filename
@@ -830,6 +835,28 @@ class MatMul:
 
         self.blockloop(asm, A_ptr, B_ptr, C_ptr, C_pf_ptr)
 
+        asm = self.optimize(asm)
+
         assignVirtualRegisters(asm, [self.A_pool, self.B_pool, self.C_pool])
 
         return asm
+
+    def optimize(self, asm):
+        """Run the optimization passes selected by the scheduling level.
+
+        The passes work on a flat statement list with loops kept intact, and
+        they run before register assignment: they reorder the statements that
+        define the live ranges the assignment is derived from.
+        """
+
+        if self.scheduling == "none":
+            return asm
+
+        statements = list(asm.normalize())
+
+        if self.scheduling == "pipeline":
+            statements = moveLoads(statements)
+
+        statements = prune(statements)
+
+        return block("kernel", *statements)

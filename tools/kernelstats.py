@@ -89,7 +89,7 @@ def count_statements(asm):
     return counts
 
 
-def kernel_stats(arch, precision, shape, mtxdir):
+def kernel_stats(arch, precision, shape, mtxdir, scheduling="none"):
     name, m, n, k, sparse, density = shape
 
     amtx = ""
@@ -122,6 +122,7 @@ def kernel_stats(arch, precision, shape, mtxdir):
         arch=arch,
         precision=precision,
         output_funcname=f"{name}_{arch}_{precision}",
+        scheduling=scheduling,
     )
 
     counts = count_statements(matmul.make())
@@ -137,14 +138,14 @@ def kernel_stats(arch, precision, shape, mtxdir):
     }
 
 
-def collect(archs, verbose=False):
+def collect(archs, scheduling="none", verbose=False):
     results = []
     with tempfile.TemporaryDirectory() as mtxdir:
         for arch in archs:
             for precision in PRECISIONS:
                 for shape in SHAPES:
                     try:
-                        entry = kernel_stats(arch, precision, shape, mtxdir)
+                        entry = kernel_stats(arch, precision, shape, mtxdir, scheduling)
                     except Exception as e:  # noqa: BLE001 - report and continue
                         entry = {
                             "arch": arch,
@@ -167,7 +168,7 @@ def key_of(entry):
 
 
 def cmd_emit(args):
-    results = collect(args.arch, verbose=args.verbose)
+    results = collect(args.arch, args.scheduling, verbose=args.verbose)
     payload = {"version": 1, "kernels": {key_of(e): e for e in results}}
     text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     if args.output == "-":
@@ -183,7 +184,7 @@ def cmd_compare(args):
     with open(args.baseline) as f:
         baseline = json.load(f)["kernels"]
 
-    results = {key_of(e): e for e in collect(args.arch, verbose=False)}
+    results = {key_of(e): e for e in collect(args.arch, args.scheduling)}
 
     regressions = []
     improvements = []
@@ -236,6 +237,12 @@ def main():
         action="append",
         choices=ARCHS,
         help="restrict to one architecture (repeatable, default: all)",
+    )
+    parser.add_argument(
+        "--scheduling",
+        choices=["none", "peephole", "pipeline"],
+        default="none",
+        help="scheduling level to generate with (default: none)",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
