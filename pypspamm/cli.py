@@ -64,9 +64,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--mtx_format",
-        help="Constraint on sparsity pattern",
+        help="Constraint on sparsity pattern (accepted, but has no effect)",
         choices=mtx_formats,
-        default="Any",
+        default="any",
     )
 
     parser.add_argument(

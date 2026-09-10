@@ -33,7 +33,7 @@ def decompose_pattern(
         for Bki in range(Bk):
             if Bni + 1 == Bn and n_overhead > 0 and Bki + 1 == Bk and k_overhead > 0:
                 block = pattern[
-                    (Bki * bk) : ((Bki + 1) * bk + k_overhead),
+                    (Bki * bk) : ((Bki) * bk + k_overhead),
                     (Bni * bn) : ((Bni) * bn + n_overhead),
                 ]
             elif Bni + 1 == Bn and n_overhead > 0:
@@ -43,7 +43,7 @@ def decompose_pattern(
                 ]
             elif Bki + 1 == Bk and k_overhead > 0:
                 block = pattern[
-                    (Bki * bk) : ((Bki + 1) * bk + k_overhead),
+                    (Bki * bk) : ((Bki) * bk + k_overhead),
                     (Bni * bn) : ((Bni + 1) * bn),
                 ]
             else:
@@ -254,7 +254,9 @@ class MatMul:
 
         # if matrices are always padded to multiple of v_size, we can remove the if-part and execute the assert for SVE too
         if not self.masks:
-            assert self.m % self.v_size == 0
+            assert (
+                self.m % self.v_size == 0
+            ), f"{arch} has no masking, so m ({self.m}) must be a multiple of the vector length ({self.v_size})"
 
         (
             self.A_regs,

@@ -9,7 +9,7 @@ class VirtualRegister(Register):
 
         self.usage = []
 
-    def setRegister(register: Register):
+    def setRegister(self, register: Register):
         assert not isinstance(register, VirtualRegister)
         assert self.typeinfo == register.typeinfo
 
