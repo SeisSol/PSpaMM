@@ -232,21 +232,24 @@ class MatMul:
                 self.A_regs[i, j]
                 for i in range(self.A_regs.shape[0])
                 for j in range(self.A_regs.shape[1])
-            ]
+            ],
+            "A",
         )
         self.B_pool = RegisterPool(
             [
                 self.B_regs[i, j]
                 for i in range(self.B_regs.shape[0])
                 for j in range(self.B_regs.shape[1])
-            ]
+            ],
+            "B",
         )
         self.C_pool = RegisterPool(
             [
                 self.C_regs[i, j]
                 for i in range(self.C_regs.shape[0])
                 for j in range(self.C_regs.shape[1])
-            ]
+            ],
+            "C",
         )
 
         self.alpha_bcst_reg, self.beta_bcst_reg = (

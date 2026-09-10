@@ -2,10 +2,17 @@ from .operands import Register
 
 
 class VirtualRegister(Register):
+    _created = 0
+
     def __init__(self, typeinfo, pool):
         super().__init__(typeinfo, "")
         self.register = None
         self.pool = pool
+
+        # registers are handed out in creation order, so that the assignment
+        # does not depend on the iteration order of a set
+        self.serial = VirtualRegister._created
+        VirtualRegister._created += 1
 
         self.usage = []
 
@@ -55,18 +62,36 @@ class VirtualRegister(Register):
 
 
 class RegisterPool:
-    def __init__(self, registers):
+    def __init__(self, registers, name="register"):
         self.registers = registers
+        self.name = name
 
     def assign(self, asm):
         unlive = list(self.registers)
         for instr in asm.flatten():
-            for vreg in instr.regs():
-                if isinstance(vreg, VirtualRegister) and vreg.pool is self:
-                    if vreg.firstUsage() is instr:
-                        assert vreg.register is None, "Register assigned twice"
-                        assert len(unlive) > 0, "No free registers in the register pool"
-                        vreg.register = unlive.pop(0)
+            mine = sorted(
+                (
+                    vreg
+                    for vreg in instr.regs()
+                    if isinstance(vreg, VirtualRegister) and vreg.pool is self
+                ),
+                key=lambda vreg: vreg.serial,
+            )
+
+            # an instruction reads its operands before it writes its result, so
+            # a register that dies here is available to one that starts here
+            for vreg in mine:
+                if vreg.lastUsage() is instr and vreg.register is not None:
+                    unlive.append(vreg.register)
+
+            for vreg in mine:
+                if vreg.firstUsage() is instr:
+                    assert vreg.register is None, "Register assigned twice"
+                    assert len(unlive) > 0, (
+                        f"{self.name} pool exhausted: "
+                        f"{len(self.registers)} registers are not enough"
+                    )
+                    vreg.register = unlive.pop(0)
                     if vreg.lastUsage() is instr:
                         unlive.append(vreg.register)
 
