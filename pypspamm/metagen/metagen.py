@@ -1,10 +1,15 @@
 """Emit one kernel per architecture, plus a dispatcher that picks at run time.
 
-A single architecture produces the kernel on its own, exactly as before. Two or
-more produce a static kernel each and one exported function that resolves to
-the first kernel the processor supports. The last architecture given is the
-fallback and is called when nothing else matches, so architectures have to be
-listed from the most to the least capable.
+A single architecture produces the kernel on its own. Two or more produce a
+static kernel each and one exported function that resolves to the first kernel
+the processor supports. The last architecture given is the fallback and is
+called when nothing else matches, so architectures have to be listed from the
+most to the least capable, and the last one has to be one the target is known
+to have.
+
+Kernels whose vector length is fixed by the instruction set are matched
+exactly. RVV kernels set the vector length explicitly, so a kernel built for a
+narrower register file also runs on a wider one and is matched with at least.
 """
 
 from pypspamm.codegen.architectures import registry
@@ -17,6 +22,18 @@ TARGET_MACROS = """
 #else
 #define PSPAMM_TARGET(...)
 #endif
+#if defined(__GNUC__) || defined(__clang__)
+#define PSPAMM_MAYBE_UNUSED __attribute__((unused))
+#else
+#define PSPAMM_MAYBE_UNUSED
+#endif
+#if defined(__clang__)
+#define PSPAMM_TARGET_SVE PSPAMM_TARGET("+sve")
+#define PSPAMM_TARGET_RVV PSPAMM_TARGET("+v")
+#else
+#define PSPAMM_TARGET_SVE PSPAMM_TARGET("arch=armv8-a+sve")
+#define PSPAMM_TARGET_RVV PSPAMM_TARGET("arch=+v")
+#endif
 """
 
 SVE_DETECTION = """
@@ -24,65 +41,80 @@ SVE_DETECTION = """
 #include <sys/auxv.h>
 #include <asm/hwcap.h>
 #include <arm_sve.h>
-#if defined(__clang__)
-__attribute__((target("+sve")))
-#else
-__attribute__((target("arch=armv8-a+sve")))
-#endif
-static unsigned long pspamm_sve_bytes(void) {
-  return (unsigned long)svcntb();
-}
-static unsigned long pspamm_sve_width(void) {
-  /* svcntb may only be called once SVE is known to be present */
+PSPAMM_TARGET_SVE
+static unsigned long pspamm_sve_bytes(void) { return (unsigned long)svcntb(); }
+PSPAMM_MAYBE_UNUSED static unsigned long pspamm_sve_width(void) {
+  /* svcntb faults without SVE, so it is only reached past this check */
   if ((getauxval(AT_HWCAP) & HWCAP_SVE) == 0) { return 0; }
   return pspamm_sve_bytes();
 }
 #else
-static unsigned long pspamm_sve_width(void) { return 0; }
+PSPAMM_MAYBE_UNUSED static unsigned long pspamm_sve_width(void) { return 0; }
 #endif
 """
 
-# target attribute arguments per detection kind; None means no attribute
-TARGET_ATTRIBUTE = {
-    "avx512": '"avx512f"',
-    "avx512vl": '"avx512vl"',
-    "avx2": '"avx2"',
-    "neon": None,
-    "sve": None,  # emitted with an explicit compiler switch, see below
+RVV_DETECTION = """
+#if defined(__riscv) && defined(__linux__)
+#include <sys/auxv.h>
+#define PSPAMM_RISCV_HWCAP_V (1UL << ('V' - 'A'))
+PSPAMM_MAYBE_UNUSED static unsigned long pspamm_rvv_width(void) {
+  unsigned long vlenb;
+  if ((getauxval(AT_HWCAP) & PSPAMM_RISCV_HWCAP_V) == 0) { return 0; }
+  /* vlenb is an unprivileged read only CSR and traps without the V extension */
+  __asm__ __volatile__("csrr %0, vlenb" : "=r"(vlenb));
+  return vlenb;
+}
+#else
+PSPAMM_MAYBE_UNUSED static unsigned long pspamm_rvv_width(void) { return 0; }
+#endif
+"""
+
+LOONGARCH_DETECTION = """
+#if defined(__loongarch__) && defined(__linux__)
+#include <sys/auxv.h>
+#include <asm/hwcap.h>
+PSPAMM_MAYBE_UNUSED static int pspamm_has_lsx(void) {
+  return (getauxval(AT_HWCAP) & HWCAP_LOONGARCH_LSX) != 0;
+}
+PSPAMM_MAYBE_UNUSED static int pspamm_has_lasx(void) {
+  return (getauxval(AT_HWCAP) & HWCAP_LOONGARCH_LASX) != 0;
+}
+#else
+PSPAMM_MAYBE_UNUSED static int pspamm_has_lsx(void) { return 0; }
+PSPAMM_MAYBE_UNUSED static int pspamm_has_lasx(void) { return 0; }
+#endif
+"""
+
+DETECTION_BLOCKS = {
+    "sve": SVE_DETECTION,
+    "rvv": RVV_DETECTION,
+    "lsx": LOONGARCH_DETECTION,
+    "lasx": LOONGARCH_DETECTION,
 }
 
-SVE_ATTRIBUTE = """#if defined(__clang__)
-__attribute__((target("+sve")))
-#else
-__attribute__((target("arch=armv8-a+sve")))
-#endif
-"""
+# per detection kind: the attribute a kernel carries, and how its presence is
+# tested. {bytes} is the vector register size the kernel was generated for.
+KINDS = {
+    "avx512": ('PSPAMM_TARGET("avx512f")', '__builtin_cpu_supports("avx512f")'),
+    "avx512vl": ('PSPAMM_TARGET("avx512vl")', '__builtin_cpu_supports("avx512vl")'),
+    "avx2": ('PSPAMM_TARGET("avx2")', '__builtin_cpu_supports("avx2")'),
+    "neon": ("", "1"),
+    "sve": ("PSPAMM_TARGET_SVE", "pspamm_sve_width() == {bytes}"),
+    "rvv": ("PSPAMM_TARGET_RVV", "pspamm_rvv_width() >= {bytes}"),
+    "lsx": ('PSPAMM_TARGET("lsx")', "pspamm_has_lsx()"),
+    "lasx": ('PSPAMM_TARGET("lasx")', "pspamm_has_lasx()"),
+}
 
 
 def detection_kind(archspec, v_len):
-    """The run time check this architecture and width need."""
+    """The run time check this architecture at this width needs."""
 
     if archspec.detection == "avx512":
-        # a 128 or 256 bit AVX-512 kernel needs the VL extension
+        # below 512 bit an AVX-512 kernel needs the VL extension
         return "avx512" if v_len == 4 else "avx512vl"
+    if archspec.detection == "lsx":
+        return "lsx" if v_len == 1 else "lasx"
     return archspec.detection
-
-
-def condition(kind, v_len):
-    if kind in ("avx512", "avx512vl", "avx2"):
-        return f"__builtin_cpu_supports({TARGET_ATTRIBUTE[kind]})"
-    if kind == "sve":
-        return f"pspamm_sve_width() == {16 * v_len}"
-    if kind == "neon":
-        return "1"
-    return None
-
-
-def preamble(kinds):
-    text = TARGET_MACROS
-    if "sve" in kinds:
-        text += SVE_DETECTION
-    return text
 
 
 class MetaGenerator:
@@ -105,13 +137,9 @@ class MetaGenerator:
             return alg, text
 
         archspec, v_len = registry.parse(arch)
-        kind = detection_kind(archspec, v_len)
-        attribute = ""
-        if kind == "sve":
-            attribute = SVE_ATTRIBUTE
-        elif TARGET_ATTRIBUTE.get(kind) is not None:
-            attribute = f"PSPAMM_TARGET({TARGET_ATTRIBUTE[kind]})\n"
-
+        attribute = KINDS[detection_kind(archspec, v_len)][0]
+        if attribute:
+            attribute += "\n"
         return alg, "static " + attribute + text.lstrip("\n")
 
     def dispatcher(self, name, ctype, entries):
@@ -121,16 +149,15 @@ class MetaGenerator:
         )
         pointer = f"pspamm_{name}_t"
 
-        checks = ""
-        for kernel, cond in entries[:-1]:
-            checks += f"  if ({cond}) {{ return {kernel}; }}\n"
-        fallback = entries[-1][0]
+        checks = "".join(
+            f"  if ({cond}) {{ return {kernel}; }}\n" for kernel, cond in entries[:-1]
+        )
 
         return f"""
 typedef void (*{pointer})({signature});
 
 static {pointer} pspamm_resolve_{name}(void) {{
-{checks}  return {fallback};
+{checks}  return {entries[-1][0]};
 }}
 
 void {name}({signature}) {{
@@ -154,24 +181,32 @@ void {name}({signature}) {{
 
         assert name is not None, "a dispatched kernel needs an output function name"
 
-        kinds = set()
+        detection = ""
         entries = []
-        text = ""
+        kernels = ""
         ctype = None
 
         for arch in self.archs:
             archspec, v_len = registry.parse(arch)
             kind = detection_kind(archspec, v_len)
-            assert kind is not None, (
-                f"{arch} cannot be detected at run time and can only be "
-                f"generated on its own"
-            )
-            kinds.add(kind)
+            assert (
+                kind is not None
+            ), f"{arch} has no run time check and cannot be dispatched"
+
+            block = DETECTION_BLOCKS.get(kind, "")
+            if block and block not in detection:
+                detection += block
 
             kernel_name = f"{name}_{arch}"
             alg, kernel = self.kernel(kernel_name, dict(params), arch, static=True)
             ctype = alg.precision.ctype()
-            text += kernel + "\n"
-            entries.append((kernel_name, condition(kind, v_len)))
+            kernels += kernel + "\n"
+            entries.append((kernel_name, KINDS[kind][1].format(bytes=16 * v_len)))
 
-        return preamble(kinds) + "\n" + text + self.dispatcher(name, ctype, entries)
+        return (
+            TARGET_MACROS
+            + detection
+            + "\n"
+            + kernels
+            + self.dispatcher(name, ctype, entries)
+        )

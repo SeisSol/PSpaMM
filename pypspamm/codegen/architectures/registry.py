@@ -35,9 +35,9 @@ ARCHITECTURES = (
     Architecture("skx", "knl", AVX512_WIDTHS, 512, "x86", "avx512"),
     Architecture("knl", "knl", AVX512_WIDTHS, 512, "x86", "avx512"),
     Architecture("hsw", "hsw", X86_WIDTHS, 256, "x86", "avx2"),
-    Architecture("rvv", "rvv", RVV_WIDTHS, 128, "riscv", None),
-    Architecture("lasx", "lsx", LSX_WIDTHS, 256, "loongarch", None),
-    Architecture("lsx", "lsx", LSX_WIDTHS, 128, "loongarch", None),
+    Architecture("rvv", "rvv", RVV_WIDTHS, 128, "riscv", "rvv"),
+    Architecture("lasx", "lsx", LSX_WIDTHS, 256, "loongarch", "lsx"),
+    Architecture("lsx", "lsx", LSX_WIDTHS, 128, "loongarch", "lsx"),
     Architecture("arm", "arm", (128,), 128, "aarch64", "neon"),
 )
 
@@ -52,6 +52,8 @@ PRESETS = {
         "arm128",
     ),
     "x86_64": ("knl512", "knl256", "hsw256"),
+    "riscv64": ("rvv512", "rvv256", "rvv128"),
+    "loongarch64": ("lasx256", "lsx128"),
 }
 
 
