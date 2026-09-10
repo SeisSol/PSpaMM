@@ -86,7 +86,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         n: int,
         k: int,
         prefetch: str,
+        copies: int = 1,
     ):
+        assert copies == 1, "arm_sve does not lay out a second copy of the operands yet"
         vm = self.ceil_div(
             bm, v_size
         )  # vm can be 0 if bm < v_size -> makes ceil_div necessary

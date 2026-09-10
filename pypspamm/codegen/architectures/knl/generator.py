@@ -70,13 +70,16 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         n: int,
         k: int,
         prefetch: str,
+        copies: int = 1,
     ):
         vm = self.ceil_div(bm, v_size)
         assert self.target.fits(bn, bk, vm)
 
         vmm = {1: xmm, 2: ymm, 4: zmm}[self.v_len]
 
-        A_regs = Matrix([[vmm(vm * c + r) for c in range(bk)] for r in range(vm)])
+        A_regs = Matrix(
+            [[vmm(vm * c + r) for c in range(bk * copies)] for r in range(vm)]
+        )
         B_regs = Matrix([[]])
         C_regs = Matrix(
             [[vmm(32 - vm * bn + vm * c + r) for c in range(bn)] for r in range(vm)]

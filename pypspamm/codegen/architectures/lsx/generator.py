@@ -58,7 +58,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         n: int,
         k: int,
         prefetch: str,
+        copies: int = 1,
     ):
+        assert copies == 1, "lsx does not lay out a second copy of the operands yet"
         assert bm % v_size == 0
         vm = self.ceil_div(bm, v_size)
 

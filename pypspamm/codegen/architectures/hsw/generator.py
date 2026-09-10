@@ -81,6 +81,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         n: int,
         k: int,
         prefetch: str,
+        copies: int = 1,
     ):
         assert bm % v_size == 0
         vm = self.ceil_div(bm, v_size)
@@ -90,19 +91,22 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
             self.preloadA = True
         else:
             self.preloadA = False
+            assert copies == 1, "a rotated loop needs A in registers"
             assert bn * vm + bn * bk + 1 <= self.target.vector_registers
 
         vmm = {1: xmm, 2: ymm}[self.v_len]
 
         if self.preloadA:
-            A_regs = Matrix([[vmm(vm * c + r) for c in range(bk)] for r in range(vm)])
-            Aoffset = vm * bk
+            A_regs = Matrix(
+                [[vmm(vm * c + r) for c in range(bk * copies)] for r in range(vm)]
+            )
+            Aoffset = vm * bk * copies
         else:
             A_regs = Matrix([[vmm(0) for c in range(bk)] for r in range(vm)])
             Aoffset = 1
 
         B_regs = Matrix(
-            [[vmm(Aoffset + bn * r + c) for c in range(bn)] for r in range(bk)]
+            [[vmm(Aoffset + bn * r + c) for c in range(bn)] for r in range(bk * copies)]
         )
         C_regs = Matrix(
             [[vmm(16 - vm * bn + vm * c + r) for c in range(bn)] for r in range(vm)]

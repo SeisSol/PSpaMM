@@ -56,7 +56,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         n: int,
         k: int,
         prefetch: str,
+        copies: int = 1,
     ):
+        assert copies == 1, "arm does not lay out a second copy of the operands yet"
         assert bm % v_size == 0
         vm = bm // v_size
         elem128 = 16 // self.get_precision().size()

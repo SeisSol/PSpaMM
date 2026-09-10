@@ -43,7 +43,16 @@ class AbstractGenerator(ABC):
 
     @abstractmethod
     def make_reg_blocks(
-        self, bm: int, bn: int, bk: int, v_size: int, nnz: int, m: int, n: int, k: int
+        self,
+        bm: int,
+        bn: int,
+        bk: int,
+        v_size: int,
+        nnz: int,
+        m: int,
+        n: int,
+        k: int,
+        copies: int = 1,
     ):
         pass
 

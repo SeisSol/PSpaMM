@@ -163,6 +163,26 @@ class MatMul:
 
         assert scheduling in ("none", "peephole", "pipeline")
         self.scheduling = scheduling
+        # a rotated loop holds the operands of two iterations at once
+        self.operand_copies = (
+            2
+            if scheduling == "pipeline"
+            and self.generator.target.operand_copies_supported
+            else 1
+        )
+
+        if self.operand_copies > 1:
+            vm = self.generator.ceil_div(self.bm, self.v_size)
+            size = self.precision.size()
+            target = self.generator.target
+            while self.bk > 1 and not target.fits(
+                self.bn, self.bk, vm, size, self.operand_copies
+            ):
+                self.bk -= 1
+            while self.bn > 1 and not target.fits(
+                self.bn, self.bk, vm, size, self.operand_copies
+            ):
+                self.bn -= 1
 
         self.output_funcname = output_funcname
         self.output_filename = output_filename
@@ -225,6 +245,16 @@ class MatMul:
             self.n,
             self.k,
             self.prefetching,
+            self.operand_copies,
+        )
+
+        self.A_block = (
+            self.A_regs.shape[0],
+            self.A_regs.shape[1] // self.operand_copies,
+        )
+        self.B_block = (
+            self.B_regs.shape[0] // self.operand_copies,
+            self.B_regs.shape[1],
         )
 
         self.A_pool = RegisterPool(
@@ -472,18 +502,18 @@ class MatMul:
                     [
                         [
                             VirtualRegister(self.A_regs[0, 0].typeinfo, self.A_pool)
-                            for _ in range(self.A_regs.shape[1])
+                            for _ in range(self.A_block[1])
                         ]
-                        for _ in range(self.A_regs.shape[0])
+                        for _ in range(self.A_block[0])
                     ]
                 )
                 B_regs = Matrix(
                     [
                         [
                             VirtualRegister(self.B_regs[0, 0].typeinfo, self.B_pool)
-                            for _ in range(self.B_regs.shape[1])
+                            for _ in range(self.B_block[1])
                         ]
-                        for _ in range(self.B_regs.shape[0])
+                        for _ in range(self.B_block[0])
                     ]
                 )
                 asm.add(
@@ -529,18 +559,18 @@ class MatMul:
                         bcst(self.beta_bcst_reg, self.beta_reg[1], "Broadcast beta")
                     )
 
-            for x in range(0, regs.shape[1], self.A_regs.shape[1]):
+            for x in range(0, regs.shape[1], self.A_block[1]):
                 A_regs = Matrix(
                     [
                         [
                             VirtualRegister(self.A_regs[0, 0].typeinfo, self.A_pool)
-                            for _ in range(self.A_regs.shape[1])
+                            for _ in range(self.A_block[1])
                         ]
-                        for _ in range(self.A_regs.shape[0])
+                        for _ in range(self.A_block[0])
                     ]
                 )
                 A_regs_cut = A_regs[
-                    0 : min(self.A_regs.shape[0], regs.shape[0]), 0 : regs.shape[1] - x
+                    0 : min(self.A_block[0], regs.shape[0]), 0 : regs.shape[1] - x
                 ]
                 if self.beta != 0.0:
                     store_block.add(

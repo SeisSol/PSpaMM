@@ -46,6 +46,9 @@ class TargetDescription:
     #: there, and how many of those registers are spoken for otherwise
     scalar_registers: int = 0
     reserved_scalar_registers: int = 0
+    #: whether the generator can lay out room for the operands of more than
+    #: one iteration, as a rotated loop needs
+    operand_copies_supported: bool = False
 
     @property
     def has_masks(self) -> bool:
@@ -73,21 +76,34 @@ class TargetDescription:
         return bn * bk
 
     def fits(
-        self, bn: int, bk: int, vm: int, scalar_bytes: Optional[int] = None
+        self,
+        bn: int,
+        bk: int,
+        vm: int,
+        scalar_bytes: Optional[int] = None,
+        copies: int = 1,
     ) -> bool:
-        """Whether a block of this size has room for its accumulators and operands."""
+        """Whether a block of this size has room for its accumulators and operands.
 
-        used = (bn + bk) * vm + self.broadcast_registers(bn, bk, scalar_bytes)
-        if used > self.vector_registers:
+        A rotated loop holds the operands of two iterations at once, which is
+        what copies counts. The accumulators are live across the whole loop
+        either way and are counted once.
+        """
+
+        operands = copies * (bk * vm + self.broadcast_registers(bn, bk, scalar_bytes))
+        if bn * vm + operands > self.vector_registers:
             return False
         if self.broadcast is BroadcastForm.SCALAR:
-            return bn * bk + self.reserved_scalar_registers <= self.scalar_registers
+            return (
+                copies * bn * bk + self.reserved_scalar_registers
+                <= self.scalar_registers
+            )
         return True
 
 
 TARGETS = {
     # 16 ymm registers; alpha and beta are broadcast explicitly
-    "hsw": TargetDescription(vector_registers=16),
+    "hsw": TargetDescription(vector_registers=16, operand_copies_supported=True),
     # 32 zmm registers, k1 to k7 as masks; the multiplication takes its
     # broadcast operand straight from memory, so no explicit broadcast
     "knl": TargetDescription(
@@ -95,6 +111,7 @@ TARGETS = {
         mask_registers=7,
         scalar_broadcast=False,
         broadcast=BroadcastForm.MEMORY,
+        operand_copies_supported=True,
     ),
     # 32 v registers, no masks
     "arm": TargetDescription(vector_registers=32, broadcast=BroadcastForm.INDEXED),
