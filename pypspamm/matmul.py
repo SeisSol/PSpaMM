@@ -208,7 +208,7 @@ class MatMul:
             bk = 2 if arch == "knl" else 1
 
         if bm == None or bn == None:
-            (self.bm, self.bn, self.bk) = pypspamm.architecture.blocksize.getBlocksize(
+            self.bm, self.bn, self.bk = pypspamm.architecture.blocksize.getBlocksize(
                 m, n, bk, self.v_size, self.precision
             )
         else:

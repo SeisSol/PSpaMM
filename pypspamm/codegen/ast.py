@@ -296,6 +296,9 @@ class LabelStmt(AsmStmt):
     def accept(self, visitor: "Visitor"):
         visitor.visitLabel(self)
 
+    def stmtname(self):
+        return "label"
+
     def __str__(self):
         return f"Label: {self.label.ugly}"
 
@@ -321,6 +324,9 @@ class DataStmt(AsmStmt):
     def accept(self, visitor: "Visitor"):
         visitor.visitData(self)
 
+    def stmtname(self):
+        return "data"
+
 
 class RVSetVLStmt(AsmStmt):
     actual = None
@@ -328,6 +334,9 @@ class RVSetVLStmt(AsmStmt):
 
     def accept(self, visitor: "Visitor"):
         visitor.visitRVSetVLStmt(self)
+
+    def stmtname(self):
+        return "setvl"
 
     def reg_in_candidate(self):
         return (self.requested,)

@@ -1,0 +1,1744 @@
+{
+  "kernels": {
+    "arm128/d/dense_o4": {
+      "arch": "arm128",
+      "block": [
+        6,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 31,
+        "branch": 5,
+        "fma": 36,
+        "label": 5,
+        "load": 58,
+        "mov": 5,
+        "store": 27
+      },
+      "instructions": 162,
+      "kernel": "dense_o4",
+      "precision": "d"
+    },
+    "arm128/d/dense_o6": {
+      "arch": "arm128",
+      "block": [
+        6,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 35,
+        "branch": 5,
+        "fma": 36,
+        "label": 5,
+        "load": 58,
+        "mov": 5,
+        "store": 27
+      },
+      "instructions": 166,
+      "kernel": "dense_o6",
+      "precision": "d"
+    },
+    "arm128/d/dense_odd": {
+      "arch": "arm128",
+      "error": "AssertionError: arm has no masking, so m (23) must be a multiple of the vector length (2)",
+      "kernel": "dense_odd",
+      "precision": "d"
+    },
+    "arm128/d/dense_small": {
+      "arch": "arm128",
+      "block": [
+        6,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 30,
+        "branch": 4,
+        "fma": 32,
+        "label": 4,
+        "load": 53,
+        "mov": 4,
+        "store": 24
+      },
+      "instructions": 147,
+      "kernel": "dense_small",
+      "precision": "d"
+    },
+    "arm128/d/dense_tall": {
+      "arch": "arm128",
+      "block": [
+        14,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 9,
+        "branch": 2,
+        "fma": 21,
+        "label": 2,
+        "load": 24,
+        "mov": 2,
+        "store": 12
+      },
+      "instructions": 70,
+      "kernel": "dense_tall",
+      "precision": "d"
+    },
+    "arm128/d/sparse_a_o4": {
+      "arch": "arm128",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented.",
+      "kernel": "sparse_a_o4",
+      "precision": "d"
+    },
+    "arm128/d/sparse_a_o6": {
+      "arch": "arm128",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented.",
+      "kernel": "sparse_a_o6",
+      "precision": "d"
+    },
+    "arm128/d/sparse_b_narrow": {
+      "arch": "arm128",
+      "block": [
+        6,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 56,
+        "branch": 2,
+        "fma": 100,
+        "label": 2,
+        "load": 118,
+        "mov": 2,
+        "store": 27
+      },
+      "instructions": 305,
+      "kernel": "sparse_b_narrow",
+      "precision": "d"
+    },
+    "arm128/d/sparse_b_o4": {
+      "arch": "arm128",
+      "block": [
+        6,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 76,
+        "branch": 2,
+        "fma": 168,
+        "label": 2,
+        "load": 212,
+        "mov": 2,
+        "store": 27
+      },
+      "instructions": 487,
+      "kernel": "sparse_b_o4",
+      "precision": "d"
+    },
+    "arm128/d/sparse_b_o6": {
+      "arch": "arm128",
+      "block": [
+        6,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 98,
+        "branch": 2,
+        "fma": 148,
+        "label": 2,
+        "load": 214,
+        "mov": 2,
+        "store": 27
+      },
+      "instructions": 491,
+      "kernel": "sparse_b_o6",
+      "precision": "d"
+    },
+    "arm128/s/dense_o4": {
+      "arch": "arm128",
+      "block": [
+        12,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 30,
+        "branch": 4,
+        "fma": 45,
+        "label": 4,
+        "load": 58,
+        "mov": 4,
+        "store": 27
+      },
+      "instructions": 168,
+      "kernel": "dense_o4",
+      "precision": "s"
+    },
+    "arm128/s/dense_o6": {
+      "arch": "arm128",
+      "block": [
+        12,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 35,
+        "branch": 5,
+        "fma": 45,
+        "label": 5,
+        "load": 58,
+        "mov": 5,
+        "store": 27
+      },
+      "instructions": 175,
+      "kernel": "dense_o6",
+      "precision": "s"
+    },
+    "arm128/s/dense_odd": {
+      "arch": "arm128",
+      "error": "AssertionError: arm has no masking, so m (23) must be a multiple of the vector length (4)",
+      "kernel": "dense_odd",
+      "precision": "s"
+    },
+    "arm128/s/dense_small": {
+      "arch": "arm128",
+      "block": [
+        8,
+        8,
+        4
+      ],
+      "by_kind": {
+        "add": 6,
+        "branch": 1,
+        "fma": 64,
+        "label": 1,
+        "load": 25,
+        "mov": 1,
+        "store": 8
+      },
+      "instructions": 105,
+      "kernel": "dense_small",
+      "precision": "s"
+    },
+    "arm128/s/dense_tall": {
+      "arch": "arm128",
+      "block": [
+        28,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 9,
+        "branch": 2,
+        "fma": 21,
+        "label": 2,
+        "load": 24,
+        "mov": 2,
+        "store": 12
+      },
+      "instructions": 70,
+      "kernel": "dense_tall",
+      "precision": "s"
+    },
+    "arm128/s/sparse_a_o4": {
+      "arch": "arm128",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented.",
+      "kernel": "sparse_a_o4",
+      "precision": "s"
+    },
+    "arm128/s/sparse_a_o6": {
+      "arch": "arm128",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented.",
+      "kernel": "sparse_a_o6",
+      "precision": "s"
+    },
+    "arm128/s/sparse_b_narrow": {
+      "arch": "arm128",
+      "block": [
+        12,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 66,
+        "branch": 2,
+        "fma": 125,
+        "label": 2,
+        "load": 118,
+        "mov": 2,
+        "store": 27
+      },
+      "instructions": 340,
+      "kernel": "sparse_b_narrow",
+      "precision": "s"
+    },
+    "arm128/s/sparse_b_o4": {
+      "arch": "arm128",
+      "block": [
+        12,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 86,
+        "fma": 210,
+        "load": 208,
+        "store": 27
+      },
+      "instructions": 531,
+      "kernel": "sparse_b_o4",
+      "precision": "s"
+    },
+    "arm128/s/sparse_b_o6": {
+      "arch": "arm128",
+      "block": [
+        12,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 122,
+        "branch": 2,
+        "fma": 185,
+        "label": 2,
+        "load": 212,
+        "mov": 2,
+        "store": 27
+      },
+      "instructions": 550,
+      "kernel": "sparse_b_o6",
+      "precision": "s"
+    },
+    "arm_sve512/d/dense_o4": {
+      "arch": "arm_sve512",
+      "block": [
+        16,
+        9,
+        2
+      ],
+      "by_kind": {
+        "add": 64,
+        "branch": 2,
+        "fma": 54,
+        "label": 2,
+        "load": 56,
+        "mov": 2,
+        "store": 27
+      },
+      "instructions": 205,
+      "kernel": "dense_o4",
+      "precision": "d"
+    },
+    "arm_sve512/d/dense_o6": {
+      "arch": "arm_sve512",
+      "block": [
+        56,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 15,
+        "branch": 2,
+        "fma": 21,
+        "label": 2,
+        "load": 36,
+        "mov": 2,
+        "store": 21
+      },
+      "instructions": 97,
+      "kernel": "dense_o6",
+      "precision": "d"
+    },
+    "arm_sve512/d/dense_odd": {
+      "arch": "arm_sve512",
+      "block": [
+        23,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 32,
+        "branch": 3,
+        "fma": 30,
+        "label": 3,
+        "load": 51,
+        "mov": 3,
+        "store": 30
+      },
+      "instructions": 149,
+      "kernel": "dense_odd",
+      "precision": "d"
+    },
+    "arm_sve512/d/dense_small": {
+      "arch": "arm_sve512",
+      "block": [
+        8,
+        8,
+        4
+      ],
+      "by_kind": {
+        "add": 9,
+        "branch": 1,
+        "fma": 32,
+        "label": 1,
+        "load": 33,
+        "mov": 1,
+        "store": 8
+      },
+      "instructions": 84,
+      "kernel": "dense_small",
+      "precision": "d"
+    },
+    "arm_sve512/d/dense_tall": {
+      "arch": "arm_sve512",
+      "block": [
+        56,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 10,
+        "branch": 1,
+        "fma": 21,
+        "label": 1,
+        "load": 36,
+        "mov": 1,
+        "store": 21
+      },
+      "instructions": 90,
+      "kernel": "dense_tall",
+      "precision": "d"
+    },
+    "arm_sve512/d/sparse_a_o4": {
+      "arch": "arm_sve512",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented.",
+      "kernel": "sparse_a_o4",
+      "precision": "d"
+    },
+    "arm_sve512/d/sparse_a_o6": {
+      "arch": "arm_sve512",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented.",
+      "kernel": "sparse_a_o6",
+      "precision": "d"
+    },
+    "arm_sve512/d/sparse_b_narrow": {
+      "arch": "arm_sve512",
+      "block": [
+        56,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 30,
+        "fma": 175,
+        "load": 198,
+        "store": 63
+      },
+      "instructions": 466,
+      "kernel": "sparse_b_narrow",
+      "precision": "d"
+    },
+    "arm_sve512/d/sparse_b_o4": {
+      "arch": "arm_sve512",
+      "block": [
+        16,
+        9,
+        2
+      ],
+      "by_kind": {
+        "add": 104,
+        "fma": 126,
+        "load": 160,
+        "store": 27
+      },
+      "instructions": 417,
+      "kernel": "sparse_b_o4",
+      "precision": "d"
+    },
+    "arm_sve512/d/sparse_b_o6": {
+      "arch": "arm_sve512",
+      "block": [
+        56,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 47,
+        "fma": 259,
+        "load": 329,
+        "store": 63
+      },
+      "instructions": 698,
+      "kernel": "sparse_b_o6",
+      "precision": "d"
+    },
+    "arm_sve512/s/dense_o4": {
+      "arch": "arm_sve512",
+      "block": [
+        20,
+        9,
+        1
+      ],
+      "by_kind": {
+        "add": 24,
+        "branch": 1,
+        "fma": 18,
+        "label": 1,
+        "load": 34,
+        "mov": 1,
+        "store": 18
+      },
+      "instructions": 96,
+      "kernel": "dense_o4",
+      "precision": "s"
+    },
+    "arm_sve512/s/dense_o6": {
+      "arch": "arm_sve512",
+      "block": [
+        48,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 64,
+        "branch": 4,
+        "fma": 36,
+        "label": 4,
+        "load": 67,
+        "mov": 4,
+        "store": 36
+      },
+      "instructions": 211,
+      "kernel": "dense_o6",
+      "precision": "s"
+    },
+    "arm_sve512/s/dense_odd": {
+      "arch": "arm_sve512",
+      "block": [
+        16,
+        15,
+        1
+      ],
+      "by_kind": {
+        "add": 92,
+        "branch": 6,
+        "fma": 32,
+        "label": 6,
+        "load": 73,
+        "mov": 6,
+        "store": 32
+      },
+      "instructions": 241,
+      "kernel": "dense_odd",
+      "precision": "s"
+    },
+    "arm_sve512/s/dense_small": {
+      "arch": "arm_sve512",
+      "block": [
+        8,
+        8,
+        4
+      ],
+      "by_kind": {
+        "add": 24,
+        "branch": 1,
+        "fma": 32,
+        "label": 1,
+        "load": 25,
+        "mov": 1,
+        "store": 8
+      },
+      "instructions": 91,
+      "kernel": "dense_small",
+      "precision": "s"
+    },
+    "arm_sve512/s/dense_tall": {
+      "arch": "arm_sve512",
+      "block": [
+        56,
+        3,
+        4
+      ],
+      "by_kind": {
+        "add": 14,
+        "branch": 1,
+        "fma": 48,
+        "label": 1,
+        "load": 36,
+        "mov": 1,
+        "store": 12
+      },
+      "instructions": 112,
+      "kernel": "dense_tall",
+      "precision": "s"
+    },
+    "arm_sve512/s/sparse_a_o4": {
+      "arch": "arm_sve512",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented.",
+      "kernel": "sparse_a_o4",
+      "precision": "s"
+    },
+    "arm_sve512/s/sparse_a_o6": {
+      "arch": "arm_sve512",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented.",
+      "kernel": "sparse_a_o6",
+      "precision": "s"
+    },
+    "arm_sve512/s/sparse_b_narrow": {
+      "arch": "arm_sve512",
+      "block": [
+        48,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 56,
+        "fma": 100,
+        "load": 131,
+        "store": 36
+      },
+      "instructions": 323,
+      "kernel": "sparse_b_narrow",
+      "precision": "s"
+    },
+    "arm_sve512/s/sparse_b_o4": {
+      "arch": "arm_sve512",
+      "block": [
+        20,
+        9,
+        1
+      ],
+      "by_kind": {
+        "add": 34,
+        "fma": 84,
+        "load": 101,
+        "store": 18
+      },
+      "instructions": 237,
+      "kernel": "sparse_b_o4",
+      "precision": "s"
+    },
+    "arm_sve512/s/sparse_b_o6": {
+      "arch": "arm_sve512",
+      "block": [
+        48,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 90,
+        "fma": 148,
+        "load": 223,
+        "store": 36
+      },
+      "instructions": 497,
+      "kernel": "sparse_b_o6",
+      "precision": "s"
+    },
+    "hsw256/d/dense_o4": {
+      "arch": "hsw256",
+      "block": [
+        12,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 22,
+        "branch": 4,
+        "broadcast": 6,
+        "fma": 15,
+        "label": 4,
+        "mov": 50
+      },
+      "instructions": 97,
+      "kernel": "dense_o4",
+      "precision": "d"
+    },
+    "hsw256/d/dense_o6": {
+      "arch": "hsw256",
+      "block": [
+        12,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 23,
+        "branch": 5,
+        "broadcast": 6,
+        "fma": 15,
+        "label": 5,
+        "mov": 51
+      },
+      "instructions": 100,
+      "kernel": "dense_o6",
+      "precision": "d"
+    },
+    "hsw256/d/dense_odd": {
+      "arch": "hsw256",
+      "error": "AssertionError: hsw has no masking, so m (23) must be a multiple of the vector length (4)",
+      "kernel": "dense_odd",
+      "precision": "d"
+    },
+    "hsw256/d/dense_small": {
+      "arch": "hsw256",
+      "block": [
+        8,
+        4,
+        1
+      ],
+      "by_kind": {
+        "add": 10,
+        "branch": 2,
+        "broadcast": 4,
+        "fma": 8,
+        "label": 2,
+        "mov": 30
+      },
+      "instructions": 54,
+      "kernel": "dense_small",
+      "precision": "d"
+    },
+    "hsw256/d/dense_tall": {
+      "arch": "hsw256",
+      "block": [
+        12,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 15,
+        "branch": 3,
+        "broadcast": 6,
+        "fma": 15,
+        "label": 3,
+        "mov": 49
+      },
+      "instructions": 88,
+      "kernel": "dense_tall",
+      "precision": "d"
+    },
+    "hsw256/d/sparse_a_o4": {
+      "arch": "hsw256",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet fully implemented.",
+      "kernel": "sparse_a_o4",
+      "precision": "d"
+    },
+    "hsw256/d/sparse_a_o6": {
+      "arch": "hsw256",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet fully implemented.",
+      "kernel": "sparse_a_o6",
+      "precision": "d"
+    },
+    "hsw256/d/sparse_b_narrow": {
+      "arch": "hsw256",
+      "block": [
+        12,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 15,
+        "branch": 3,
+        "broadcast": 50,
+        "fma": 125,
+        "label": 3,
+        "mov": 195
+      },
+      "instructions": 388,
+      "kernel": "sparse_b_narrow",
+      "precision": "d"
+    },
+    "hsw256/d/sparse_b_o4": {
+      "arch": "hsw256",
+      "block": [
+        12,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 12,
+        "broadcast": 84,
+        "fma": 210,
+        "mov": 312
+      },
+      "instructions": 618,
+      "kernel": "sparse_b_o4",
+      "precision": "d"
+    },
+    "hsw256/d/sparse_b_o6": {
+      "arch": "hsw256",
+      "block": [
+        12,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 15,
+        "branch": 3,
+        "broadcast": 74,
+        "fma": 185,
+        "label": 3,
+        "mov": 297
+      },
+      "instructions": 574,
+      "kernel": "sparse_b_o6",
+      "precision": "d"
+    },
+    "hsw256/s/dense_o4": {
+      "arch": "hsw256",
+      "error": "AssertionError: hsw has no masking, so m (20) must be a multiple of the vector length (8)",
+      "kernel": "dense_o4",
+      "precision": "s"
+    },
+    "hsw256/s/dense_o6": {
+      "arch": "hsw256",
+      "block": [
+        24,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 23,
+        "branch": 5,
+        "broadcast": 6,
+        "fma": 12,
+        "label": 5,
+        "mov": 45
+      },
+      "instructions": 91,
+      "kernel": "dense_o6",
+      "precision": "s"
+    },
+    "hsw256/s/dense_odd": {
+      "arch": "hsw256",
+      "error": "AssertionError: hsw has no masking, so m (23) must be a multiple of the vector length (8)",
+      "kernel": "dense_odd",
+      "precision": "s"
+    },
+    "hsw256/s/dense_small": {
+      "arch": "hsw256",
+      "block": [
+        8,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 14,
+        "branch": 2,
+        "broadcast": 8,
+        "fma": 8,
+        "label": 2,
+        "mov": 30
+      },
+      "instructions": 62,
+      "kernel": "dense_small",
+      "precision": "s"
+    },
+    "hsw256/s/dense_tall": {
+      "arch": "hsw256",
+      "block": [
+        24,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 15,
+        "branch": 3,
+        "broadcast": 6,
+        "fma": 12,
+        "label": 3,
+        "mov": 43
+      },
+      "instructions": 79,
+      "kernel": "dense_tall",
+      "precision": "s"
+    },
+    "hsw256/s/sparse_a_o4": {
+      "arch": "hsw256",
+      "error": "AssertionError: hsw has no masking, so m (20) must be a multiple of the vector length (8)",
+      "kernel": "sparse_a_o4",
+      "precision": "s"
+    },
+    "hsw256/s/sparse_a_o6": {
+      "arch": "hsw256",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet fully implemented.",
+      "kernel": "sparse_a_o6",
+      "precision": "s"
+    },
+    "hsw256/s/sparse_b_narrow": {
+      "arch": "hsw256",
+      "block": [
+        24,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 15,
+        "branch": 3,
+        "broadcast": 50,
+        "fma": 100,
+        "label": 3,
+        "mov": 177
+      },
+      "instructions": 345,
+      "kernel": "sparse_b_narrow",
+      "precision": "s"
+    },
+    "hsw256/s/sparse_b_o4": {
+      "arch": "hsw256",
+      "error": "AssertionError: hsw has no masking, so m (20) must be a multiple of the vector length (8)",
+      "kernel": "sparse_b_o4",
+      "precision": "s"
+    },
+    "hsw256/s/sparse_b_o6": {
+      "arch": "hsw256",
+      "block": [
+        24,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 15,
+        "branch": 3,
+        "broadcast": 74,
+        "fma": 148,
+        "label": 3,
+        "mov": 279
+      },
+      "instructions": 519,
+      "kernel": "sparse_b_o6",
+      "precision": "s"
+    },
+    "knl512/d/dense_o4": {
+      "arch": "knl512",
+      "block": [
+        8,
+        9,
+        23
+      ],
+      "by_kind": {
+        "add": 5,
+        "branch": 1,
+        "fma": 360,
+        "label": 1,
+        "mov": 89
+      },
+      "instructions": 455,
+      "kernel": "dense_o4",
+      "precision": "d"
+    },
+    "knl512/d/dense_o6": {
+      "arch": "knl512",
+      "block": [
+        8,
+        9,
+        23
+      ],
+      "by_kind": {
+        "add": 9,
+        "branch": 2,
+        "fma": 297,
+        "label": 2,
+        "mov": 63
+      },
+      "instructions": 371,
+      "kernel": "dense_o6",
+      "precision": "d"
+    },
+    "knl512/d/dense_odd": {
+      "arch": "knl512",
+      "block": [
+        8,
+        30,
+        2
+      ],
+      "by_kind": {
+        "add": 31,
+        "branch": 5,
+        "fma": 186,
+        "label": 5,
+        "mov": 153
+      },
+      "instructions": 375,
+      "kernel": "dense_odd",
+      "precision": "d"
+    },
+    "knl512/d/dense_small": {
+      "arch": "knl512",
+      "block": [
+        8,
+        8,
+        24
+      ],
+      "by_kind": {
+        "add": 1,
+        "fma": 64,
+        "mov": 34
+      },
+      "instructions": 99,
+      "kernel": "dense_small",
+      "precision": "d"
+    },
+    "knl512/d/dense_tall": {
+      "arch": "knl512",
+      "block": [
+        8,
+        3,
+        29
+      ],
+      "by_kind": {
+        "add": 4,
+        "branch": 1,
+        "fma": 60,
+        "label": 1,
+        "mov": 37
+      },
+      "instructions": 102,
+      "kernel": "dense_tall",
+      "precision": "d"
+    },
+    "knl512/d/sparse_a_o4": {
+      "arch": "knl512",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented",
+      "kernel": "sparse_a_o4",
+      "precision": "d"
+    },
+    "knl512/d/sparse_a_o6": {
+      "arch": "knl512",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented",
+      "kernel": "sparse_a_o6",
+      "precision": "d"
+    },
+    "knl512/d/sparse_b_narrow": {
+      "arch": "knl512",
+      "block": [
+        8,
+        9,
+        23
+      ],
+      "by_kind": {
+        "add": 5,
+        "branch": 1,
+        "fma": 25,
+        "label": 1,
+        "mov": 38
+      },
+      "instructions": 69,
+      "kernel": "sparse_b_narrow",
+      "precision": "d"
+    },
+    "knl512/d/sparse_b_o4": {
+      "arch": "knl512",
+      "block": [
+        8,
+        9,
+        23
+      ],
+      "by_kind": {
+        "add": 5,
+        "branch": 1,
+        "fma": 84,
+        "label": 1,
+        "mov": 87
+      },
+      "instructions": 177,
+      "kernel": "sparse_b_o4",
+      "precision": "d"
+    },
+    "knl512/d/sparse_b_o6": {
+      "arch": "knl512",
+      "block": [
+        8,
+        9,
+        23
+      ],
+      "by_kind": {
+        "add": 5,
+        "branch": 1,
+        "fma": 37,
+        "label": 1,
+        "mov": 55
+      },
+      "instructions": 98,
+      "kernel": "sparse_b_o6",
+      "precision": "d"
+    },
+    "knl512/s/dense_o4": {
+      "arch": "knl512",
+      "block": [
+        16,
+        9,
+        23
+      ],
+      "by_kind": {
+        "add": 4,
+        "fma": 360,
+        "mov": 88
+      },
+      "instructions": 452,
+      "kernel": "dense_o4",
+      "precision": "s"
+    },
+    "knl512/s/dense_o6": {
+      "arch": "knl512",
+      "block": [
+        16,
+        9,
+        23
+      ],
+      "by_kind": {
+        "add": 15,
+        "branch": 3,
+        "fma": 594,
+        "label": 3,
+        "mov": 117
+      },
+      "instructions": 729,
+      "kernel": "dense_o6",
+      "precision": "s"
+    },
+    "knl512/s/dense_odd": {
+      "arch": "knl512",
+      "block": [
+        16,
+        30,
+        2
+      ],
+      "by_kind": {
+        "add": 30,
+        "branch": 4,
+        "fma": 186,
+        "label": 4,
+        "mov": 152
+      },
+      "instructions": 372,
+      "kernel": "dense_odd",
+      "precision": "s"
+    },
+    "knl512/s/dense_small": {
+      "arch": "knl512",
+      "block": [
+        16,
+        8,
+        24
+      ],
+      "by_kind": {
+        "add": 1,
+        "fma": 64,
+        "mov": 36
+      },
+      "instructions": 101,
+      "kernel": "dense_small",
+      "precision": "s"
+    },
+    "knl512/s/dense_tall": {
+      "arch": "knl512",
+      "block": [
+        16,
+        3,
+        29
+      ],
+      "by_kind": {
+        "add": 5,
+        "branch": 1,
+        "fma": 120,
+        "label": 1,
+        "mov": 65
+      },
+      "instructions": 191,
+      "kernel": "dense_tall",
+      "precision": "s"
+    },
+    "knl512/s/sparse_a_o4": {
+      "arch": "knl512",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented",
+      "kernel": "sparse_a_o4",
+      "precision": "s"
+    },
+    "knl512/s/sparse_a_o6": {
+      "arch": "knl512",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented",
+      "kernel": "sparse_a_o6",
+      "precision": "s"
+    },
+    "knl512/s/sparse_b_narrow": {
+      "arch": "knl512",
+      "block": [
+        16,
+        9,
+        23
+      ],
+      "by_kind": {
+        "add": 5,
+        "branch": 1,
+        "fma": 50,
+        "label": 1,
+        "mov": 65
+      },
+      "instructions": 121,
+      "kernel": "sparse_b_narrow",
+      "precision": "s"
+    },
+    "knl512/s/sparse_b_o4": {
+      "arch": "knl512",
+      "block": [
+        16,
+        9,
+        23
+      ],
+      "by_kind": {
+        "add": 4,
+        "fma": 84,
+        "mov": 86
+      },
+      "instructions": 174,
+      "kernel": "sparse_b_o4",
+      "precision": "s"
+    },
+    "knl512/s/sparse_b_o6": {
+      "arch": "knl512",
+      "block": [
+        16,
+        9,
+        23
+      ],
+      "by_kind": {
+        "add": 5,
+        "branch": 1,
+        "fma": 74,
+        "label": 1,
+        "mov": 99
+      },
+      "instructions": 179,
+      "kernel": "sparse_b_o6",
+      "precision": "s"
+    },
+    "lsx128/d/dense_o4": {
+      "arch": "lsx128",
+      "block": [
+        6,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 31,
+        "branch": 5,
+        "broadcast": 18,
+        "fma": 36,
+        "label": 5,
+        "load": 53,
+        "mov": 5,
+        "store": 36
+      },
+      "instructions": 184,
+      "kernel": "dense_o4",
+      "precision": "d"
+    },
+    "lsx128/d/dense_o6": {
+      "arch": "lsx128",
+      "block": [
+        6,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 37,
+        "branch": 5,
+        "broadcast": 18,
+        "fma": 36,
+        "label": 5,
+        "load": 53,
+        "mov": 5,
+        "store": 36
+      },
+      "instructions": 190,
+      "kernel": "dense_o6",
+      "precision": "d"
+    },
+    "lsx128/d/dense_odd": {
+      "arch": "lsx128",
+      "error": "AssertionError: lsx has no masking, so m (23) must be a multiple of the vector length (2)",
+      "kernel": "dense_odd",
+      "precision": "d"
+    },
+    "lsx128/d/dense_small": {
+      "arch": "lsx128",
+      "block": [
+        6,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 30,
+        "branch": 4,
+        "broadcast": 16,
+        "fma": 32,
+        "label": 4,
+        "load": 49,
+        "mov": 4,
+        "store": 32
+      },
+      "instructions": 167,
+      "kernel": "dense_small",
+      "precision": "d"
+    },
+    "lsx128/d/dense_tall": {
+      "arch": "lsx128",
+      "block": [
+        14,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 9,
+        "branch": 2,
+        "broadcast": 3,
+        "fma": 21,
+        "label": 2,
+        "load": 33,
+        "mov": 2,
+        "store": 21
+      },
+      "instructions": 91,
+      "kernel": "dense_tall",
+      "precision": "d"
+    },
+    "lsx128/d/sparse_a_o4": {
+      "arch": "lsx128",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet fully implemented.",
+      "kernel": "sparse_a_o4",
+      "precision": "d"
+    },
+    "lsx128/d/sparse_a_o6": {
+      "arch": "lsx128",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet fully implemented.",
+      "kernel": "sparse_a_o6",
+      "precision": "d"
+    },
+    "lsx128/d/sparse_b_narrow": {
+      "arch": "lsx128",
+      "block": [
+        6,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 26,
+        "branch": 2,
+        "broadcast": 50,
+        "fma": 100,
+        "label": 2,
+        "load": 101,
+        "mov": 2,
+        "store": 36
+      },
+      "instructions": 317,
+      "kernel": "sparse_b_narrow",
+      "precision": "d"
+    },
+    "lsx128/d/sparse_b_o4": {
+      "arch": "lsx128",
+      "block": [
+        6,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 30,
+        "branch": 2,
+        "broadcast": 84,
+        "fma": 168,
+        "label": 2,
+        "load": 185,
+        "mov": 2,
+        "store": 36
+      },
+      "instructions": 507,
+      "kernel": "sparse_b_o4",
+      "precision": "d"
+    },
+    "lsx128/d/sparse_b_o6": {
+      "arch": "lsx128",
+      "block": [
+        6,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 64,
+        "branch": 2,
+        "broadcast": 74,
+        "fma": 148,
+        "label": 2,
+        "load": 203,
+        "mov": 2,
+        "store": 36
+      },
+      "instructions": 529,
+      "kernel": "sparse_b_o6",
+      "precision": "d"
+    },
+    "lsx128/s/dense_o4": {
+      "arch": "lsx128",
+      "block": [
+        12,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 30,
+        "branch": 4,
+        "broadcast": 18,
+        "fma": 45,
+        "label": 4,
+        "load": 62,
+        "mov": 4,
+        "store": 45
+      },
+      "instructions": 208,
+      "kernel": "dense_o4",
+      "precision": "s"
+    },
+    "lsx128/s/dense_o6": {
+      "arch": "lsx128",
+      "block": [
+        12,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 31,
+        "branch": 5,
+        "broadcast": 18,
+        "fma": 45,
+        "label": 5,
+        "load": 62,
+        "mov": 5,
+        "store": 45
+      },
+      "instructions": 211,
+      "kernel": "dense_o6",
+      "precision": "s"
+    },
+    "lsx128/s/dense_odd": {
+      "arch": "lsx128",
+      "error": "AssertionError: lsx has no masking, so m (23) must be a multiple of the vector length (4)",
+      "kernel": "dense_odd",
+      "precision": "s"
+    },
+    "lsx128/s/dense_small": {
+      "arch": "lsx128",
+      "block": [
+        8,
+        8,
+        1
+      ],
+      "by_kind": {
+        "add": 6,
+        "branch": 1,
+        "broadcast": 8,
+        "fma": 16,
+        "label": 1,
+        "load": 23,
+        "mov": 1,
+        "store": 16
+      },
+      "instructions": 71,
+      "kernel": "dense_small",
+      "precision": "s"
+    },
+    "lsx128/s/dense_tall": {
+      "arch": "lsx128",
+      "block": [
+        28,
+        3,
+        1
+      ],
+      "by_kind": {
+        "add": 9,
+        "branch": 2,
+        "broadcast": 3,
+        "fma": 21,
+        "label": 2,
+        "load": 33,
+        "mov": 2,
+        "store": 21
+      },
+      "instructions": 91,
+      "kernel": "dense_tall",
+      "precision": "s"
+    },
+    "lsx128/s/sparse_a_o4": {
+      "arch": "lsx128",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet fully implemented.",
+      "kernel": "sparse_a_o4",
+      "precision": "s"
+    },
+    "lsx128/s/sparse_a_o6": {
+      "arch": "lsx128",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet fully implemented.",
+      "kernel": "sparse_a_o6",
+      "precision": "s"
+    },
+    "lsx128/s/sparse_b_narrow": {
+      "arch": "lsx128",
+      "block": [
+        12,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 10,
+        "branch": 2,
+        "broadcast": 50,
+        "fma": 125,
+        "label": 2,
+        "load": 110,
+        "mov": 2,
+        "store": 45
+      },
+      "instructions": 344,
+      "kernel": "sparse_b_narrow",
+      "precision": "s"
+    },
+    "lsx128/s/sparse_b_o4": {
+      "arch": "lsx128",
+      "block": [
+        12,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 8,
+        "broadcast": 84,
+        "fma": 210,
+        "load": 194,
+        "store": 45
+      },
+      "instructions": 541,
+      "kernel": "sparse_b_o4",
+      "precision": "s"
+    },
+    "lsx128/s/sparse_b_o6": {
+      "arch": "lsx128",
+      "block": [
+        12,
+        7,
+        1
+      ],
+      "by_kind": {
+        "add": 52,
+        "branch": 2,
+        "broadcast": 74,
+        "fma": 185,
+        "label": 2,
+        "load": 212,
+        "mov": 2,
+        "store": 45
+      },
+      "instructions": 572,
+      "kernel": "sparse_b_o6",
+      "precision": "s"
+    },
+    "rvv512/d/dense_o4": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (20) must be a multiple of the vector length (8)",
+      "kernel": "dense_o4",
+      "precision": "d"
+    },
+    "rvv512/d/dense_o6": {
+      "arch": "rvv512",
+      "block": [
+        8,
+        9,
+        3
+      ],
+      "by_kind": {
+        "add": 30,
+        "branch": 2,
+        "fma": 45,
+        "label": 2,
+        "load": 64,
+        "mov": 2,
+        "setvl": 1,
+        "store": 9
+      },
+      "instructions": 153,
+      "kernel": "dense_o6",
+      "precision": "d"
+    },
+    "rvv512/d/dense_odd": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (23) must be a multiple of the vector length (8)",
+      "kernel": "dense_odd",
+      "precision": "d"
+    },
+    "rvv512/d/dense_small": {
+      "arch": "rvv512",
+      "block": [
+        8,
+        8,
+        3
+      ],
+      "by_kind": {
+        "add": 23,
+        "branch": 1,
+        "fma": 40,
+        "label": 1,
+        "load": 58,
+        "mov": 1,
+        "setvl": 1,
+        "store": 8
+      },
+      "instructions": 132,
+      "kernel": "dense_small",
+      "precision": "d"
+    },
+    "rvv512/d/dense_tall": {
+      "arch": "rvv512",
+      "block": [
+        8,
+        3,
+        10
+      ],
+      "by_kind": {
+        "add": 22,
+        "branch": 2,
+        "fma": 30,
+        "label": 2,
+        "load": 48,
+        "mov": 2,
+        "setvl": 1,
+        "store": 3
+      },
+      "instructions": 108,
+      "kernel": "dense_tall",
+      "precision": "d"
+    },
+    "rvv512/d/sparse_a_o4": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (20) must be a multiple of the vector length (8)",
+      "kernel": "sparse_a_o4",
+      "precision": "d"
+    },
+    "rvv512/d/sparse_a_o6": {
+      "arch": "rvv512",
+      "error": "NotImplementedError: Element-wise sparsity in A is not yet implemented.",
+      "kernel": "sparse_a_o6",
+      "precision": "d"
+    },
+    "rvv512/d/sparse_b_narrow": {
+      "arch": "rvv512",
+      "block": [
+        8,
+        9,
+        3
+      ],
+      "by_kind": {
+        "add": 28,
+        "branch": 1,
+        "fma": 25,
+        "label": 1,
+        "load": 46,
+        "mov": 1,
+        "setvl": 1,
+        "store": 9
+      },
+      "instructions": 111,
+      "kernel": "sparse_b_narrow",
+      "precision": "d"
+    },
+    "rvv512/d/sparse_b_o4": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (20) must be a multiple of the vector length (8)",
+      "kernel": "sparse_b_o4",
+      "precision": "d"
+    },
+    "rvv512/d/sparse_b_o6": {
+      "arch": "rvv512",
+      "block": [
+        8,
+        9,
+        3
+      ],
+      "by_kind": {
+        "add": 45,
+        "branch": 1,
+        "fma": 37,
+        "label": 1,
+        "load": 75,
+        "mov": 1,
+        "setvl": 1,
+        "store": 9
+      },
+      "instructions": 169,
+      "kernel": "sparse_b_o6",
+      "precision": "d"
+    },
+    "rvv512/s/dense_o4": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (20) must be a multiple of the vector length (16)",
+      "kernel": "dense_o4",
+      "precision": "s"
+    },
+    "rvv512/s/dense_o6": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (56) must be a multiple of the vector length (16)",
+      "kernel": "dense_o6",
+      "precision": "s"
+    },
+    "rvv512/s/dense_odd": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (23) must be a multiple of the vector length (16)",
+      "kernel": "dense_odd",
+      "precision": "s"
+    },
+    "rvv512/s/dense_small": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (8) must be a multiple of the vector length (16)",
+      "kernel": "dense_small",
+      "precision": "s"
+    },
+    "rvv512/s/dense_tall": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (56) must be a multiple of the vector length (16)",
+      "kernel": "dense_tall",
+      "precision": "s"
+    },
+    "rvv512/s/sparse_a_o4": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (20) must be a multiple of the vector length (16)",
+      "kernel": "sparse_a_o4",
+      "precision": "s"
+    },
+    "rvv512/s/sparse_a_o6": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (56) must be a multiple of the vector length (16)",
+      "kernel": "sparse_a_o6",
+      "precision": "s"
+    },
+    "rvv512/s/sparse_b_narrow": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (56) must be a multiple of the vector length (16)",
+      "kernel": "sparse_b_narrow",
+      "precision": "s"
+    },
+    "rvv512/s/sparse_b_o4": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (20) must be a multiple of the vector length (16)",
+      "kernel": "sparse_b_o4",
+      "precision": "s"
+    },
+    "rvv512/s/sparse_b_o6": {
+      "arch": "rvv512",
+      "error": "AssertionError: rvv has no masking, so m (56) must be a multiple of the vector length (16)",
+      "kernel": "sparse_b_o6",
+      "precision": "s"
+    }
+  },
+  "version": 1
+}

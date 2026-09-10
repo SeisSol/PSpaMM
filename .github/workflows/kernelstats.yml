@@ -1,0 +1,23 @@
+name: kernelstats
+on:
+  - push
+
+jobs:
+  kernelstats:
+    name: kernelstats
+    runs-on: ubuntu-24.04
+    steps:
+      - name: setup-python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - uses: actions/checkout@v5
+
+      - name: pip-pspamm
+        run: |
+          pip install .
+
+      - name: compare-against-baseline
+        run: |
+          python tools/kernelstats.py compare tools/kernelstats-baseline.json
