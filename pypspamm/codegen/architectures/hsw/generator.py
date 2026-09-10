@@ -1,7 +1,7 @@
 from pypspamm.codegen.architectures.hsw.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
-from pypspamm.codegen.microkernel import cells
+from pypspamm.codegen.microkernel import LoadedOnce, cells
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.regcache import *
 from pypspamm.codegen.sugar import *
@@ -337,20 +337,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         Vm = self.ceil_div(bm, v_size)
 
-        bs = []
-        bsv = []
+        loaded = LoadedOnce()
         for Vmi, bni, bki, to_acell, to_bcell in cells(
             A, B, A_ptr, B_ptr, to_A_block, to_B_block, Vm, bn, bk, v_size
         ):
             B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
             self.reg_based_scaling(asm, B_addr, additional_regs)
-            if B_regs[bki, bni] not in bs:
+            if loaded.first(B_regs[bki, bni], B_addr):
                 asm.add(bcst(B_addr, B_regs[bki, bni], comment=B_comment))
-                bs.append(B_regs[bki, bni])
-                bsv.append(B_addr)
-            else:
-                # just to make sure we do not use registers differently in a block
-                assert bsv[bs.index(B_regs[bki, bni])].ugly == B_addr.ugly
 
         for bki in range(bk):  # inside this k-block
             for Vmi in range(Vm):

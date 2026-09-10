@@ -44,3 +44,27 @@ def cells(
                 if require_a and not A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
                     continue
                 yield Vmi, bni, bki, to_acell, to_bcell
+
+
+class LoadedOnce:
+    """Which operand registers already hold their value.
+
+    A value of B is wanted by every vector row of a block but is loaded once,
+    at the first cell that needs it. Every later cell has to agree on where it
+    came from; that is checked here rather than assumed.
+    """
+
+    def __init__(self):
+        self.loaded = {}
+
+    def first(self, register, addr) -> bool:
+        """Whether this register still has to be loaded, recording it if so."""
+
+        key = register.ugly
+        if key in self.loaded:
+            assert (
+                self.loaded[key].ugly == addr.ugly
+            ), f"{key} would have to hold two different addresses within one block"
+            return False
+        self.loaded[key] = addr
+        return True
