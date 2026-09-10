@@ -2,6 +2,7 @@ from pypspamm.codegen.address import ScratchBase
 from pypspamm.codegen.architectures.arm.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
+from pypspamm.codegen.microkernel import cells
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.sugar import *
 from pypspamm.codegen.target import TARGETS
@@ -343,24 +344,31 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         bs = []
         firstloc = {}
         locations = []
-        for Vmi in range(bm // v_size):
-            for bni in range(bn):  # inside this n-block
-                for bki in range(bk):  # inside this k-block
-                    bki_reg = bki // elem128
-                    to_bcell = Coords(down=bki, right=bni)
-                    to_acell = Coords(down=Vmi * v_size, right=bki)
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell):
-                        if (bki_reg, bni) not in firstloc:
-                            B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                            firstloc[(bki_reg, bni)] = self.LoadStoreLocation(
-                                B_cell_addr, B_regs[bki_reg, bni], B_comment
-                            )
-                        if (
-                            A.has_nonzero_cell(A_ptr, to_A_block, to_acell)
-                            and B_regs[bki_reg, bni] not in bs
-                        ):
-                            locations += [firstloc[(bki_reg, bni)]]
-                            bs.append(B_regs[bki_reg, bni])
+        for Vmi, bni, bki, to_acell, to_bcell in cells(
+            A,
+            B,
+            A_ptr,
+            B_ptr,
+            to_A_block,
+            to_B_block,
+            bm // v_size,
+            bn,
+            bk,
+            v_size,
+            require_a=False,
+        ):
+            bki_reg = bki // elem128
+            if (bki_reg, bni) not in firstloc:
+                B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+                firstloc[(bki_reg, bni)] = self.LoadStoreLocation(
+                    B_cell_addr, B_regs[bki_reg, bni], B_comment
+                )
+            if (
+                A.has_nonzero_cell(A_ptr, to_A_block, to_acell)
+                and B_regs[bki_reg, bni] not in bs
+            ):
+                locations += [firstloc[(bki_reg, bni)]]
+                bs.append(B_regs[bki_reg, bni])
         asm.add(
             self.fuse_loadstore_block(
                 locations, False, B.name, to_B_block, additional_regs

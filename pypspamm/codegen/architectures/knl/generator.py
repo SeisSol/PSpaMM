@@ -1,6 +1,7 @@
 from pypspamm.codegen.architectures.knl.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
+from pypspamm.codegen.microkernel import cells
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.regcache import *
 from pypspamm.codegen.sugar import *
@@ -338,25 +339,20 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         Vm = max(self.ceil_div(bm, v_size), 1)
 
-        for bki in range(bk):  # inside this k-block
-            for Vmi in range(Vm):
-                for bni in range(bn):  # inside this n-block
-                    to_bcell = Coords(down=bki, right=bni)
-                    to_acell = Coords(down=Vmi * v_size, right=bki)
-                    if B.has_nonzero_cell(
-                        B_ptr, to_B_block, to_bcell
-                    ) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
-                        B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        self.reg_based_scaling(asm, B_addr, additional_regs)
-                        comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
-                        asm.add(
-                            fma(
-                                B_addr,
-                                A_regs[Vmi, bki],
-                                C_regs[Vmi, bni],
-                                comment=comment,
-                                bcast=0,
-                                sub=sub,
-                            )
-                        )
+        for Vmi, bni, bki, to_acell, to_bcell in cells(
+            A, B, A_ptr, B_ptr, to_A_block, to_B_block, Vm, bn, bk, v_size, order="kmn"
+        ):
+            B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+            self.reg_based_scaling(asm, B_addr, additional_regs)
+            comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
+            asm.add(
+                fma(
+                    B_addr,
+                    A_regs[Vmi, bki],
+                    C_regs[Vmi, bni],
+                    comment=comment,
+                    bcast=0,
+                    sub=sub,
+                )
+            )
         return asm

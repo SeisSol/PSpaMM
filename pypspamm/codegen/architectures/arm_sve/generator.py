@@ -2,6 +2,7 @@ from pypspamm.codegen.address import ScratchBase
 from pypspamm.codegen.architectures.arm_sve.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
+from pypspamm.codegen.microkernel import cells
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.sugar import *
 from pypspamm.codegen.target import TARGETS
@@ -536,75 +537,75 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             preg if bk % elem128 == 0 else self.pred_n_trues(bk % elem128, elem128, "z")
         )
         firstloc = {}
-        for Vmi in range(Vm):
-            # set to all v_size predicates to true, we want to replicate a B element into a whole vector
-            for bni in range(bn):  # inside this n-block
-                for bki in range(bk):  # inside this k-block
-                    bki_reg = bki // elem128
-                    to_bcell = Coords(down=bki, right=bni)
-                    to_acell = Coords(down=Vmi * v_size, right=bki)
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell):
-                        if (bki_reg, bni) not in firstloc:
-                            B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                            firstloc[(bki_reg, bni)] = (B_cell_addr, B_comment)
-                        if (
-                            A.has_nonzero_cell(A_ptr, to_A_block, to_acell)
-                            and B_regs[bki_reg, bni] not in bs
-                        ):
-                            p_zeroing = preg_last if bki_reg + 1 == vk else preg
+        # a B element is replicated into a whole vector, so all predicates are true
+        for Vmi, bni, bki, to_acell, to_bcell in cells(
+            A,
+            B,
+            A_ptr,
+            B_ptr,
+            to_A_block,
+            to_B_block,
+            Vm,
+            bn,
+            bk,
+            v_size,
+            require_a=False,
+        ):
+            bki_reg = bki // elem128
+            if (bki_reg, bni) not in firstloc:
+                B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+                firstloc[(bki_reg, bni)] = (B_cell_addr, B_comment)
+            if (
+                A.has_nonzero_cell(A_ptr, to_A_block, to_acell)
+                and B_regs[bki_reg, bni] not in bs
+            ):
+                p_zeroing = preg_last if bki_reg + 1 == vk else preg
 
-                            B_cell_addr = firstloc[(bki_reg, bni)][0]
-                            B_comment = firstloc[(bki_reg, bni)][1]
+                B_cell_addr = firstloc[(bki_reg, bni)][0]
+                B_comment = firstloc[(bki_reg, bni)][1]
 
-                            # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
-                            if (
-                                B_cell_addr.disp > max_offs
-                                or B_cell_addr.disp % divider != 0
-                            ):
-                                moved = B_cell_addr.disp - cur11
-                                if (
-                                    moved > 0
-                                    and moved <= max_offs
-                                    and moved % divider == 0
-                                ):
-                                    B_cell_addr.disp = moved
-                                else:
-                                    asm.add(
-                                        add(
-                                            B_cell_addr.disp,
-                                            additional_regs[0],
-                                            "",
-                                            B_cell_addr.base,
-                                        )
-                                    )
-                                    cur11 = B_cell_addr.disp
-                                    B_cell_addr.disp = 0
+                # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
+                if B_cell_addr.disp > max_offs or B_cell_addr.disp % divider != 0:
+                    moved = B_cell_addr.disp - cur11
+                    if moved > 0 and moved <= max_offs and moved % divider == 0:
+                        B_cell_addr.disp = moved
+                    else:
+                        asm.add(
+                            add(
+                                B_cell_addr.disp,
+                                additional_regs[0],
+                                "",
+                                B_cell_addr.base,
+                            )
+                        )
+                        cur11 = B_cell_addr.disp
+                        B_cell_addr.disp = 0
 
-                                B_cell_addr.base = additional_regs[0]
+                    B_cell_addr.base = additional_regs[0]
 
-                            if not self.inline_broadcast:
-                                asm.add(
-                                    ld(
-                                        B_cell_addr,
-                                        B_regs[bki_reg, bni],
-                                        True,
-                                        B_comment,
-                                        pred=p_zeroing,
-                                        is_B=True,
-                                    )
-                                )
-                            else:
-                                asm.add(
-                                    ld(
-                                        B_cell_addr,
-                                        B_regs[bki_reg, bni],
-                                        True,
-                                        B_comment,
-                                        pred=p_zeroing,
-                                        sub128=True,
-                                    )
-                                )
-                            bs.append(B_regs[bki_reg, bni])
+                if not self.inline_broadcast:
+                    asm.add(
+                        ld(
+                            B_cell_addr,
+                            B_regs[bki_reg, bni],
+                            True,
+                            B_comment,
+                            pred=p_zeroing,
+                            is_B=True,
+                        )
+                    )
+                else:
+                    asm.add(
+                        ld(
+                            B_cell_addr,
+                            B_regs[bki_reg, bni],
+                            True,
+                            B_comment,
+                            pred=p_zeroing,
+                            sub128=True,
+                        )
+                    )
+                bs.append(B_regs[bki_reg, bni])
 
         # TODO: refactor cell_indices into the cursors/blocks
         cell_indices = {}
