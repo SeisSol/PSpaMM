@@ -209,9 +209,13 @@ def sparse_mask(
     assert Vc >= A_bc  # Matrix block must fit in register block
     assert A_bc == B_br  # Matrix blocks are compatible
 
-    # Mask out registers not used in current block, including zero-rows of B and A
+    # Mask out registers not used in the current block. A block column of A is
+    # held in whole vector registers, so the decision is per column: the column
+    # is needed exactly if the matching row of B contributes anything. Sparsity
+    # within a column of A is not expressible here and has to be handled by the
+    # per-architecture generators.
     for Vci in range(A_bc):
         if B_pat[Vci, :].any(axis=1):
-            mask[:, Vci] = A_pat[:, Vci]
+            mask[:, Vci] = True
 
     return mask
