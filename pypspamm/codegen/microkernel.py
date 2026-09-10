@@ -58,13 +58,19 @@ class LoadedOnce:
         self.loaded = {}
 
     def first(self, register, addr) -> bool:
-        """Whether this register still has to be loaded, recording it if so."""
+        """Whether this register still has to be loaded, recording it if so.
+
+        What is kept is how the address read at the time, not the address
+        itself: placing it may rewrite it onto a scratch base afterwards, and
+        the later readings this is compared against have not been through that.
+        """
 
         key = register.ugly
+        seen = addr.ugly
         if key in self.loaded:
             assert (
-                self.loaded[key].ugly == addr.ugly
+                self.loaded[key] == seen
             ), f"{key} would have to hold two different addresses within one block"
             return False
-        self.loaded[key] = addr
+        self.loaded[key] = seen
         return True
