@@ -106,7 +106,7 @@
         1
       ],
       "by_kind": {
-        "add": 56,
+        "add": 46,
         "branch": 2,
         "fma": 100,
         "label": 2,
@@ -114,7 +114,7 @@
         "mov": 2,
         "store": 27
       },
-      "instructions": 305,
+      "instructions": 295,
       "kernel": "sparse_b_narrow",
       "precision": "d"
     },
@@ -126,7 +126,7 @@
         1
       ],
       "by_kind": {
-        "add": 76,
+        "add": 68,
         "branch": 2,
         "fma": 168,
         "label": 2,
@@ -134,7 +134,7 @@
         "mov": 2,
         "store": 27
       },
-      "instructions": 487,
+      "instructions": 479,
       "kernel": "sparse_b_o4",
       "precision": "d"
     },
@@ -146,7 +146,7 @@
         1
       ],
       "by_kind": {
-        "add": 98,
+        "add": 94,
         "branch": 2,
         "fma": 148,
         "label": 2,
@@ -154,7 +154,7 @@
         "mov": 2,
         "store": 27
       },
-      "instructions": 491,
+      "instructions": 487,
       "kernel": "sparse_b_o6",
       "precision": "d"
     },
@@ -264,7 +264,7 @@
         1
       ],
       "by_kind": {
-        "add": 66,
+        "add": 58,
         "branch": 2,
         "fma": 125,
         "label": 2,
@@ -272,7 +272,7 @@
         "mov": 2,
         "store": 27
       },
-      "instructions": 340,
+      "instructions": 332,
       "kernel": "sparse_b_narrow",
       "precision": "s"
     },
@@ -284,12 +284,12 @@
         1
       ],
       "by_kind": {
-        "add": 86,
+        "add": 82,
         "fma": 210,
         "load": 208,
         "store": 27
       },
-      "instructions": 531,
+      "instructions": 527,
       "kernel": "sparse_b_o4",
       "precision": "s"
     },
@@ -301,7 +301,7 @@
         1
       ],
       "by_kind": {
-        "add": 122,
+        "add": 116,
         "branch": 2,
         "fma": 185,
         "label": 2,
@@ -309,7 +309,7 @@
         "mov": 2,
         "store": 27
       },
-      "instructions": 550,
+      "instructions": 544,
       "kernel": "sparse_b_o6",
       "precision": "s"
     },
@@ -321,7 +321,7 @@
         2
       ],
       "by_kind": {
-        "add": 64,
+        "add": 56,
         "branch": 2,
         "fma": 54,
         "label": 2,
@@ -329,7 +329,7 @@
         "mov": 2,
         "store": 27
       },
-      "instructions": 205,
+      "instructions": 197,
       "kernel": "dense_o4",
       "precision": "d"
     },
@@ -450,12 +450,12 @@
         2
       ],
       "by_kind": {
-        "add": 104,
+        "add": 96,
         "fma": 126,
         "load": 160,
         "store": 27
       },
-      "instructions": 417,
+      "instructions": 409,
       "kernel": "sparse_b_o4",
       "precision": "d"
     },
@@ -504,7 +504,7 @@
         1
       ],
       "by_kind": {
-        "add": 64,
+        "add": 60,
         "branch": 4,
         "fma": 36,
         "label": 4,
@@ -512,7 +512,7 @@
         "mov": 4,
         "store": 36
       },
-      "instructions": 211,
+      "instructions": 207,
       "kernel": "dense_o6",
       "precision": "s"
     },
@@ -596,12 +596,12 @@
         1
       ],
       "by_kind": {
-        "add": 56,
+        "add": 52,
         "fma": 100,
         "load": 131,
         "store": 36
       },
-      "instructions": 323,
+      "instructions": 319,
       "kernel": "sparse_b_narrow",
       "precision": "s"
     },
@@ -630,12 +630,12 @@
         1
       ],
       "by_kind": {
-        "add": 90,
+        "add": 86,
         "fma": 148,
         "load": 223,
         "store": 36
       },
-      "instructions": 497,
+      "instructions": 493,
       "kernel": "sparse_b_o6",
       "precision": "s"
     },

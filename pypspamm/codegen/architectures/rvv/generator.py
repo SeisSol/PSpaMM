@@ -176,7 +176,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         max_offset, _ = self.target.memory_offset_limit(vector_bytes=mul_vl)
 
         base = ScratchBase(
-            additional_regs[0], scale=mul_vl, immediate=self.target.scalar_immediate
+            additional_regs[0],
+            scale=mul_vl,
+            immediate=self.target.scalar_immediate,
+            prefer_original=self.target.prefer_original_base,
         )
 
         process_size = min(v_size, cursor.br)

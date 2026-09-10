@@ -187,7 +187,11 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         asm = block(f"{action} {name} register block @ {block_offset}")
 
         curpf = 0
-        base = ScratchBase(additional_regs[0])
+        base = ScratchBase(
+            additional_regs[0],
+            immediate=self.target.scalar_immediate,
+            prefer_original=self.target.prefer_original_base,
+        )
         fuse_cache = []
 
         def try_flush_cache(force):

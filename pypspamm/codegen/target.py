@@ -148,6 +148,7 @@ TARGETS = {
         # one register reaches 65520 bytes, a pair 1008, and the three and four
         # register forms only the fixed step they advance by
         memory_offsets={1: (65520, 16), 2: (1008, 16), 3: (48, 24), 4: (64, 32)},
+        prefer_original_base=True,
     ),
     # 32 z registers, p0 to p7 as predicates. The indexed form of FMLA takes
     # its second operand from z0 to z15 for doubles and from z0 to z7 for
@@ -159,6 +160,7 @@ TARGETS = {
         broadcast=BroadcastForm.INDEXED,
         # ld1d and st1d encode the offset as a multiple of the vector length
         vector_offset_steps=7,
+        prefer_original_base=True,
     ),
     # 32 v registers; the multiplication takes a scalar operand directly
     "rvv": TargetDescription(
