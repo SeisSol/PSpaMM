@@ -231,11 +231,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
                     if larger_max_offset or addr.disp > 0 or non_dividing_offset:
                         offset_comment = f"move to new vector"
-                        if (
-                            offset < 2048
-                            and offset >= -2048
-                            and prev_base == additional_regs[0]
-                        ):
+                        low, high = self.target.scalar_immediate
+                        if low <= offset <= high and prev_base == additional_regs[0]:
                             asm.add(add(offset, additional_regs[0], offset_comment))
                         else:
                             asm.add(

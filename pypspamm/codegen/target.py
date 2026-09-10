@@ -57,6 +57,10 @@ class TargetDescription:
     #: than in bytes, the largest such multiple. Zero says the instructions
     #: take no immediate offset at all.
     vector_offset_steps: Optional[int] = None
+    #: range of the immediate an addition can carry, which decides whether a
+    #: scratch base can be advanced by a difference or has to be recomputed
+    #: from the original base
+    scalar_immediate: Optional[Tuple[int, int]] = None
 
     @property
     def has_masks(self) -> bool:
@@ -162,6 +166,8 @@ TARGETS = {
         reserved_scalar_registers=2,
         # the vector loads take no immediate offset
         vector_offset_steps=0,
+        # addi carries a signed twelve bit immediate
+        scalar_immediate=(-2048, 2047),
     ),
     # 32 v registers, no masks
     "lsx": TargetDescription(vector_registers=32),
