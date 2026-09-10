@@ -16,19 +16,24 @@ class ScratchBase:
     base, so that a run of nearby accesses shares one addition.
     """
 
-    def __init__(self, register, scale: int = 1, eager: bool = False):
+    def __init__(
+        self,
+        register,
+        scale: int = 1,
+        immediate=None,
+        prefer_original: bool = False,
+    ):
         self.register = register
         #: what an encoded displacement counts, in bytes
         self.scale = scale
-        #: whether every address is rewritten to be relative to the scratch
-        #: register once it is in use, or only those that need it. Rewriting
-        #: eagerly loses sight of the original base, so a refresh has to add
-        #: the difference; rewriting lazily can recompute from the original.
-        self.eager = eager
+        #: range of the immediate an addition carries, or None where it is wide
+        #: enough not to matter
+        self.immediate = immediate
+        #: whether the original base is used whenever it reaches, rather than
+        #: staying on the scratch register once that is in use
+        self.prefer_original = prefer_original
         #: offset currently held, or None while the register is unused
         self.held = None
-        #: the base an address is expressed against
-        self.base = None
 
     @property
     def offset(self) -> int:
@@ -37,37 +42,45 @@ class ScratchBase:
     def fits(self, offset, limit, granularity):
         return offset <= limit and offset % granularity == 0
 
+    def reaches(self, offset) -> bool:
+        """Whether an addition can carry this offset as an immediate."""
+
+        if self.immediate is None:
+            return True
+        low, high = self.immediate
+        return low <= offset <= high
+
     def place(self, asm, addr, limit, granularity, force=False, comment=""):
         """Rewrite an address so the instruction can encode it.
 
-        Adds to the scratch register where the offset is out of reach, and
-        rewrites the address to be relative to it. A caller with its own reason
-        to refresh the register says so with force.
+        Uses the base already in hand where it reaches, and otherwise brings
+        the scratch register onto the address, advancing it by the difference
+        where the addition carries that and recomputing it from the original
+        base where it does not.
         """
 
-        rebased = self.eager and self.held is not None
-        if rebased:
-            addr.disp -= self.held
-            addr.base = self.register
-        offset = addr.disp if rebased else addr.disp - self.offset
+        original = addr.base
+        absolute = addr.disp
 
-        if force or not self.fits(offset, limit, granularity):
-            if rebased:
-                asm.add(add(offset, self.register, comment))
-                self.held += offset
-                addr.disp = 0
-            else:
-                asm.add(add(addr.disp, self.register, comment, addr.base))
-                self.held = addr.disp
-                if self.eager:
-                    addr.disp = 0
-            addr.base = self.register
-            self.base = self.register
+        def use(base, offset):
+            addr.base = base
+            addr.disp = offset // self.scale
 
-        if self.eager:
-            return
+        if not force:
+            if (self.prefer_original or self.held is None) and self.fits(
+                absolute, limit, granularity
+            ):
+                use(original, absolute)
+                return
+            if self.held is not None and self.fits(
+                absolute - self.held, limit, granularity
+            ):
+                use(self.register, absolute - self.held)
+                return
 
-        if self.base is None:
-            self.base = addr.base
-        addr.base = self.base
-        addr.disp = (addr.disp - self.offset) // self.scale
+        if self.held is not None and self.reaches(absolute - self.held):
+            asm.add(add(absolute - self.held, self.register, comment))
+        else:
+            asm.add(add(absolute, self.register, comment, original))
+        self.held = absolute
+        use(self.register, 0)
