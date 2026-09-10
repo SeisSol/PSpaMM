@@ -117,13 +117,8 @@ class MatMul:
         arch = archspec.module
 
         self.arch = arch
-        assert precision.lower() in ["bf16", "h", "s", "d"]
-        self.precision = {
-            "h": Precision.HALF,
-            "s": Precision.SINGLE,
-            "d": Precision.DOUBLE,
-            "bf16": Precision.BFLOAT16,
-        }[precision.lower()]
+        self.precision = Precision.fromCode(precision)
+        self.types = Types.uniform(self.precision)
 
         pypspamm.architecture.init()
         pypspamm.architecture.arch = arch
@@ -176,7 +171,7 @@ class MatMul:
 
         if self.operand_copies > 1:
             vm = self.generator.ceil_div(self.bm, self.v_size)
-            size = self.precision.size()
+            size = self.types.b.size()
             target = self.generator.target
             while self.bk > 1 and not target.fits(
                 self.bn, self.bk, vm, size, self.operand_copies
@@ -302,7 +297,7 @@ class MatMul:
                 self.lda,
                 self.bm,
                 self.bk,
-                self.precision.size(),
+                self.types.a.size(),
                 blocks,
                 patterns,
                 mtx_overhead,
@@ -317,7 +312,7 @@ class MatMul:
                 self.lda,
                 self.bm,
                 self.bk,
-                self.precision.size(),
+                self.types.a.size(),
             )
         if ldb == 0:
             blocks, patterns, mtx_overhead = decompose_pattern(
@@ -331,7 +326,7 @@ class MatMul:
                 self.ldb,
                 self.bk,
                 self.bn,
-                self.precision.size(),
+                self.types.b.size(),
                 blocks,
                 patterns,
                 mtx_overhead,
@@ -346,7 +341,7 @@ class MatMul:
                 self.ldb,
                 self.bk,
                 self.bn,
-                self.precision.size(),
+                self.types.b.size(),
             )
         self.C = DenseCursor(
             "C",
@@ -356,7 +351,7 @@ class MatMul:
             self.ldc,
             self.bm,
             self.bn,
-            self.precision.size(),
+            self.types.c.size(),
         )
         self.C_pf = (
             DenseCursor(
@@ -367,7 +362,7 @@ class MatMul:
                 self.ldc,
                 self.bm,
                 self.bn,
-                self.precision.size(),
+                self.types.c.size(),
             )
             if self.prefetch_reg
             else None
