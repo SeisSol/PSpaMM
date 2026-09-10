@@ -1,3 +1,4 @@
+from pypspamm.codegen.address import ScratchBase
 from pypspamm.codegen.architectures.rvv.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
@@ -174,8 +175,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         )  # e.g. A64FX has VL of 64 bytes in memory (thus, use v_len==4)
         max_offset, _ = self.target.memory_offset_limit(vector_bytes=mul_vl)
 
-        prev_disp = 0
-        prev_base = None
+        base = ScratchBase(
+            additional_regs[0], scale=mul_vl, immediate=self.target.scalar_immediate
+        )
 
         process_size = min(v_size, cursor.br)
 
@@ -218,35 +220,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
                     addr.disp += self.precision.size() * load_offset
 
-                    offset = addr.disp - prev_disp
-
-                    # count how many elements we have processed between last step and this step
-                    cont_counter = offset // mul_vl
-                    larger_max_offset = cont_counter * mul_vl > max_offset
-                    non_dividing_offset = offset % mul_vl != 0
-
-                    # adjust addr.disp to a multiple of the RVV vector length
-                    if prev_base is None:
-                        prev_base = addr.base
-
-                    if larger_max_offset or addr.disp > 0 or non_dividing_offset:
-                        offset_comment = f"move to new vector"
-                        low, high = self.target.scalar_immediate
-                        if low <= offset <= high and prev_base == additional_regs[0]:
-                            asm.add(add(offset, additional_regs[0], offset_comment))
-                        else:
-                            asm.add(
-                                add(
-                                    addr.disp,
-                                    additional_regs[0],
-                                    offset_comment,
-                                    addr.base,
-                                )
-                            )
-                        prev_disp = addr.disp
-                        addr.base = additional_regs[0]
-                        addr.disp = 0
-                        prev_base = additional_regs[0]
+                    base.place(
+                        asm,
+                        addr,
+                        max_offset,
+                        mul_vl,
+                        force=addr.disp > 0,
+                        comment="move to new vector",
+                    )
 
                     if store:
                         asm.add(
@@ -266,10 +247,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                                 pf_cursor_ptr, block_offset, cell_offset
                             )
                             addr.disp += self.precision.size() * load_offset
-                            if prev_disp > 0:
+                            if base.offset > 0:
                                 asm.add(
                                     add(
-                                        prev_disp,
+                                        base.offset,
                                         additional_regs[3],
                                         "increment the prefetch register",
                                         addr.base,
@@ -280,10 +261,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                                     mem(
                                         (
                                             additional_regs[3]
-                                            if prev_disp > 0
+                                            if base.offset > 0
                                             else addr.base
                                         ),
-                                        addr.disp - prev_disp,
+                                        addr.disp - base.offset,
                                     ),
                                     "",
                                     p,

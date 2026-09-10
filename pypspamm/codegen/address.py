@@ -40,7 +40,7 @@ class ScratchBase:
         return self.held or 0
 
     def fits(self, offset, limit, granularity):
-        return offset <= limit and offset % granularity == 0
+        return 0 <= offset <= limit and offset % granularity == 0
 
     def reaches(self, offset) -> bool:
         """Whether an addition can carry this offset as an immediate."""
