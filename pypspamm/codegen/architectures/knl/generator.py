@@ -1,7 +1,7 @@
 from pypspamm.codegen.architectures.knl.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
-from pypspamm.codegen.microkernel import cells
+from pypspamm.codegen.microkernel import cells, contribution
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.regcache import *
 from pypspamm.codegen.sugar import *
@@ -344,7 +344,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         ):
             B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
             self.reg_based_scaling(asm, B_addr, additional_regs)
-            comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
+            comment = contribution(Vmi, bni, bki, v_size, B_comment)
             asm.add(
                 fma(
                     B_addr,

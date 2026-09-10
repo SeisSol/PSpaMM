@@ -2,7 +2,7 @@ from pypspamm.codegen.address import ScratchBase
 from pypspamm.codegen.architectures.rvv.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
-from pypspamm.codegen.microkernel import cells
+from pypspamm.codegen.microkernel import cells, contribution
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.sugar import *
 from pypspamm.codegen.target import TARGETS
@@ -402,7 +402,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                         B_ptr, to_B_block, to_bcell
                     ) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
                         _, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        comment = f"C[{Vmi * v_size}:{end_index},{bni}] += A[{Vmi * v_size}:{end_index},{bki}]*{B_comment}"
+                        comment = contribution(
+                            Vmi, bni, bki, v_size, B_comment, end_index
+                        )
 
                         asm.add(
                             fma(

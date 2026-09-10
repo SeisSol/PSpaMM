@@ -74,3 +74,16 @@ class LoadedOnce:
             return False
         self.loaded[key] = seen
         return True
+
+
+def contribution(Vmi, bni, bki, v_size, b_comment, end=None) -> str:
+    """Name the part of C a multiply-accumulate contributes to.
+
+    end is for a block whose last vector row is masked and therefore reaches
+    less far than the vector length.
+    """
+
+    start = Vmi * v_size
+    if end is None:
+        end = start + v_size
+    return f"C[{start}:{end},{bni}] += A[{start}:{end},{bki}]*{b_comment}"
