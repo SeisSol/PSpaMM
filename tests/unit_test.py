@@ -1891,6 +1891,8 @@ for precision, delta in zip((Precision.SINGLE, Precision.DOUBLE), (delta_sp, del
         (35, 9, 56, 70),
         (21, 9, 56, 21),
         (56, 9, 56, 300),
+        # rows and columns of A in part of a vector at every width
+        (21, 9, 35, 50),
     ):
         for (alpha, beta), form in itertools.product(
             ((1.0, 0.0), (1.0, 1.0), (-1.0, 1.0), (2.0, 0.5)),

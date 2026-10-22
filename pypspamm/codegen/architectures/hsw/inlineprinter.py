@@ -1,5 +1,6 @@
 from typing import List
 
+from pypspamm.codegen.architectures.hsw.operands import Predicate
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.operands import *
 from pypspamm.codegen.precision import *
@@ -78,6 +79,28 @@ class InlinePrinter(Visitor):
         s = f"{instruction} {b}, {a}"
         self.addLine(s, stmt.comment)
 
+    def visitPermute(self, stmt: PermuteStmt):
+        # one source; the positions are an immediate, or a register for single
+        # precision on 256 bit, the one case where no immediate reaches all
+        # lanes
+        assert stmt.table2 is None
+        table = stmt.table.ugly
+        dest = stmt.dest.ugly
+        if isinstance(stmt.control, Constant):
+            if self.precision == Precision.DOUBLE and stmt.dest.size() == 32:
+                instruction = "vpermpd"
+            else:
+                instruction = f"vpermilp{self.psuffix}"
+            s = f"{instruction} {stmt.control.ugly}, {table}, {dest}"
+        else:
+            assert self.precision == Precision.SINGLE and stmt.dest.size() == 32
+            s = f"vpermps {table}, {stmt.control.ugly}, {dest}"
+        self.addLine(s, stmt.comment)
+
+    def visitBlend(self, stmt: BlendStmt):
+        s = f"vblendp{self.psuffix} ${stmt.mask}, {stmt.src2.ugly}, {stmt.src.ugly}, {stmt.dest.ugly}"
+        self.addLine(s, stmt.comment)
+
     def visitAdd(self, stmt: AddStmt):
         if isinstance(stmt.src, Constant) and stmt.src.value == 0:
             # avoid 0 instructions
@@ -108,7 +131,12 @@ class InlinePrinter(Visitor):
             s = f"movq {src_str}, {stmt.dest.ugly}"
             self.addLine(s, stmt.comment)
         elif stmt.typ == AsmType.f64x8 and stmt.aligned:
-            if isinstance(stmt.src, Constant) and stmt.src.value == 0:
+            if isinstance(stmt.pred, Predicate):
+                # a load from memory or a store to it, the lanes the mask leaves
+                # out untouched
+                s = f"vmaskmovp{self.psuffix} {src_str}, {stmt.pred.ugly}, {stmt.dest.ugly}"
+                self.addLine(s, stmt.comment)
+            elif isinstance(stmt.src, Constant) and stmt.src.value == 0:
                 s = f"vxorps {stmt.dest.ugly_xmm}, {stmt.dest.ugly_xmm}, {stmt.dest.ugly_xmm}"
                 self.addLine(s, stmt.comment)
             elif stmt.pred is not None:

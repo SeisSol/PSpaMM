@@ -39,6 +39,9 @@ class Visitor:
     def visitPermute(self, stmt: PermuteStmt) -> None:
         raise NotImplementedError()
 
+    def visitBlend(self, stmt: BlendStmt) -> None:
+        raise NotImplementedError()
+
     def visitCmp(self, stmt: CmpStmt) -> None:
         raise NotImplementedError()
 

@@ -13,6 +13,7 @@ from collections import Counter
 from pypspamm.codegen.ast import (
     AddStmt,
     BcstStmt,
+    BlendStmt,
     Block,
     FmaStmt,
     LoadStmt,
@@ -76,6 +77,10 @@ def count(stmt) -> Counter:
     elif isinstance(stmt, PermuteStmt):
         counts["shuffle"] += 1
         if _memory(stmt.control) or _memory(stmt.table) or _memory(stmt.table2):
+            counts["load"] += 1
+    elif isinstance(stmt, BlendStmt):
+        counts["vector"] += 1
+        if _memory(stmt.src2):
             counts["load"] += 1
     elif isinstance(stmt, BcstStmt):
         counts["load" if _memory(stmt.bcast_src) else "shuffle"] += 1

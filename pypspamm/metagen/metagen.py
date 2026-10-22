@@ -46,7 +46,12 @@ def algorithm(arch, name, params):
         ellpack_body = ellpack.make()
         if form == "ellpack":
             return ellpack, ellpack_body
-        blocked = MatMul(arch=arch, output_funcname=name, **params)
+        try:
+            blocked = MatMul(arch=arch, output_funcname=name, **params)
+        except AssertionError:
+            # what the target cannot do in tiles, such as rows of C in part of
+            # a vector without masks, is left to the ELLPACK kernel
+            return ellpack, ellpack_body
         blocked_body = blocked.make()
         generator = blocked.generator
         throughput = generator.target.throughput_at(128 * generator.v_len)

@@ -17,6 +17,20 @@ TestKernel = namedtuple(
     defaults=[()],
 )
 
+
+def gathers(kern):
+    """Whether a kernel may work through its A in sliced ELLPACK, which takes
+    any m and any block size: the values of A are built in, and --aformat is
+    not blocked."""
+
+    options = list(kern.options)
+    if "--abake" not in options:
+        return False
+    if "--aformat" in options:
+        return options[options.index("--aformat") + 1] != "blocked"
+    return True
+
+
 head_of_testsuite = """#include <fstream>
 #include <sstream>
 #include <string>
@@ -385,7 +399,7 @@ def make(kernels, arch):
                     print(f"Skipping block size {bm}x{bn}x{bk} for {arch} / {prec}")
                     continue
             elif arch.startswith("hsw"):
-                if (
+                if not gathers(kern) and (
                     not ((bn + bk) * vm + bn * bk <= 16)
                     or not (kern.m % v_size) == 0
                     or not (bm % v_size) == 0

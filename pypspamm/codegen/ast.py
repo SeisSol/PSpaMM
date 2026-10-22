@@ -259,6 +259,31 @@ class PermuteStmt(AsmStmt):
         return "permute"
 
 
+class BlendStmt(AsmStmt):
+    """A vector that takes each lane from one of two others.
+
+    Lane i of dest is lane i of src2 where bit i of mask is set, and lane i of
+    src where it is not; the mask is known when the kernel is generated.
+    """
+
+    dest = None
+    src = None
+    src2 = None
+    mask = None
+
+    def accept(self, visitor: "Visitor"):
+        visitor.visitBlend(self)
+
+    def reg_in_candidate(self):
+        return (self.src, self.src2)
+
+    def reg_out_candidate(self):
+        return (self.dest,)
+
+    def stmtname(self):
+        return "blend"
+
+
 class BcstStmt(AsmStmt):
     bcast_src = None
     dest = None
