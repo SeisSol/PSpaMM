@@ -135,6 +135,7 @@ def kernel_source(tag, arch, precision, shape, variant, mtxdir):
         matmul.flop,
         matmul.starting_regs,
         matmul.generator.get_precision(),
+        matmul.prelude,
     )
     instructions = sum(1 for i in body.flatten() if i.stmtname() != "label")
     return text, instructions, (m, n, k, lda or m, ldb or k)

@@ -12,7 +12,9 @@ BASEDIR = "build"
 
 TestKernel = namedtuple(
     "TestKernel",
-    "name precision m n k lda ldb ldc alpha beta block_sizes amtx bmtx delta",
+    "name precision m n k lda ldb ldc alpha beta block_sizes amtx bmtx delta options",
+    # further arguments for the generator
+    defaults=[()],
 )
 
 head_of_testsuite = """#include <fstream>
@@ -354,6 +356,7 @@ def make(kernels, arch):
 
         prec = "s" if kern.precision == Precision.SINGLE else "d"
         arguments += ["--precision", prec]
+        arguments += list(kern.options)
 
         block_sizes = list(
             set(bs if len(bs) > 2 else (bs[0], bs[1], 1) for bs in kern.block_sizes)

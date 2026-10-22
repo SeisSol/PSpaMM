@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import random
 import re
 import sys
@@ -1879,5 +1880,41 @@ for precision, delta in zip((Precision.SINGLE, Precision.DOUBLE), (delta_sp, del
             delta_sp,
         )
     )
+
+# A with its values built into the kernel (--abake): element-wise patterns, which
+# a kernel reading A could not take, at the shapes of the ADER-DG operators
+for precision, delta in zip((Precision.SINGLE, Precision.DOUBLE), (delta_sp, delta_dp)):
+    v_size = v_size_fun(precision)
+    for m, n, k, nnz in (
+        (20, 9, 20, 60),
+        (35, 9, 56, 70),
+        (21, 9, 56, 21),
+        (56, 9, 56, 300),
+    ):
+        for alpha, beta in ((1.0, 0.0), (1.0, 1.0), (-1.0, 1.0), (2.0, 0.5)):
+            kernels.append(
+                generator.TestKernel(
+                    f"abake_{m}_{k}_{nnz}_{str(alpha).replace('-', 'm').replace('.', 'p')}_{str(beta).replace('.', 'p')}",
+                    precision,
+                    m,
+                    n,
+                    k,
+                    0,
+                    k,
+                    m,
+                    alpha,
+                    beta,
+                    [blocksize.Default.getBlocksize(m, n, 1, v_size, precision)],
+                    generator.generateMTX(m, k, nnz),
+                    None,
+                    delta,
+                    ("--abake",),
+                )
+            )
+
+# PSPAMM_TEST_FILTER keeps the kernels whose name contains it
+name_filter = os.environ.get("PSPAMM_TEST_FILTER")
+if name_filter:
+    kernels = [kernel for kernel in kernels if name_filter in kernel.name]
 
 generator.make(kernels, arch)

@@ -91,6 +91,14 @@ def main() -> None:
     parser.add_argument(
         "--bmtx_filename", help="Path to MTX file describing the sparse matrix"
     )
+    parser.add_argument(
+        "--abake",
+        action="store_true",
+        help=(
+            "The values in the file of a sparse A are the values of A: the kernel "
+            "keeps them in a table of its own and does not read A"
+        ),
+    )
 
     parser.add_argument("--output_funcname", help="Name for generated C++ function")
     parser.add_argument("--output_filename", help="Path to destination C++ file")

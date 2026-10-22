@@ -10,6 +10,7 @@ from pypspamm.codegen.precision import *
 from pypspamm.codegen.prune import *
 from pypspamm.codegen.schedule import moveLoads
 from pypspamm.codegen.sugar import *
+from pypspamm.codegen.table import bits, table_prelude, values_at, vector_tiles
 from pypspamm.codegen.virtual import *
 from pypspamm.cursors import *
 
@@ -119,6 +120,7 @@ class MatMul:
         prefetching: str = None,
         scheduling: str = "none",
         operand_copies: int = None,
+        abake: bool = False,
         **kwargs,  # Accept and ignore args which don't belong
     ) -> None:
 
@@ -216,6 +218,12 @@ class MatMul:
             apattern = Matrix.full(m, k, True)
             assert self.m <= lda
 
+        # the values in the file of a sparse A are its values, and the kernel
+        # keeps them in a table of its own instead of reading A
+        assert not abake or lda == 0, "only the values of a sparse A are built in"
+        self.abake = abake
+        self.avalues = apattern if abake else None
+
         self.bmtx_filename = bmtx_filename
         self.amtx_filename = amtx_filename
         self.mtx_format = mtx_format
@@ -300,6 +308,10 @@ class MatMul:
         )
 
         if lda == 0:
+            if self.abake:
+                # the table is laid out here, so the kernel may load whole
+                # vector tiles wherever a column has an entry
+                apattern = vector_tiles(apattern, self.m, self.bm, self.v_size)
             blocks, patterns, mtx_overhead = decompose_pattern(
                 self.m, self.k, apattern, self.bm, self.bk
             )
@@ -317,6 +329,14 @@ class MatMul:
                 mtx_overhead,
             )
             self.annz += sum(mtx_overhead)
+            if self.abake:
+                offsets = numpy.asarray(self.A.offsets)
+                length = int(offsets.max()) + 1
+                words = [
+                    bits(value, self.types.a)
+                    for value in values_at(self.A.offsets, self.avalues, length)
+                ]
+                self.prelude = table_prelude("A", words, self.types.a)
         else:
             self.A = DenseCursor(
                 "A",
