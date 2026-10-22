@@ -16,6 +16,13 @@ Each kernel is timed in both variants, interleaved and repeated, with the
 minimum taken, which is the usual way to keep a shared machine's noise out of
 the result. Variants that differ only in block size can be compared the same
 way by passing --block.
+
+--forms compares the two forms of a kernel whose sparse A has its values built
+in, blocked and ELLPACK, and what the estimate --aformat auto goes by makes of
+either: where the two disagree on a machine, the margin the estimate has to
+clear (ELLPACK_MARGIN in metagen.py) is the place to look.
+
+    tools/benchmark.py --arch knl512 --forms
 """
 
 import argparse
@@ -31,7 +38,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from kernelstats import PRECISIONS, SHAPES, seed_of, write_mtx  # noqa: E402
 
 from pypspamm.codegen.ccode import make_cfunc  # noqa: E402
-from pypspamm.matmul import MatMul  # noqa: E402
+from pypspamm.codegen.cost import estimate  # noqa: E402
+from pypspamm.ellpackmatmul import ellpack_supported  # noqa: E402
+from pypspamm.metagen.metagen import algorithm  # noqa: E402
 
 # architectures the host can run, with the flags their kernels need
 NATIVE_FLAGS = {
@@ -95,7 +104,8 @@ int main() {
 
 
 def kernel_source(tag, arch, precision, shape, variant, mtxdir):
-    """Generate one kernel and report its source and its instruction count."""
+    """Generate one kernel and report its source, its instruction count and
+    its estimated cycles."""
 
     name, m, n, k, sparse, density = shape
     lda, ldb, amtx, bmtx = m, k, "", ""
@@ -110,7 +120,7 @@ def kernel_source(tag, arch, precision, shape, variant, mtxdir):
         if not os.path.exists(bmtx):
             write_mtx(bmtx, k, n, density, seed_of(name, "b"))
 
-    matmul = MatMul(
+    params = dict(
         m=m,
         n=n,
         k=k,
@@ -122,31 +132,31 @@ def kernel_source(tag, arch, precision, shape, variant, mtxdir):
         mtx_filename="",
         amtx_filename=amtx,
         bmtx_filename=bmtx,
-        arch=arch,
         precision=precision,
-        output_funcname=tag,
         **variant,
     )
-    body = matmul.make()
+    alg, body = algorithm(arch, tag, params)
+    generator = alg.generator
+    cycles = estimate(body, generator.target.throughput_at(128 * generator.v_len))
     text = make_cfunc(
         tag,
-        matmul.generator.get_template(),
+        generator.get_template(),
         body,
-        matmul.flop,
-        matmul.starting_regs,
-        matmul.generator.get_precision(),
-        matmul.prelude,
+        alg.flop,
+        alg.starting_regs,
+        generator.get_precision(),
+        alg.prelude,
     )
     instructions = sum(1 for i in body.flatten() if i.stmtname() != "label")
-    return text, instructions, (m, n, k, lda or m, ldb or k)
+    return text, instructions, cycles, (m, n, k, lda or m, ldb or k)
 
 
-def build(workdir, arch, labels, variants, reps, trials):
-    sources, cases, counts = [], [], {}
+def build(workdir, arch, labels, variants, reps, trials, shapes=SHAPES):
+    sources, cases, counts, estimates = [], [], {}, {}
     with tempfile.TemporaryDirectory() as mtxdir:
         for precision in PRECISIONS:
             ctype = "double" if precision == "d" else "float"
-            for shape in SHAPES:
+            for shape in shapes:
                 tag = f"{arch}_{precision}_{shape[0]}"
                 built = {}
                 for label, variant in zip(labels, variants):
@@ -161,7 +171,8 @@ def build(workdir, arch, labels, variants, reps, trials):
                 for label in labels:
                     sources.append(built[label][0])
                 counts[tag] = [built[label][1] for label in labels]
-                m, n, k, lda, ldb = built[labels[0]][2]
+                estimates[tag] = [built[label][2] for label in labels]
+                m, n, k, lda, ldb = built[labels[0]][3]
                 names = ", ".join(f"{tag}_{label}" for label in labels)
                 cases.append(
                     f'  run<{ctype}>("{tag}", {m}, {n}, {k}, {lda}, {ldb}, '
@@ -174,7 +185,7 @@ def build(workdir, arch, labels, variants, reps, trials):
         f.write("\n".join(cases) + "\n")
     with open(os.path.join(workdir, "harness.cpp"), "w") as f:
         f.write(HARNESS)
-    return counts
+    return counts, estimates
 
 
 def flags_for(arch):
@@ -200,6 +211,12 @@ def main():
         metavar="BMxBNxBK",
         help="compare two block sizes instead of two scheduling levels",
     )
+    parser.add_argument(
+        "--forms",
+        action="store_true",
+        help="compare the blocked and the ELLPACK form of the kernels with a "
+        "sparse A, its values built in, and their estimates",
+    )
     parser.add_argument("--reps", type=int, default=20000)
     parser.add_argument("--trials", type=int, default=7)
     parser.add_argument("--cxx", default=os.environ.get("CXX", "g++"))
@@ -215,7 +232,16 @@ def main():
         )
         return 2
 
-    if args.block:
+    shapes = SHAPES
+    if args.forms:
+        if not ellpack_supported(args.arch, "d", 1):
+            print(f"{args.arch} has no ELLPACK kernel", file=sys.stderr)
+            return 2
+        labels = ["blocked", "ellpack"]
+        variants = [{"abake": True, "aformat": label} for label in labels]
+        titles = labels
+        shapes = [shape for shape in SHAPES if shape[4] == "a"]
+    elif args.block:
         labels = ["a", "b"]
         variants = []
         for spec in args.block:
@@ -228,7 +254,9 @@ def main():
         titles = args.compare
 
     with tempfile.TemporaryDirectory() as workdir:
-        counts = build(workdir, args.arch, labels, variants, args.reps, args.trials)
+        counts, estimates = build(
+            workdir, args.arch, labels, variants, args.reps, args.trials, shapes
+        )
         binary = os.path.join(workdir, "bench")
         compile_command = [args.cxx, "-O2", *flags, "harness.cpp", "-o", binary]
         result = subprocess.run(
@@ -251,18 +279,31 @@ def main():
                 float(match.group(2)),
                 float(match.group(3)),
             )
-            rows.append((tag, first, second, counts.get(tag, [0, 0])))
+            rows.append(
+                (
+                    tag,
+                    first,
+                    second,
+                    counts.get(tag, [0, 0]),
+                    estimates.get(tag, [0.0, 0.0]),
+                )
+            )
 
     print(
         f"{'kernel':34s} {titles[0]:>9s} {titles[1]:>9s} {'time':>8s} {'instrs':>16s}"
+        + (f" {'estimate':>8s}" if args.forms else "")
     )
-    for tag, first, second, count in rows:
+    for tag, first, second, count, cycles in rows:
         delta = (second / first - 1) * 100 if first > 0 else 0.0
         growth = (count[1] / count[0] - 1) * 100 if count[0] else 0.0
-        print(
+        line = (
             f"{tag:34s} {first:9.1f} {second:9.1f} {delta:+7.1f}% "
             f"{count[0]:6d} ->{count[1]:6d} ({growth:+.0f}%)"
         )
+        if args.forms:
+            estimated = (cycles[1] / cycles[0] - 1) * 100 if cycles[0] else 0.0
+            line += f" {estimated:+7.1f}%"
+        print(line)
     if not rows:
         print("no kernel could be generated both ways for this architecture")
 
@@ -277,8 +318,9 @@ def main():
                         tag: {
                             "time": [first, second],
                             "instructions": count,
+                            "estimate": cycles,
                         }
-                        for tag, first, second, count in rows
+                        for tag, first, second, count, cycles in rows
                     },
                 },
                 f,
