@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import itertools
 import os
 import random
 import re
@@ -1891,10 +1892,12 @@ for precision, delta in zip((Precision.SINGLE, Precision.DOUBLE), (delta_sp, del
         (21, 9, 56, 21),
         (56, 9, 56, 300),
     ):
-        for alpha, beta in ((1.0, 0.0), (1.0, 1.0), (-1.0, 1.0), (2.0, 0.5)):
+        for (alpha, beta), form in itertools.product(
+            ((1.0, 0.0), (1.0, 1.0), (-1.0, 1.0), (2.0, 0.5)), ("blocked", "ellpack")
+        ):
             kernels.append(
                 generator.TestKernel(
-                    f"abake_{m}_{k}_{nnz}_{str(alpha).replace('-', 'm').replace('.', 'p')}_{str(beta).replace('.', 'p')}",
+                    f"abake_{form}_{m}_{k}_{nnz}_{str(alpha).replace('-', 'm').replace('.', 'p')}_{str(beta).replace('.', 'p')}",
                     precision,
                     m,
                     n,
@@ -1908,7 +1911,7 @@ for precision, delta in zip((Precision.SINGLE, Precision.DOUBLE), (delta_sp, del
                     generator.generateMTX(m, k, nnz),
                     None,
                     delta,
-                    ("--abake",),
+                    ("--abake", "--aformat", form),
                 )
             )
 

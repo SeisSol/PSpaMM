@@ -125,6 +125,16 @@ class InlinePrinter(Visitor):
         s = f"{instruction} {b}, {a} {mask}"
         self.addLine(s, stmt.comment)
 
+    def visitPermute(self, stmt: PermuteStmt):
+        # vpermi2 takes the positions in the register it writes, so the control
+        # and the result are one register; the second table may be the first
+        assert stmt.dest == stmt.control
+        assert stmt.table2 is not None
+        mask = self.maskformat(stmt.pred)
+        suffix = {"pd": "pd", "ps": "ps", "ph": "w", "nepbf16": "w"}[self.alupsuffix]
+        s = f"vpermi2{suffix} {stmt.table2.ugly}, {stmt.table.ugly}, {stmt.dest.ugly} {mask}"
+        self.addLine(s, stmt.comment)
+
     def visitAdd(self, stmt: AddStmt):
         if isinstance(stmt.src, Constant) and stmt.src.value == 0:
             # avoid 0 instructions

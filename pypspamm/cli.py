@@ -92,6 +92,16 @@ def main() -> None:
         "--bmtx_filename", help="Path to MTX file describing the sparse matrix"
     )
     parser.add_argument(
+        "--aformat",
+        choices=["blocked", "ellpack"],
+        default="blocked",
+        help=(
+            "How a kernel with the values of A built in (--abake) works through A: "
+            "in vector tiles like any sparse A (blocked), or in sliced ELLPACK, "
+            "gathering from B (ellpack), where the architecture has the kernel"
+        ),
+    )
+    parser.add_argument(
         "--abake",
         action="store_true",
         help=(

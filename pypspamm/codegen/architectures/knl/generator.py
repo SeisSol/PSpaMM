@@ -1,5 +1,6 @@
 from pypspamm.codegen.architectures.knl.operands import *
 from pypspamm.codegen.ast import *
+from pypspamm.codegen.forms import loop
 from pypspamm.codegen.generator import *
 from pypspamm.codegen.microkernel import cells, contribution
 from pypspamm.codegen.precision import *
@@ -302,6 +303,168 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 asm.add(mov(0, registers[ir, ic], True))
 
         return asm
+
+    #: temporaries an ELLPACK kernel cycles through for its permutations
+    ellpack_temps = 4
+
+    def ellpack_registers(self, k):
+        """How many vector registers a column of B with k rows fills in an
+        ELLPACK kernel, or None where that leaves no room for the rest: the
+        temporaries and at least one accumulator. Half precision would need
+        the FP16 extension, which the kernel does not use."""
+
+        if self.precision.size() < 4:
+            return None
+        registers = -(k // -self.get_v_size())
+        if registers + self.ellpack_temps + 1 > self.target.vector_registers:
+            return None
+        return registers
+
+    def make_ellpack(self, layout, n, ldb, ldc, alpha, beta, types, encode):
+        """The kernel for an A in sliced ELLPACK (see codegen/ellpack.py).
+
+        A loop over the columns of B and C takes the full slices: the column of
+        B in registers, the last one loaded with the end of the column masked
+        to zero, and per slice an accumulator that starts from C as beta says
+        and takes the steps of the slice. A step loads its positions from the
+        table and turns them into the gathered entries by vpermi2, which reads
+        the two registers of B of the step (or one register twice), then
+        multiplies with its values from the table. A step whose lanes read
+        their own positions of one register takes that register as it is.
+        alpha other than one or minus one is applied at the end; minus one is
+        in the values already.
+
+        A slice at the end of the rows, which a masked store finishes, comes
+        in a loop over the columns of its own, with the registers of B it
+        reads. The masked store at the end of a column of C covers the start
+        of the next one as far as the memory order of the core is concerned,
+        and a load there waits until the store has gone; in the loop of the
+        full slices that would serialise the columns.
+
+        The register A is read through points at the table; encode turns a
+        value into a word of it. Returns the statements, the table and the
+        registers the arguments are loaded into.
+        """
+
+        v_size = self.get_v_size()
+        size = types.a.size()
+        vmm = {1: xmm, 2: ymm, 4: zmm}[self.v_len]
+        table, B, C, alpha_p, beta_p = rdi, rsi, rdx, rbx, rcx
+        Bcol, Ccol, counter = r(8), r(9), r(12)
+
+        temps = self.ellpack_temps
+        assert self.ellpack_registers(layout.k) == layout.registers
+        bregs = [vmm(i) for i in range(layout.registers)]
+        tregs = [vmm(layout.registers + i) for i in range(temps)]
+        accs = [
+            vmm(i)
+            for i in range(layout.registers + temps, self.target.vector_registers)
+        ]
+
+        words = []
+        asm = block("ELLPACK kernel")
+        ktail = layout.k % v_size
+        mtail = layout.m % v_size
+        if mtail > 0:
+            asm.add(mov((1 << mtail) - 1, rax, False))
+            asm.add(mov(rax, kmask(1), False))
+        if ktail > 0:
+            asm.add(mov((1 << ktail) - 1, rax, False))
+            asm.add(mov(rax, kmask(2), False))
+
+        sign = -1.0 if alpha == -1.0 else 1.0
+        # alpha other than one or minus one is known at run time only, and AB
+        # is scaled by it before beta C is added
+        scaled = alpha not in (1.0, -1.0)
+        permutations = [0]
+
+        def temp():
+            register = tregs[permutations[0] % temps]
+            permutations[0] += 1
+            return register
+
+        def load_b(column, registers):
+            for reg in registers:
+                pred = None
+                if reg == len(bregs) - 1 and ktail > 0:
+                    pred = Predicate(kmask(2), True)
+                column.add(
+                    mov(
+                        mem(Bcol, reg * v_size * size),
+                        bregs[reg],
+                        True,
+                        f"B[{reg}]",
+                        pred=pred,
+                    )
+                )
+
+        def take(column, piece, acc):
+            tail = piece.rows < v_size
+            load = Predicate(kmask(1), True) if tail else None
+            store = Predicate(kmask(1), False) if tail else None
+            target = mem(Ccol, piece.start * size)
+            if beta == 0.0 or scaled:
+                column.add(mov(0, acc, True))
+            else:
+                column.add(mov(target, acc, True, "C", pred=load))
+                if beta != 1.0:
+                    column.add(mul(acc, beta_p, acc, "C = beta * C"))
+            for step in piece.steps:
+                if step.in_place(v_size):
+                    source = bregs[step.sources[0]]
+                else:
+                    source = temp()
+                    column.add(
+                        mov(mem(table, len(words) * size), source, True, "positions")
+                    )
+                    words.extend(step.index(v_size))
+                    lo = bregs[step.sources[0]]
+                    hi = bregs[step.sources[-1]]
+                    column.add(permute(source, lo, source, table2=hi))
+                column.add(
+                    fma(
+                        mem(table, len(words) * size),
+                        source,
+                        acc,
+                        f"C[{piece.start}:{piece.start + piece.rows}] += A B[{step.sources}]",
+                    )
+                )
+                words.extend(encode(sign * value) for value in step.values)
+            result = acc
+            if scaled and beta == 0.0:
+                column.add(mul(acc, alpha_p, acc, "C = alpha * AB"))
+            elif scaled:
+                result = temp()
+                column.add(mov(target, result, True, "C", pred=load))
+                if beta != 1.0:
+                    column.add(mul(result, beta_p, result, "beta * C"))
+                column.add(
+                    fma(mem(alpha_p, 0), acc, result, "C = alpha * AB + beta * C", 0)
+                )
+            column.add(mov(result, target, True, "store", pred=store))
+
+        def columns(description, pieces):
+            column = block(description)
+            used = sorted(
+                {r for piece in pieces for step in piece.steps for r in step.sources}
+            )
+            load_b(column, used)
+            for index, piece in enumerate(pieces):
+                take(column, piece, accs[index % len(accs)])
+            column.add(add(ldb * size, Bcol, "next column of B"))
+            column.add(add(ldc * size, Ccol, "next column of C"))
+            asm.add(mov(B, Bcol, False))
+            asm.add(mov(C, Ccol, False))
+            asm.add(loop(counter, n).body(*column.contents))
+
+        full = [piece for piece in layout.slices if piece.rows == v_size]
+        rest = [piece for piece in layout.slices if piece.rows < v_size]
+        if full:
+            columns("full slices, one column", full)
+        if rest:
+            columns("the slice at the end, one column", rest)
+
+        return asm, words, [table, B, C, alpha_p, beta_p]
 
     def make_microkernel(
         self,

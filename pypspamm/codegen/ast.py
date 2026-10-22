@@ -231,6 +231,34 @@ class MulStmt(AsmStmt):
         return "mul"
 
 
+class PermuteStmt(AsmStmt):
+    """A vector gathered from the lanes of one or two others.
+
+    Lane i of dest is lane control[i] of the concatenation of table and table2,
+    table filling the positions below the vector length. control is a register
+    of positions on targets that permute by register, and an immediate on
+    targets that permute within one register only, where table2 is None.
+    """
+
+    dest = None
+    control = None
+    table = None
+    table2 = None
+    pred = None
+
+    def accept(self, visitor: "Visitor"):
+        visitor.visitPermute(self)
+
+    def reg_in_candidate(self):
+        return (self.control, self.table, self.table2, self.pred)
+
+    def reg_out_candidate(self):
+        return (self.dest,)
+
+    def stmtname(self):
+        return "permute"
+
+
 class BcstStmt(AsmStmt):
     bcast_src = None
     dest = None

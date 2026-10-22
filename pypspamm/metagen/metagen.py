@@ -14,7 +14,26 @@ narrower register file also runs on a wider one and is matched with at least.
 
 from pypspamm.codegen.architectures import registry
 from pypspamm.codegen.ccode import make_cfunc
+from pypspamm.ellpackmatmul import EllpackMatMul, ellpack_supported
 from pypspamm.matmul import MatMul
+
+
+def algorithm(arch, name, params):
+    """The algorithm a kernel is generated with.
+
+    A sparse A whose values are built in (abake) can be worked through in
+    sliced ELLPACK as well as in vector tiles, where the architecture supports
+    it; aformat says which.
+    """
+
+    if (
+        params.get("abake")
+        and params.get("aformat") == "ellpack"
+        and ellpack_supported(arch, params.get("precision", "d"), params["k"])
+    ):
+        return EllpackMatMul(arch=arch, output_funcname=name, **params)
+    return MatMul(arch=arch, output_funcname=name, **params)
+
 
 TARGET_MACROS = """
 #if defined(__GNUC__) || defined(__clang__)
@@ -124,7 +143,7 @@ class MetaGenerator:
     def kernel(self, name, params, arch, static):
         """Generate one kernel; the architecture is selected here, not by the caller."""
 
-        alg = MatMul(arch=arch, output_funcname=name, **params)
+        alg = algorithm(arch, name, params)
         text = make_cfunc(
             name,
             alg.generator.get_template(),

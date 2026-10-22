@@ -36,6 +36,9 @@ class Visitor:
     def visitBcst(self, stmt: BcstStmt) -> None:
         raise NotImplementedError()
 
+    def visitPermute(self, stmt: PermuteStmt) -> None:
+        raise NotImplementedError()
+
     def visitCmp(self, stmt: CmpStmt) -> None:
         raise NotImplementedError()
 
