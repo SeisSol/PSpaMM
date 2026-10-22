@@ -38,6 +38,10 @@ jobs:
 
           echo "Success!"
 
+      - name: capabilities-pspamm
+        run: |
+          pspamm-generator --capabilities | python -c 'import json, sys; print(json.load(sys.stdin))'
+
   pspamm-codegen:
     name: pspamm-codegen
     runs-on: ubuntu-24.04

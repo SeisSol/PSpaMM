@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
+import os
 
 import pypspamm.architecture
 from pypspamm.codegen.architectures import *
@@ -10,6 +12,47 @@ from pypspamm.matmul import *
 from pypspamm.metagen.metagen import *
 
 mtx_formats = ["any", "csc", "csr", "bsc", "bsr", "bcsc", "bcsr"]
+
+
+def capabilities() -> dict:
+    """What this generator supports beyond the matrix multiplication itself,
+    for a caller that has to know before it asks for a kernel: whether it
+    takes the values of a sparse A to build in (abake), the forms such a
+    kernel can take (aformat) and the architectures that have the ELLPACK
+    form."""
+
+    try:
+        with open(os.path.join(os.path.dirname(__file__), "VERSION")) as f:
+            version = f.read().strip()
+    except OSError:
+        version = None
+    ellpack = []
+    for archspec in registry.ARCHITECTURES:
+        generator = pypspamm.architecture.get_class(
+            "pypspamm.codegen.architectures." + archspec.module + ".generator"
+        ).Generator
+        if hasattr(generator, "make_ellpack"):
+            ellpack.append(archspec.prefix)
+    return {
+        "version": version,
+        "abake": True,
+        "aformat": ["auto", "blocked", "ellpack"],
+        "ellpack": sorted(ellpack),
+    }
+
+
+class PrintCapabilities(argparse.Action):
+    """Prints the capabilities as JSON and exits, without the arguments of a
+    kernel, as --version would."""
+
+    def __init__(self, option_strings, dest, **kwargs):
+        super().__init__(
+            option_strings, dest, nargs=0, default=argparse.SUPPRESS, **kwargs
+        )
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(json.dumps(capabilities(), sort_keys=True))
+        parser.exit()
 
 
 def generate(archs, params) -> None:
@@ -28,6 +71,11 @@ def main() -> None:
         description="Generate a sparse matrix multiplication algorithm for C = alpha * A * B + beta * C."
     )
 
+    parser.add_argument(
+        "--capabilities",
+        action=PrintCapabilities,
+        help="Print what this generator supports, as JSON, and exit",
+    )
     parser.add_argument("m", type=int, help="Number of rows of A and C")
     parser.add_argument("n", type=int, help="Number of cols of B and C")
     parser.add_argument("k", type=int, help="Number of cols of A, rows of B")
