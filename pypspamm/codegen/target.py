@@ -26,6 +26,23 @@ class BroadcastForm(Enum):
 
 
 @dataclass(frozen=True)
+class Throughput:
+    """How many instructions of each kind a core issues per cycle.
+
+    These are the bounds the cost model takes (codegen/cost.py): loads,
+    stores, arithmetic on vectors and permutations of them, and all
+    instructions on vectors together, as the ports that execute them may be
+    fewer than the arithmetic and the permutations would take on their own.
+    """
+
+    loads: float = 2
+    stores: float = 1
+    arithmetic: float = 2
+    shuffles: float = 1
+    vector: float = 3
+
+
+@dataclass(frozen=True)
 class TargetDescription:
     #: how many vector registers the kernel may use
     vector_registers: int
@@ -64,10 +81,18 @@ class TargetDescription:
     #: scratch base can be advanced by a difference or has to be recomputed
     #: from the original base
     scalar_immediate: Optional[Tuple[int, int]] = None
+    #: what the core issues per cycle, by the width of the vectors in bits
+    #: where that matters; any other width takes the default Throughput
+    throughput: Dict[int, Throughput] = field(default_factory=dict)
 
     @property
     def has_masks(self) -> bool:
         return self.mask_registers > 0
+
+    def throughput_at(self, bits: int) -> Throughput:
+        """What the core issues per cycle with vectors of this many bits."""
+
+        return self.throughput.get(bits, Throughput())
 
     def indexed_limit(self, scalar_bytes: int) -> int:
         """How many registers the indexed operand of an FMA may come from."""
@@ -133,13 +158,16 @@ TARGETS = {
     # 16 ymm registers; alpha and beta are broadcast explicitly
     "hsw": TargetDescription(vector_registers=16, operand_copies_supported=True),
     # 32 zmm registers, k1 to k7 as masks; the multiplication takes its
-    # broadcast operand straight from memory, so no explicit broadcast
+    # broadcast operand straight from memory, so no explicit broadcast. On
+    # 512 bit two ports take the instructions on vectors, the second of them
+    # the permutations as well, as on the Xeons from Skylake on.
     "knl": TargetDescription(
         vector_registers=32,
         mask_registers=7,
         scalar_broadcast=False,
         broadcast=BroadcastForm.MEMORY,
         operand_copies_supported=True,
+        throughput={512: Throughput(vector=2)},
     ),
     # 32 v registers, no masks
     "arm": TargetDescription(

@@ -1893,7 +1893,8 @@ for precision, delta in zip((Precision.SINGLE, Precision.DOUBLE), (delta_sp, del
         (56, 9, 56, 300),
     ):
         for (alpha, beta), form in itertools.product(
-            ((1.0, 0.0), (1.0, 1.0), (-1.0, 1.0), (2.0, 0.5)), ("blocked", "ellpack")
+            ((1.0, 0.0), (1.0, 1.0), (-1.0, 1.0), (2.0, 0.5)),
+            ("blocked", "ellpack", "auto"),
         ):
             kernels.append(
                 generator.TestKernel(
@@ -1911,7 +1912,12 @@ for precision, delta in zip((Precision.SINGLE, Precision.DOUBLE), (delta_sp, del
                     generator.generateMTX(m, k, nnz),
                     None,
                     delta,
-                    ("--abake", "--aformat", form),
+                    # auto is what a kernel without --aformat gets
+                    (
+                        ("--abake",)
+                        if form == "auto"
+                        else ("--abake", "--aformat", form)
+                    ),
                 )
             )
 

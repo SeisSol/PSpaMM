@@ -14,25 +14,50 @@ narrower register file also runs on a wider one and is matched with at least.
 
 from pypspamm.codegen.architectures import registry
 from pypspamm.codegen.ccode import make_cfunc
+from pypspamm.codegen.cost import estimate
 from pypspamm.ellpackmatmul import EllpackMatMul, ellpack_supported
 from pypspamm.matmul import MatMul
 
+#: how far below the estimate of the blocked kernel that of the ELLPACK kernel
+#: has to be for the ELLPACK kernel to be taken. The estimate leaves out the
+#: chain of multiplications into the accumulator of a slice, one per step,
+#: which the blocked kernel spreads over the accumulators of its block;
+#: measured on AVX-512, the ELLPACK kernel took 15 percent longer, relative to
+#: the blocked one, than estimated (median of 13 matrices).
+ELLPACK_MARGIN = 0.85
+
 
 def algorithm(arch, name, params):
-    """The algorithm a kernel is generated with.
+    """The algorithm a kernel is generated with, and its statements.
 
     A sparse A whose values are built in (abake) can be worked through in
     sliced ELLPACK as well as in vector tiles, where the architecture supports
-    it; aformat says which.
+    it. aformat says which, or, as auto, leaves it to the estimate of what
+    either kernel costs on the target (codegen/cost.py).
     """
 
+    form = params.get("aformat") or "auto"
     if (
         params.get("abake")
-        and params.get("aformat") == "ellpack"
+        and form != "blocked"
         and ellpack_supported(arch, params.get("precision", "d"), params["k"])
     ):
-        return EllpackMatMul(arch=arch, output_funcname=name, **params)
-    return MatMul(arch=arch, output_funcname=name, **params)
+        ellpack = EllpackMatMul(arch=arch, output_funcname=name, **params)
+        ellpack_body = ellpack.make()
+        if form == "ellpack":
+            return ellpack, ellpack_body
+        blocked = MatMul(arch=arch, output_funcname=name, **params)
+        blocked_body = blocked.make()
+        generator = blocked.generator
+        throughput = generator.target.throughput_at(128 * generator.v_len)
+        if estimate(ellpack_body, throughput) < ELLPACK_MARGIN * estimate(
+            blocked_body, throughput
+        ):
+            return ellpack, ellpack_body
+        return blocked, blocked_body
+
+    alg = MatMul(arch=arch, output_funcname=name, **params)
+    return alg, alg.make()
 
 
 TARGET_MACROS = """
@@ -143,11 +168,11 @@ class MetaGenerator:
     def kernel(self, name, params, arch, static):
         """Generate one kernel; the architecture is selected here, not by the caller."""
 
-        alg = algorithm(arch, name, params)
+        alg, body = algorithm(arch, name, params)
         text = make_cfunc(
             name,
             alg.generator.get_template(),
-            alg.make(),
+            body,
             alg.flop,
             alg.starting_regs,
             alg.generator.get_precision(),

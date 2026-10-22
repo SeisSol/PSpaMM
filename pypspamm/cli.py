@@ -93,12 +93,13 @@ def main() -> None:
     )
     parser.add_argument(
         "--aformat",
-        choices=["blocked", "ellpack"],
-        default="blocked",
+        choices=["auto", "blocked", "ellpack"],
+        default="auto",
         help=(
             "How a kernel with the values of A built in (--abake) works through A: "
             "in vector tiles like any sparse A (blocked), or in sliced ELLPACK, "
-            "gathering from B (ellpack), where the architecture has the kernel"
+            "gathering from B (ellpack), where the architecture has the kernel; "
+            "auto takes the one estimated to be faster on the architecture"
         ),
     )
     parser.add_argument(
