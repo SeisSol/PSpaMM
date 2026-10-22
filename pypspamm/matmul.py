@@ -67,6 +67,32 @@ def decompose_pattern(
     return blocks, patterns, mtx_overhead
 
 
+def select_architecture(arch: str, precision: Precision):
+    """Make arch the architecture the statements are emitted for.
+
+    Returns the module that implements it, its generator for the precision and
+    the vector width in units of 128 bit, which the caller gives the generator
+    once it has settled what else depends on it.
+    """
+
+    archspec, v_len_regs = registry.parse(arch)
+    module = archspec.module
+
+    pypspamm.architecture.init()
+    pypspamm.architecture.arch = module
+    pypspamm.architecture.Generator = pypspamm.architecture.get_class(
+        "pypspamm.codegen.architectures." + module + ".generator"
+    ).Generator
+    pypspamm.architecture.operands = pypspamm.architecture.get_class(
+        "pypspamm.codegen.architectures." + module + ".operands"
+    )
+    pypspamm.architecture.blocksize = pypspamm.architecture.get_class(
+        "pypspamm.codegen.architectures." + module + ".blocksize"
+    ).Default
+
+    return module, pypspamm.architecture.Generator(precision), v_len_regs
+
+
 class MatMul:
     def __init__(
         self,
@@ -113,26 +139,11 @@ class MatMul:
         except:
             self.beta = "generic"
 
-        archspec, v_len_regs = registry.parse(arch)
-        arch = archspec.module
-
-        self.arch = arch
         self.precision = Precision.fromCode(precision)
         self.types = Types.uniform(self.precision)
 
-        pypspamm.architecture.init()
-        pypspamm.architecture.arch = arch
-        pypspamm.architecture.Generator = pypspamm.architecture.get_class(
-            "pypspamm.codegen.architectures." + arch + ".generator"
-        ).Generator
-        pypspamm.architecture.operands = pypspamm.architecture.get_class(
-            "pypspamm.codegen.architectures." + arch + ".operands"
-        )
-        pypspamm.architecture.blocksize = pypspamm.architecture.get_class(
-            "pypspamm.codegen.architectures." + arch + ".blocksize"
-        ).Default
-
-        self.generator = pypspamm.architecture.Generator(self.precision)
+        arch, self.generator, v_len_regs = select_architecture(arch, self.precision)
+        self.arch = arch
 
         # flag that determines if a matmul kernel uses sve instructions -> needed for sve predicates
         self.masks = self.generator.has_masks()
