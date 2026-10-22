@@ -19,12 +19,14 @@ from pypspamm.ellpackmatmul import EllpackMatMul, ellpack_supported
 from pypspamm.matmul import MatMul
 
 #: how far below the estimate of the blocked kernel that of the ELLPACK kernel
-#: has to be for the ELLPACK kernel to be taken. The estimate leaves out the
-#: chain of multiplications into the accumulator of a slice, one per step,
-#: which the blocked kernel spreads over the accumulators of its block;
-#: measured on AVX-512, the ELLPACK kernel took 15 percent longer, relative to
-#: the blocked one, than estimated (median of 13 matrices).
-ELLPACK_MARGIN = 0.85
+#: has to be for the ELLPACK kernel to be taken. Measured on a Cascade Lake
+#: (13 matrices, double, nine columns), the time of the ELLPACK kernel relative
+#: to that of the blocked one came out, in the median, at the estimate on
+#: AVX-512 and 5 percent above it on AVX2 with the leading dimensions of B and
+#: C as tight as they go, and 17 and 6 percent below it with them padded to
+#: whole vectors; single matrices lie anywhere between half and one and a half
+#: times the estimate. So the estimate decides as it is.
+ELLPACK_MARGIN = 1.0
 
 
 def algorithm(arch, name, params):

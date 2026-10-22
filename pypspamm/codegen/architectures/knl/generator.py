@@ -310,8 +310,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     def ellpack_registers(self, k):
         """How many vector registers a column of B with k rows fills in an
         ELLPACK kernel, or None where that leaves no room for the rest: the
-        temporaries and at least one accumulator. Half precision would need
-        the FP16 extension, which the kernel does not use."""
+        temporaries and the accumulator. Half precision would need the FP16
+        extension, which the kernel does not use."""
 
         if self.precision.size() < 4:
             return None
@@ -325,14 +325,23 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         A loop over the columns of B and C takes the full slices: the column of
         B in registers, the last one loaded with the end of the column masked
-        to zero, and per slice an accumulator that starts from C as beta says
-        and takes the steps of the slice. A step loads its positions from the
-        table and turns them into the gathered entries by vpermi2, which reads
-        the two registers of B of the step (or one register twice), then
-        multiplies with its values from the table. A step whose lanes read
+        to zero, and per slice the accumulator, which starts from C as beta
+        says and takes the steps of the slice. A step gathers the entries of
+        its lanes by a permutation of the registers of B it reads, by its
+        positions, and multiplies them with its values. A step whose lanes read
         their own positions of one register takes that register as it is.
         alpha other than one or minus one is applied at the end; minus one is
-        in the values already.
+        in the values already. Each slice starts the accumulator anew, from
+        zero or from C, so renaming keeps the slices apart.
+
+        Positions and values are the same for every column, so the registers
+        left over hold as many of them as there is room for, loaded once ahead
+        of the loop: the values first, then the positions of the steps that
+        read one register of B, which the permutation of one register leaves
+        as they are, then the positions of the steps that read two, which
+        vpermi2 overwrites and so takes a copy of. The rest comes from the
+        table at every column, as a load of the positions and as the memory
+        operand of the multiplication.
 
         A slice at the end of the rows, which a masked store finishes, comes
         in a loop over the columns of its own, with the registers of B it
@@ -356,12 +365,30 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         assert self.ellpack_registers(layout.k) == layout.registers
         bregs = [vmm(i) for i in range(layout.registers)]
         tregs = [vmm(layout.registers + i) for i in range(temps)]
-        accs = [
+        acc = vmm(layout.registers + temps)
+        free = [
             vmm(i)
-            for i in range(layout.registers + temps, self.target.vector_registers)
+            for i in range(layout.registers + temps + 1, self.target.vector_registers)
         ]
+        # a permutation of one register by positions in a register of their
+        # own exists from 256 bit on
+        single = self.v_len >= 2
 
+        # the table: per step its positions, unless it takes a register as it
+        # is, and its values; where the words of a step start, by the first
+        # row of its slice and its number there
+        sign = -1.0 if alpha == -1.0 else 1.0
         words = []
+        where = {}
+        for piece in layout.slices:
+            for number, step in enumerate(piece.steps):
+                positions = None
+                if not step.in_place(v_size):
+                    positions = len(words)
+                    words.extend(step.index(v_size))
+                where[piece.start, number] = (positions, len(words))
+                words.extend(encode(sign * value) for value in step.values)
+
         asm = block("ELLPACK kernel")
         ktail = layout.k % v_size
         mtail = layout.m % v_size
@@ -372,7 +399,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
             asm.add(mov((1 << ktail) - 1, rax, False))
             asm.add(mov(rax, kmask(2), False))
 
-        sign = -1.0 if alpha == -1.0 else 1.0
         # alpha other than one or minus one is known at run time only, and AB
         # is scaled by it before beta C is added
         scaled = alpha not in (1.0, -1.0)
@@ -398,7 +424,33 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     )
                 )
 
-        def take(column, piece, acc):
+        def kept(pieces):
+            """The registers the words of these pieces go into ahead of their
+            loop, by kind, first row of the slice and number of the step."""
+            steps = [
+                (piece.start, number, step)
+                for piece in pieces
+                for number, step in enumerate(piece.steps)
+            ]
+            values = [("values", start, number) for start, number, _ in steps]
+            permuted = [
+                (start, number, step)
+                for start, number, step in steps
+                if not step.in_place(v_size)
+            ]
+            unchanged = [
+                ("positions", start, number)
+                for start, number, step in permuted
+                if len(step.sources) == 1 and single
+            ]
+            overwritten = [
+                ("positions", start, number)
+                for start, number, step in permuted
+                if len(step.sources) == 2 or not single
+            ]
+            return dict(zip(values + unchanged + overwritten, free))
+
+        def take(column, piece, registers):
             tail = piece.rows < v_size
             load = Predicate(kmask(1), True) if tail else None
             store = Predicate(kmask(1), False) if tail else None
@@ -409,27 +461,33 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 column.add(mov(target, acc, True, "C", pred=load))
                 if beta != 1.0:
                     column.add(mul(acc, beta_p, acc, "C = beta * C"))
-            for step in piece.steps:
+            for number, step in enumerate(piece.steps):
+                positions, values = where[piece.start, number]
+                index = registers.get(("positions", piece.start, number))
                 if step.in_place(v_size):
                     source = bregs[step.sources[0]]
+                elif index is not None and len(step.sources) == 1 and single:
+                    source = temp()
+                    column.add(permute(index, bregs[step.sources[0]], source))
                 else:
                     source = temp()
-                    column.add(
-                        mov(mem(table, len(words) * size), source, True, "positions")
-                    )
-                    words.extend(step.index(v_size))
+                    if index is None:
+                        index = mem(table, positions * size)
+                    column.add(mov(index, source, True, "positions"))
                     lo = bregs[step.sources[0]]
                     hi = bregs[step.sources[-1]]
                     column.add(permute(source, lo, source, table2=hi))
+                value = registers.get(("values", piece.start, number))
+                if value is None:
+                    value = mem(table, values * size)
                 column.add(
                     fma(
-                        mem(table, len(words) * size),
+                        value,
                         source,
                         acc,
                         f"C[{piece.start}:{piece.start + piece.rows}] += A B[{step.sources}]",
                     )
                 )
-                words.extend(encode(sign * value) for value in step.values)
             result = acc
             if scaled and beta == 0.0:
                 column.add(mul(acc, alpha_p, acc, "C = alpha * AB"))
@@ -444,13 +502,18 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
             column.add(mov(result, target, True, "store", pred=store))
 
         def columns(description, pieces):
+            registers = kept(pieces)
+            for (kind, start, number), register in registers.items():
+                positions, values = where[start, number]
+                word = positions if kind == "positions" else values
+                asm.add(mov(mem(table, word * size), register, True, kind))
             column = block(description)
             used = sorted(
                 {r for piece in pieces for step in piece.steps for r in step.sources}
             )
             load_b(column, used)
-            for index, piece in enumerate(pieces):
-                take(column, piece, accs[index % len(accs)])
+            for piece in pieces:
+                take(column, piece, registers)
             column.add(add(ldb * size, Bcol, "next column of B"))
             column.add(add(ldc * size, Ccol, "next column of C"))
             asm.add(mov(B, Bcol, False))
