@@ -16,7 +16,7 @@ class Generator(AbstractGenerator):
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, {real_type} const* prefetch) {{
   {real_type}* alpha_p = &alpha;
   {real_type}* beta_p = &beta;
-  __asm__ __volatile__(
+{prelude}  __asm__ __volatile__(
 {body_text}
     : : {args} : {clobbered});
 

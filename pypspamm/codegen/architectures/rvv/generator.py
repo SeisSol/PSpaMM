@@ -14,7 +14,7 @@ class Generator(AbstractGenerator):
 
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, const {real_type} alpha, const {real_type} beta, const {real_type}* prefetch) {{{{
-  __asm__ __volatile__(
+{prelude}  __asm__ __volatile__(
     {body_text}
     : : {args} : {clobbered});
 

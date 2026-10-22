@@ -186,6 +186,9 @@ class MatMul:
         self.output_filename = output_filename
         self.output_overwrite = output_overwrite
 
+        # C code ahead of the assembly, for data the kernel carries itself
+        self.prelude = ""
+
         if ldb == 0:
             if bmtx_filename is None or bmtx_filename == "":
                 bmtx_filename = mtx_filename

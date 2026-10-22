@@ -11,7 +11,14 @@ def make_cfunc(
     flop: int,
     starting_regs: List[Register],
     precision: Precision,
+    prelude: str = "",
 ) -> str:
+    """The C function of a kernel.
+
+    prelude is C code placed ahead of the inline assembly, inside the function:
+    data the kernel carries with it, such as the values of an operand that were
+    known when it was generated (see MatMul.prelude).
+    """
     Printer_class = pypspamm.architecture.get_class(
         "pypspamm.codegen.architectures."
         + pypspamm.architecture.arch
@@ -42,4 +49,5 @@ def make_cfunc(
         clobbered=clobbered,
         flop=flop,
         real_type=Precision.getCType(precision),
+        prelude=prelude,
     )

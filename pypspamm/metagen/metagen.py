@@ -132,6 +132,7 @@ class MetaGenerator:
             alg.flop,
             alg.starting_regs,
             alg.generator.get_precision(),
+            alg.prelude,
         )
         if not static:
             return alg, text
