@@ -14,9 +14,9 @@ class Generator(AbstractGenerator):
 
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, const {real_type}* prefetch) {{
-{prelude}  __asm__ __volatile__(
+{prelude}{arguments}  __asm__ __volatile__(
 {body_text}
-    : : {args} : {clobbered});
+    : {outputs} : {args} : {clobbered});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -35,17 +35,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
     def init_mask(self, m, bm, v_size, tempreg, maskregs):
         return block("")
-
-    def make_argument_load(self, starting_regs, prefetch):
-        asm = block("Load arguments")
-        asm.add(ld(InputOperand(f"0", "m", "A"), starting_regs[0], False))
-        asm.add(ld(InputOperand(f"1", "m", "B"), starting_regs[1], False))
-        asm.add(ld(InputOperand(f"2", "m", "C"), starting_regs[2], False))
-        asm.add(ld(InputOperand(f"3", "m", "alpha"), starting_regs[3], False))
-        asm.add(ld(InputOperand(f"4", "m", "beta"), starting_regs[4], False))
-        if prefetch:
-            asm.add(ld(InputOperand(f"5", "m", "prefetch"), starting_regs[5], False))
-        return asm
 
     def make_reg_blocks(
         self,

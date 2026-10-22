@@ -15,11 +15,9 @@ class Generator(AbstractGenerator):
 
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, {real_type} const* prefetch) {{
-  {real_type}* alpha_p = &alpha;
-  {real_type}* beta_p = &beta;
-{prelude}  __asm__ __volatile__(
+{prelude}{arguments}  __asm__ __volatile__(
 {body_text}
-    : : {args} : {clobbered});
+    : {outputs} : {args} : {clobbered});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -30,6 +28,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
 }}
 """
+    #: alpha and beta go in as pointers to them, which the kernel broadcasts from
+    scalars_by_pointer = True
     v_len = 4
     predicates = {0: kmask(0)}
 
@@ -49,17 +49,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
             return Predicate(self.predicates[count], mode == "z")
         else:
             return None
-
-    def make_argument_load(self, starting_regs, prefetch):
-        asm = block("Load arguments")
-        asm.add(mov(InputOperand(f"0", "m", "A"), starting_regs[0], False))
-        asm.add(mov(InputOperand(f"1", "m", "B"), starting_regs[1], False))
-        asm.add(mov(InputOperand(f"2", "m", "C"), starting_regs[2], False))
-        asm.add(mov(InputOperand(f"3", "m", "alpha_p"), starting_regs[3], False))
-        asm.add(mov(InputOperand(f"4", "m", "beta_p"), starting_regs[4], False))
-        if prefetch:
-            asm.add(mov(InputOperand(f"5", "m", "prefetch"), starting_regs[5], False))
-        return asm
 
     def make_reg_blocks(
         self,
@@ -352,7 +341,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         The register A is read through points at the table; encode turns a
         value into a word of it. Returns the statements, the table and the
-        registers the arguments are loaded into.
+        registers the kernel takes its arguments in.
         """
 
         v_size = self.get_v_size()

@@ -143,9 +143,10 @@ def kernel_source(tag, arch, precision, shape, variant, mtxdir):
         generator.get_template(),
         body,
         alg.flop,
-        alg.starting_regs,
+        alg.reserved_regs,
         generator.get_precision(),
         alg.prelude,
+        alg.arguments,
     )
     instructions = sum(1 for i in body.flatten() if i.stmtname() != "label")
     return text, instructions, cycles, (m, n, k, lda or m, ldb or k)

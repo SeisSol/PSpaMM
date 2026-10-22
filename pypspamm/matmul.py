@@ -824,10 +824,6 @@ class MatMul:
         asm = block("kernel")
 
         asm.add(
-            self.generator.make_argument_load(self.starting_regs, self.C_pf is not None)
-        )
-
-        asm.add(
             block(
                 "header",
                 self.generator.make_scaling_offsets(self.additional_regs, self.bnnz),
@@ -844,6 +840,12 @@ class MatMul:
         asm = self.optimize(asm)
 
         assignVirtualRegisters(asm, [self.A_pool, self.B_pool, self.C_pool])
+
+        loads, self.arguments, self.reserved_regs = self.generator.take_arguments(
+            self.starting_regs, self.C_pf is not None, asm
+        )
+        if loads:
+            asm.contents.insert(0, block("Load arguments", *loads))
 
         return asm
 

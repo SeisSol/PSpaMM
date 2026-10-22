@@ -92,7 +92,11 @@ class EllpackMatMul:
         self.prelude = table_prelude("A", words, self.types.a)
 
     def make(self):
+        loads, self.arguments, self.reserved_regs = self.generator.take_arguments(
+            self.starting_regs, False, self.body
+        )
         asm = block("kernel")
-        asm.add(self.generator.make_argument_load(self.starting_regs, False))
+        if loads:
+            asm.add(block("Load arguments", *loads))
         asm.add(self.body)
         return asm

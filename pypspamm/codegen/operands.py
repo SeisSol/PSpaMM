@@ -127,6 +127,9 @@ class MemoryAddress(Operand):
 
 
 class InputOperand(Operand):
+    """A C expression the inline assembly reads through an input operand,
+    which it names by its symbolic name."""
+
     def __init__(self, name, optype, source):
         self.name = str(name)
         self.optype = optype
@@ -134,8 +137,8 @@ class InputOperand(Operand):
 
     @property
     def ugly(self):
-        return f"%{self.name}"
+        return f"%[{self.name}]"
 
     @property
     def arg(self):
-        return f'"{self.optype}"({self.source})'
+        return f'[{self.name}] "{self.optype}"({self.source})'

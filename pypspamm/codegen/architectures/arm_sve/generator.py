@@ -14,10 +14,10 @@ class Generator(AbstractGenerator):
 
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, const {real_type} alpha, const {real_type} beta, const {real_type}* prefetch) {{{{
-{prelude}  __asm__ __volatile__(
+{prelude}{arguments}  __asm__ __volatile__(
 {init_registers}
 {body_text}
-    : : {args} : {clobbered});
+    : {outputs} : {args} : {clobbered});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -42,17 +42,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
     def get_template(self):
         return self.template
-
-    def make_argument_load(self, starting_regs, prefetch):
-        asm = block("Load arguments")
-        asm.add(ld(InputOperand(f"0", "m", "A"), starting_regs[0], False))
-        asm.add(ld(InputOperand(f"1", "m", "B"), starting_regs[1], False))
-        asm.add(ld(InputOperand(f"2", "m", "C"), starting_regs[2], False))
-        asm.add(ld(InputOperand(f"3", "m", "alpha"), starting_regs[3], False))
-        asm.add(ld(InputOperand(f"4", "m", "beta"), starting_regs[4], False))
-        if prefetch:
-            asm.add(ld(InputOperand(f"5", "m", "prefetch"), starting_regs[5], False))
-        return asm
 
     def pred_n_trues(
         self, num_trues: int, v_size: int, suffix: str = None
@@ -291,6 +280,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             real_type="{real_type}",
             args="{args}",
             prelude="{prelude}",
+            arguments="{arguments}",
+            outputs="{outputs}",
         )
 
     def move_register_block(
