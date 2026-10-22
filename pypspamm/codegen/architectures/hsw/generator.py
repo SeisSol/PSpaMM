@@ -1,20 +1,23 @@
 from pypspamm.codegen.architectures.hsw.operands import *
 from pypspamm.codegen.ast import *
+from pypspamm.codegen.forms import loop
 from pypspamm.codegen.generator import *
+from pypspamm.codegen.microkernel import LoadedOnce, cells, contribution
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.regcache import *
 from pypspamm.codegen.sugar import *
+from pypspamm.codegen.target import TARGETS
 from pypspamm.cursors import *
 
 
 class Generator(AbstractGenerator):
+    target = TARGETS["hsw"]
+
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, {real_type} const* prefetch) {{
-  {real_type}* alpha_p = &alpha;
-  {real_type}* beta_p = &beta;
-  __asm__ __volatile__(
+{prelude}{arguments}  __asm__ __volatile__(
 {body_text}
-    : : {args} : {clobbered});
+    : {outputs} : {args} : {clobbered});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -24,6 +27,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     #endif
 }}
 """
+    #: alpha and beta go in as pointers to them, which the kernel broadcasts from
+    scalars_by_pointer = True
     v_len = 2
 
     def get_v_size(self):
@@ -31,12 +36,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
     def get_template(self):
         return Generator.template
-
-    def use_broadcast(self):
-        return True
-
-    def has_masks(self):
-        return False
 
     def init_mask(self, m, bm, v_size, tempreg, maskregs):
         return block("")
@@ -50,17 +49,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
             return (1 << count) - 1
         else:
             return None
-
-    def make_argument_load(self, starting_regs, prefetch):
-        asm = block("Load arguments")
-        asm.add(mov(InputOperand(f"0", "m", "A"), starting_regs[0], False))
-        asm.add(mov(InputOperand(f"1", "m", "B"), starting_regs[1], False))
-        asm.add(mov(InputOperand(f"2", "m", "C"), starting_regs[2], False))
-        asm.add(mov(InputOperand(f"3", "m", "alpha_p"), starting_regs[3], False))
-        asm.add(mov(InputOperand(f"4", "m", "beta_p"), starting_regs[4], False))
-        if prefetch:
-            asm.add(mov(InputOperand(f"5", "m", "prefetch"), starting_regs[5], False))
-        return asm
 
     def make_expand_predicate(self, mask):
         combined = 0
@@ -84,28 +72,32 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         n: int,
         k: int,
         prefetch: str,
+        copies: int = 1,
     ):
         assert bm % v_size == 0
         vm = self.ceil_div(bm, v_size)
 
-        # Needs to fit in AVX/AVX2 ymm registers
-        if (bn + bk) * vm + bn * bk <= 16:
+        # A is kept in registers whenever the whole block fits
+        if (bn + bk) * vm + bn * bk <= self.target.vector_registers:
             self.preloadA = True
         else:
             self.preloadA = False
-            assert bn * vm + bn * bk + 1 <= 16
+            assert copies == 1, "a rotated loop needs A in registers"
+            assert bn * vm + bn * bk + 1 <= self.target.vector_registers
 
         vmm = {1: xmm, 2: ymm}[self.v_len]
 
         if self.preloadA:
-            A_regs = Matrix([[vmm(vm * c + r) for c in range(bk)] for r in range(vm)])
-            Aoffset = vm * bk
+            A_regs = Matrix(
+                [[vmm(vm * c + r) for c in range(bk * copies)] for r in range(vm)]
+            )
+            Aoffset = vm * bk * copies
         else:
             A_regs = Matrix([[vmm(0) for c in range(bk)] for r in range(vm)])
             Aoffset = 1
 
         B_regs = Matrix(
-            [[vmm(Aoffset + bn * r + c) for c in range(bn)] for r in range(bk)]
+            [[vmm(Aoffset + bn * r + c) for c in range(bn)] for r in range(bk * copies)]
         )
         C_regs = Matrix(
             [[vmm(16 - vm * bn + vm * c + r) for c in range(bn)] for r in range(vm)]
@@ -276,6 +268,190 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         return asm
 
+    #: temporaries an ELLPACK kernel cycles through for its permutations
+    ellpack_temps = 4
+
+    def ellpack_registers(self, k):
+        """How many vector registers a column of B with k rows fills in an
+        ELLPACK kernel: none, as the kernel reads B from memory where it
+        permutes it. Single and double precision only."""
+
+        if self.precision not in (Precision.SINGLE, Precision.DOUBLE):
+            return None
+        return 0
+
+    def make_ellpack(self, layout, n, ldb, ldc, alpha, beta, types, encode):
+        """The kernel for an A in sliced ELLPACK (see codegen/ellpack.py).
+
+        Sixteen registers do not hold a column of B, so a step permutes the
+        registers of B it reads straight from memory: by an immediate, but for
+        single precision on 256 bit, which takes its positions from the table.
+        A step that reads two registers permutes both by the same positions,
+        those of its lanes within their register, and blends the two. A step
+        whose lanes read their own positions of one register takes it as it
+        is. The vector of B at the end of a column, which would read past it,
+        is loaded once per column under a mask and permuted in its register.
+
+        A loop over the columns of B and C takes the full slices, each in an
+        accumulator that starts from C as beta says; a second loop takes the
+        slice at the end of the rows, whose loads and stores of C are masked,
+        for the reason given with the AVX-512 kernel. alpha other than one or
+        minus one is applied at the end; minus one is in the values already.
+
+        The register A is read through points at the table, which starts with
+        the masks; encode turns a value into a word of it. Returns the
+        statements, the table and the registers the kernel takes its arguments
+        in.
+        """
+
+        v_size = self.get_v_size()
+        size = types.a.size()
+        vmm = {1: xmm, 2: ymm}[self.v_len]
+        table, B, C, alpha_p, beta_p = rdi, rsi, rdx, rbx, rcx
+        Bcol, Ccol, counter = r(8), r(9), r(12)
+        assert self.ellpack_registers(layout.k) == 0
+
+        ktail = layout.k % v_size
+        mtail = layout.m % v_size
+        sign = -1.0 if alpha == -1.0 else 1.0
+        # alpha other than one or minus one is known at run time only, and AB
+        # is scaled by it before beta C is added
+        scaled = alpha not in (1.0, -1.0)
+        by_register = self.precision == Precision.SINGLE and v_size == 8
+
+        free = iter(vmm(i) for i in range(self.target.vector_registers))
+        kmask = next(free) if ktail > 0 else None
+        mmask = next(free) if mtail > 0 else None
+        btail = next(free) if ktail > 0 else None
+        alpha_reg = next(free) if scaled else None
+        beta_reg = next(free) if beta not in (0.0, 1.0) else None
+        tregs = [next(free) for _ in range(self.ellpack_temps)]
+        accs = list(free)
+
+        words = []
+        asm = block("ELLPACK kernel")
+        ones = (1 << (8 * size)) - 1
+        for mask, lanes in ((kmask, ktail), (mmask, mtail)):
+            if mask is not None:
+                asm.add(mov(mem(table, len(words) * size), mask, True, "mask"))
+                words.extend(ones if lane < lanes else 0 for lane in range(v_size))
+        if alpha_reg is not None:
+            asm.add(bcst(alpha_p, alpha_reg, "alpha"))
+        if beta_reg is not None:
+            asm.add(bcst(beta_p, beta_reg, "beta"))
+
+        permutations = [0]
+
+        def temp():
+            register = tregs[permutations[0] % len(tregs)]
+            permutations[0] += 1
+            return register
+
+        def source(reg):
+            if ktail > 0 and reg == layout.registers - 1:
+                return btail
+            return mem(Bcol, reg * v_size * size)
+
+        def immediate(index):
+            # vpermilpd takes one bit per lane, the others two
+            bits = 1 if v_size == 2 else 2
+            return sum((p % v_size) << (bits * lane) for lane, p in enumerate(index))
+
+        def gather(column, step):
+            """A register with the entries of B the lanes of the step need."""
+
+            index = step.index(v_size)
+            if by_register:
+                # vpermps reads the low three bits of a position, its place
+                # within its register
+                control = temp()
+                column.add(
+                    mov(mem(table, len(words) * size), control, True, "positions")
+                )
+                words.extend(index)
+                first = control
+            else:
+                control = c(immediate(index))
+                first = temp()
+            if len(step.sources) == 2:
+                second = temp()
+                column.add(permute(control, source(step.sources[1]), second))
+            column.add(permute(control, source(step.sources[0]), first))
+            if len(step.sources) == 2:
+                mask = sum(1 << lane for lane, p in enumerate(index) if p >= v_size)
+                column.add(blend(first, second, first, mask))
+            return first
+
+        def take(column, piece, acc):
+            pred = Predicate(mmask) if piece.rows < v_size else None
+            target = mem(Ccol, piece.start * size)
+            if beta == 0.0 or scaled:
+                column.add(mov(0, acc, True))
+            else:
+                column.add(mov(target, acc, True, "C", pred=pred))
+                if beta != 1.0:
+                    column.add(mul(acc, beta_reg, acc, "C = beta * C"))
+            for step in piece.steps:
+                if not step.in_place(v_size):
+                    gathered = gather(column, step)
+                elif isinstance(source(step.sources[0]), Register):
+                    gathered = source(step.sources[0])
+                else:
+                    gathered = temp()
+                    column.add(mov(source(step.sources[0]), gathered, True, "B"))
+                column.add(
+                    fma(
+                        mem(table, len(words) * size),
+                        gathered,
+                        acc,
+                        f"C[{piece.start}:{piece.start + piece.rows}] += A B[{step.sources}]",
+                    )
+                )
+                words.extend(encode(sign * value) for value in step.values)
+            result = acc
+            if scaled and beta == 0.0:
+                column.add(mul(acc, alpha_reg, acc, "C = alpha * AB"))
+            elif scaled:
+                result = temp()
+                column.add(mov(target, result, True, "C", pred=pred))
+                if beta != 1.0:
+                    column.add(mul(result, beta_reg, result, "beta * C"))
+                column.add(fma(alpha_reg, acc, result, "C = alpha * AB + beta * C"))
+            column.add(mov(result, target, True, "store", pred=pred))
+
+        def columns(description, pieces):
+            column = block(description)
+            if ktail > 0 and any(
+                layout.registers - 1 in step.sources
+                for piece in pieces
+                for step in piece.steps
+            ):
+                column.add(
+                    mov(
+                        mem(Bcol, (layout.registers - 1) * v_size * size),
+                        btail,
+                        True,
+                        "B at the end of the column",
+                        pred=Predicate(kmask),
+                    )
+                )
+            for index, piece in enumerate(pieces):
+                take(column, piece, accs[index % len(accs)])
+            column.add(add(ldb * size, Bcol, "next column of B"))
+            column.add(add(ldc * size, Ccol, "next column of C"))
+            asm.add(mov(B, Bcol, False))
+            asm.add(mov(C, Ccol, False))
+            asm.add(loop(counter, n).body(*column.contents))
+
+        full = [piece for piece in layout.slices if piece.rows == v_size]
+        rest = [piece for piece in layout.slices if piece.rows < v_size]
+        if full:
+            columns("full slices, one column", full)
+        if rest:
+            columns("the slice at the end, one column", rest)
+
+        return asm, words, [table, B, C, alpha_p, beta_p]
+
     def make_microkernel(
         self,
         A: Cursor,
@@ -335,25 +511,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
         Vm = self.ceil_div(bm, v_size)
 
-        bs = []
-        bsv = []
-        for Vmi in range(Vm):
-            for bni in range(bn):  # inside this n-block
-                for bki in range(bk):  # inside this k-block
-                    to_bcell = Coords(down=bki, right=bni)
-                    to_acell = Coords(down=Vmi * v_size, right=bki)
-                    if B.has_nonzero_cell(
-                        B_ptr, to_B_block, to_bcell
-                    ) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
-                        B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        self.reg_based_scaling(asm, B_addr, additional_regs)
-                        if B_regs[bki, bni] not in bs:
-                            asm.add(bcst(B_addr, B_regs[bki, bni], comment=B_comment))
-                            bs.append(B_regs[bki, bni])
-                            bsv.append(B_addr)
-                        else:
-                            # just to make sure we do not use registers differently in a block
-                            assert bsv[bs.index(B_regs[bki, bni])].ugly == B_addr.ugly
+        loaded = LoadedOnce()
+        for Vmi, bni, bki, to_acell, to_bcell in cells(
+            A, B, A_ptr, B_ptr, to_A_block, to_B_block, Vm, bn, bk, v_size
+        ):
+            B_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+            self.reg_based_scaling(asm, B_addr, additional_regs)
+            if loaded.first(B_regs[bki, bni], B_addr):
+                asm.add(bcst(B_addr, B_regs[bki, bni], comment=B_comment))
 
         for bki in range(bk):  # inside this k-block
             for Vmi in range(Vm):
@@ -379,7 +544,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         B_ptr, to_B_block, to_bcell
                     ) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
                         _, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
+                        comment = contribution(Vmi, bni, bki, v_size, B_comment)
                         asm.add(
                             fma(
                                 B_regs[bki, bni],

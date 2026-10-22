@@ -1,3 +1,6 @@
+from pypspamm.codegen.target import TARGETS
+
+
 class Max:
     @classmethod
     def getBlocksize(cls, m, n, bk, v_size, prec):
@@ -31,7 +34,7 @@ class Max:
     def ARM_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm + bn * bk <= 32
+        return (bn + bk) * vm + bn * bk <= TARGETS["arm_sve"].vector_registers
 
     @classmethod
     def tileable(cls, m, bm):
@@ -70,11 +73,8 @@ class MaxK:
     @classmethod
     def ARM_condition(cls, bm, bn, bk, v_size, elem128):
         # ceiling division
-        vkext = -(bk // -elem128)
-        isvkext = bn * vkext <= 16 if elem128 == 2 else bn * vkext <= 8
         vm = -(bm // -v_size)
-        vk = vkext if isvkext else bk
-        return (bn + bk) * vm + bn * vk <= 32
+        return TARGETS["arm_sve"].fits(bn, bk, vm, 16 // elem128)
 
     @classmethod
     def tileable(cls, m, bm):
@@ -112,11 +112,8 @@ class Cube:
     @classmethod
     def ARM_condition(cls, bm, bn, bk, v_size, elem128):
         # ceiling division
-        vkext = -(bk // -elem128)
-        isvkext = bn * vkext <= 16 if elem128 == 2 else bn * vkext <= 8
         vm = -(bm // -v_size)
-        vk = vkext if isvkext else bk
-        return (bn + bk) * vm + bn * vk <= 32
+        return TARGETS["arm_sve"].fits(bn, bk, vm, 16 // elem128)
 
     @classmethod
     def tileable(cls, m, bm):

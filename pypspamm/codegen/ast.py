@@ -231,6 +231,59 @@ class MulStmt(AsmStmt):
         return "mul"
 
 
+class PermuteStmt(AsmStmt):
+    """A vector gathered from the lanes of one or two others.
+
+    Lane i of dest is lane control[i] of the concatenation of table and table2,
+    table filling the positions below the vector length. control is a register
+    of positions on targets that permute by register, and an immediate on
+    targets that permute within one register only, where table2 is None.
+    """
+
+    dest = None
+    control = None
+    table = None
+    table2 = None
+    pred = None
+
+    def accept(self, visitor: "Visitor"):
+        visitor.visitPermute(self)
+
+    def reg_in_candidate(self):
+        return (self.control, self.table, self.table2, self.pred)
+
+    def reg_out_candidate(self):
+        return (self.dest,)
+
+    def stmtname(self):
+        return "permute"
+
+
+class BlendStmt(AsmStmt):
+    """A vector that takes each lane from one of two others.
+
+    Lane i of dest is lane i of src2 where bit i of mask is set, and lane i of
+    src where it is not; the mask is known when the kernel is generated.
+    """
+
+    dest = None
+    src = None
+    src2 = None
+    mask = None
+
+    def accept(self, visitor: "Visitor"):
+        visitor.visitBlend(self)
+
+    def reg_in_candidate(self):
+        return (self.src, self.src2)
+
+    def reg_out_candidate(self):
+        return (self.dest,)
+
+    def stmtname(self):
+        return "blend"
+
+
 class BcstStmt(AsmStmt):
     bcast_src = None
     dest = None
@@ -296,6 +349,9 @@ class LabelStmt(AsmStmt):
     def accept(self, visitor: "Visitor"):
         visitor.visitLabel(self)
 
+    def stmtname(self):
+        return "label"
+
     def __str__(self):
         return f"Label: {self.label.ugly}"
 
@@ -321,6 +377,9 @@ class DataStmt(AsmStmt):
     def accept(self, visitor: "Visitor"):
         visitor.visitData(self)
 
+    def stmtname(self):
+        return "data"
+
 
 class RVSetVLStmt(AsmStmt):
     actual = None
@@ -328,6 +387,9 @@ class RVSetVLStmt(AsmStmt):
 
     def accept(self, visitor: "Visitor"):
         visitor.visitRVSetVLStmt(self)
+
+    def stmtname(self):
+        return "setvl"
 
     def reg_in_candidate(self):
         return (self.requested,)

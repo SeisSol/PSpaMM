@@ -1,3 +1,5 @@
+import copy
+
 from .ast import *
 from .forms import *
 from .operands import *
@@ -33,16 +35,40 @@ def hasDependency(instr1, instr2, rrt=False):
     return len(ww) > 0 or len(wr) > 0 or len(rw) > 0 or (rrt and len(rr) > 0)
 
 
+def distinctStatements(*sequences):
+    """Give every statement its own identity across the passed sequences.
+
+    Rotating a loop body places some statements both in the prelude and in the
+    loop body. Register assignment identifies live ranges by statement
+    identity, so a statement occurring twice has to be two objects. The copies
+    are shallow and keep referring to the same operands, which is what makes
+    the shared virtual registers resolve to one physical register.
+    """
+
+    seen = set()
+    result = []
+    for sequence in sequences:
+        rewritten = []
+        for instr in sequence:
+            if id(instr) in seen:
+                instr = copy.copy(instr)
+            seen.add(id(instr))
+            rewritten.append(instr)
+        result.append(rewritten)
+    return result
+
+
 def moveLoads(block, isLoop=False):
     preprocessed = []
     for instr in block:
         if isinstance(instr, Loop):
-            if instr.may_overlap:
+            if instr.may_overlap and instr.final_val >= 1:
                 # only unroll the innermost loop at most
                 prelude, inner, postlude = moveLoads(instr.body_contents.contents, True)
+                prelude, inner, postlude = distinctStatements(prelude, inner, postlude)
                 if instr.final_val == 1:
                     preprocessed += prelude + postlude
-                elif instr.final_val > 1:
+                else:
                     preprocessed += (
                         prelude
                         + [

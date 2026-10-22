@@ -1,18 +1,23 @@
+from pypspamm.codegen.address import ScratchBase
 from pypspamm.codegen.architectures.arm_sve.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
+from pypspamm.codegen.microkernel import cells, contribution
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.sugar import *
+from pypspamm.codegen.target import TARGETS
 from pypspamm.cursors import *
 
 
 class Generator(AbstractGenerator):
+    target = TARGETS["arm_sve"]
+
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, const {real_type} alpha, const {real_type} beta, const {real_type}* prefetch) {{{{
-  __asm__ __volatile__(
+{prelude}{arguments}  __asm__ __volatile__(
 {init_registers}
 {body_text}
-    : : {args} : {clobbered});
+    : {outputs} : {args} : {clobbered});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -37,23 +42,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
     def get_template(self):
         return self.template
-
-    def use_broadcast(self):
-        return True
-
-    def has_masks(self):
-        return True
-
-    def make_argument_load(self, starting_regs, prefetch):
-        asm = block("Load arguments")
-        asm.add(ld(InputOperand(f"0", "m", "A"), starting_regs[0], False))
-        asm.add(ld(InputOperand(f"1", "m", "B"), starting_regs[1], False))
-        asm.add(ld(InputOperand(f"2", "m", "C"), starting_regs[2], False))
-        asm.add(ld(InputOperand(f"3", "m", "alpha"), starting_regs[3], False))
-        asm.add(ld(InputOperand(f"4", "m", "beta"), starting_regs[4], False))
-        if prefetch:
-            asm.add(ld(InputOperand(f"5", "m", "prefetch"), starting_regs[5], False))
-        return asm
 
     def pred_n_trues(
         self, num_trues: int, v_size: int, suffix: str = None
@@ -89,7 +77,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         n: int,
         k: int,
         prefetch: str,
+        copies: int = 1,
     ):
+        assert copies == 1, "arm_sve does not lay out a second copy of the operands yet"
         vm = self.ceil_div(
             bm, v_size
         )  # vm can be 0 if bm < v_size -> makes ceil_div necessary
@@ -100,7 +90,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         # inline broadcasting is only allowed for the lower-numbered registers
         self.inline_broadcast = False
-        if bn * vkext <= 16 if self.get_precision().size() == 8 else bn * vkext <= 8:
+        if bn * vkext <= self.target.indexed_limit(self.get_precision().size()):
             self.inline_broadcast = True
         if bk == 1:
             self.inline_broadcast = False
@@ -110,7 +100,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         else:
             vk = bk
 
-        assert (bn + bk) * vm + bn * vk <= 32  # Needs to fit in SVE z registers
+        assert self.target.fits(bn, bk, vm, self.precision.size())
 
         prec = {
             Precision.DOUBLE: "d",
@@ -121,7 +111,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
 
         # make place for the two broadcasting registers
         a_offset = 1 if bn * vk == 1 else 0
-        assert (bn + bk) * vm + bn * vk + a_offset <= 32
+        assert (bn + bk) * vm + bn * vk + a_offset <= self.target.vector_registers
 
         A_regs = Matrix(
             [
@@ -289,6 +279,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             flop="{flop}",
             real_type="{real_type}",
             args="{args}",
+            prelude="{prelude}",
+            arguments="{arguments}",
+            outputs="{outputs}",
         )
 
     def move_register_block(
@@ -325,14 +318,15 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
         mul_vl = (
             16 * self.v_len
         )  # e.g. A64FX has VL of 64 bytes in memory (thus, use v_len==4)
-        max_mem_ins_mult = 7  # A64FX allows a maximum positive offset of 7 in memory instructions, e.g. ld1d z1.d, p0/z, [x0, 7, MUL VL] (TODO: tune, if ever different)
-        max_offset = (
-            mul_vl * max_mem_ins_mult
-        )  # ld1d/st1d instruction encodes the immediate offset using 4 bits, multiplies it with MUL VL
+        max_offset, _ = self.target.memory_offset_limit(vector_bytes=mul_vl)
 
-        prev_disp = 0
+        base = ScratchBase(
+            additional_regs[0],
+            scale=mul_vl,
+            immediate=self.target.scalar_immediate,
+            prefer_original=self.target.prefer_original_base,
+        )
         prev_overhead = True
-        prev_base = None
 
         process_size = min(v_size, cursor.br)
 
@@ -372,42 +366,30 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                     addr, comment = cursor.look(cursor_ptr, block_offset, cell_offset)
                     addr.disp += self.precision.size() * load_offset
 
-                    offset = addr.disp - prev_disp
+                    offset = addr.disp - base.offset
 
                     # count how many elements we have processed between last step and this step
                     cont_counter = offset // mul_vl
-                    larger_max_offset = cont_counter > max_mem_ins_mult
+                    larger_max_offset = cont_counter * mul_vl > max_offset
                     non_dividing_offset = offset % mul_vl != 0
 
-                    if (
-                        larger_max_offset
-                        or (prev_overhead and addr.disp > 0)
-                        or non_dividing_offset
-                    ):
-                        offset_comment = (
-                            f"disp > {max_offset}"
-                            if larger_max_offset
-                            else (
-                                "disp % VL != 0"
-                                if non_dividing_offset
-                                else "previous mem. instr. used p0"
-                            )
+                    offset_comment = (
+                        f"disp > {max_offset}"
+                        if larger_max_offset
+                        else (
+                            "disp % VL != 0"
+                            if non_dividing_offset
+                            else "previous mem. instr. used p0"
                         )
-                        asm.add(
-                            add(
-                                addr.disp, additional_regs[0], offset_comment, addr.base
-                            )
-                        )
-                        prev_disp = addr.disp
-                        addr.base = additional_regs[0]
-                        prev_base = addr.base
-
-                    # adjust addr.disp to a multiple of a SVE vector's length
-                    if prev_base is None:
-                        prev_base = addr.base
-
-                    addr.base = prev_base
-                    addr.disp = (addr.disp - prev_disp) // mul_vl
+                    )
+                    base.place(
+                        asm,
+                        addr,
+                        max_offset,
+                        mul_vl,
+                        force=prev_overhead and addr.disp > 0,
+                        comment=offset_comment,
+                    )
 
                     if store:
                         asm.add(
@@ -427,10 +409,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                                 pf_cursor_ptr, block_offset, cell_offset
                             )
                             addr.disp += self.precision.size() * load_offset
-                            if prev_disp > 0:
+                            if base.offset > 0:
                                 asm.add(
                                     add(
-                                        prev_disp,
+                                        base.offset,
                                         additional_regs[3],
                                         "increment the prefetch register",
                                         addr.base,
@@ -441,10 +423,10 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                                     mem(
                                         (
                                             additional_regs[3]
-                                            if prev_disp > 0
+                                            if base.offset > 0
                                             else addr.base
                                         ),
-                                        (addr.disp - prev_disp) // mul_vl,
+                                        (addr.disp - base.offset) // mul_vl,
                                     ),
                                     "",
                                     p,
@@ -547,75 +529,75 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
             preg if bk % elem128 == 0 else self.pred_n_trues(bk % elem128, elem128, "z")
         )
         firstloc = {}
-        for Vmi in range(Vm):
-            # set to all v_size predicates to true, we want to replicate a B element into a whole vector
-            for bni in range(bn):  # inside this n-block
-                for bki in range(bk):  # inside this k-block
-                    bki_reg = bki // elem128
-                    to_bcell = Coords(down=bki, right=bni)
-                    to_acell = Coords(down=Vmi * v_size, right=bki)
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell):
-                        if (bki_reg, bni) not in firstloc:
-                            B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                            firstloc[(bki_reg, bni)] = (B_cell_addr, B_comment)
-                        if (
-                            A.has_nonzero_cell(A_ptr, to_A_block, to_acell)
-                            and B_regs[bki_reg, bni] not in bs
-                        ):
-                            p_zeroing = preg_last if bki_reg + 1 == vk else preg
+        # a B element is replicated into a whole vector, so all predicates are true
+        for Vmi, bni, bki, to_acell, to_bcell in cells(
+            A,
+            B,
+            A_ptr,
+            B_ptr,
+            to_A_block,
+            to_B_block,
+            Vm,
+            bn,
+            bk,
+            v_size,
+            require_a=False,
+        ):
+            bki_reg = bki // elem128
+            if (bki_reg, bni) not in firstloc:
+                B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+                firstloc[(bki_reg, bni)] = (B_cell_addr, B_comment)
+            if (
+                A.has_nonzero_cell(A_ptr, to_A_block, to_acell)
+                and B_regs[bki_reg, bni] not in bs
+            ):
+                p_zeroing = preg_last if bki_reg + 1 == vk else preg
 
-                            B_cell_addr = firstloc[(bki_reg, bni)][0]
-                            B_comment = firstloc[(bki_reg, bni)][1]
+                B_cell_addr = firstloc[(bki_reg, bni)][0]
+                B_comment = firstloc[(bki_reg, bni)][1]
 
-                            # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
-                            if (
-                                B_cell_addr.disp > max_offs
-                                or B_cell_addr.disp % divider != 0
-                            ):
-                                moved = B_cell_addr.disp - cur11
-                                if (
-                                    moved > 0
-                                    and moved <= max_offs
-                                    and moved % divider == 0
-                                ):
-                                    B_cell_addr.disp = moved
-                                else:
-                                    asm.add(
-                                        add(
-                                            B_cell_addr.disp,
-                                            additional_regs[0],
-                                            "",
-                                            B_cell_addr.base,
-                                        )
-                                    )
-                                    cur11 = B_cell_addr.disp
-                                    B_cell_addr.disp = 0
+                # max_offs is the maximum allowed immediate offset when using ld1rd/ld1rw to broadcast a scalar value
+                if B_cell_addr.disp > max_offs or B_cell_addr.disp % divider != 0:
+                    moved = B_cell_addr.disp - cur11
+                    if moved > 0 and moved <= max_offs and moved % divider == 0:
+                        B_cell_addr.disp = moved
+                    else:
+                        asm.add(
+                            add(
+                                B_cell_addr.disp,
+                                additional_regs[0],
+                                "",
+                                B_cell_addr.base,
+                            )
+                        )
+                        cur11 = B_cell_addr.disp
+                        B_cell_addr.disp = 0
 
-                                B_cell_addr.base = additional_regs[0]
+                    B_cell_addr.base = additional_regs[0]
 
-                            if not self.inline_broadcast:
-                                asm.add(
-                                    ld(
-                                        B_cell_addr,
-                                        B_regs[bki_reg, bni],
-                                        True,
-                                        B_comment,
-                                        pred=p_zeroing,
-                                        is_B=True,
-                                    )
-                                )
-                            else:
-                                asm.add(
-                                    ld(
-                                        B_cell_addr,
-                                        B_regs[bki_reg, bni],
-                                        True,
-                                        B_comment,
-                                        pred=p_zeroing,
-                                        sub128=True,
-                                    )
-                                )
-                            bs.append(B_regs[bki_reg, bni])
+                if not self.inline_broadcast:
+                    asm.add(
+                        ld(
+                            B_cell_addr,
+                            B_regs[bki_reg, bni],
+                            True,
+                            B_comment,
+                            pred=p_zeroing,
+                            is_B=True,
+                        )
+                    )
+                else:
+                    asm.add(
+                        ld(
+                            B_cell_addr,
+                            B_regs[bki_reg, bni],
+                            True,
+                            B_comment,
+                            pred=p_zeroing,
+                            sub128=True,
+                        )
+                    )
+                bs.append(B_regs[bki_reg, bni])
 
         # TODO: refactor cell_indices into the cursors/blocks
         cell_indices = {}
@@ -635,7 +617,9 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, con
                         B_ptr, to_B_block, to_bcell
                     ) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
                         _, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        comment = f"C[{Vmi * v_size}:{end_index},{bni}] += A[{Vmi * v_size}:{end_index},{bki}]*{B_comment}"
+                        comment = contribution(
+                            Vmi, bni, bki, v_size, B_comment, end_index
+                        )
 
                         if not self.inline_broadcast:
                             bcast = None

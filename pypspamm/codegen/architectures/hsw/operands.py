@@ -55,6 +55,26 @@ xmm = lambda n: Register_HSW(AsmType.f64x2, "xmm" + str(n))
 ymm = lambda n: Register_HSW(AsmType.f64x4, "ymm" + str(n))
 
 
+class Predicate:
+    """The mask of a masked load or store: a vector register whose lanes move
+    where their sign bit is set. The other lanes are neither read nor
+    written; a load sets them to zero."""
+
+    def __init__(self, register: Register_HSW):
+        self.register = register
+
+    @property
+    def ugly(self):
+        return self.register.ugly
+
+    @property
+    def clobbered(self):
+        return self.register.clobbered
+
+    def registers(self):
+        return [self.register]
+
+
 class MemoryAddress_HSW(MemoryAddress):
 
     def __init__(

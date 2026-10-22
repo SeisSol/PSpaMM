@@ -3,11 +3,14 @@ from typing import Tuple
 import numpy
 
 import pypspamm.architecture
+from pypspamm.codegen.architectures import registry
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.forms import *
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.prune import *
+from pypspamm.codegen.schedule import moveLoads
 from pypspamm.codegen.sugar import *
+from pypspamm.codegen.table import bits, table_prelude, values_at, vector_tiles
 from pypspamm.codegen.virtual import *
 from pypspamm.cursors import *
 
@@ -33,7 +36,7 @@ def decompose_pattern(
         for Bki in range(Bk):
             if Bni + 1 == Bn and n_overhead > 0 and Bki + 1 == Bk and k_overhead > 0:
                 block = pattern[
-                    (Bki * bk) : ((Bki + 1) * bk + k_overhead),
+                    (Bki * bk) : ((Bki) * bk + k_overhead),
                     (Bni * bn) : ((Bni) * bn + n_overhead),
                 ]
             elif Bni + 1 == Bn and n_overhead > 0:
@@ -43,7 +46,7 @@ def decompose_pattern(
                 ]
             elif Bki + 1 == Bk and k_overhead > 0:
                 block = pattern[
-                    (Bki * bk) : ((Bki + 1) * bk + k_overhead),
+                    (Bki * bk) : ((Bki) * bk + k_overhead),
                     (Bni * bn) : ((Bni + 1) * bn),
                 ]
             else:
@@ -63,6 +66,32 @@ def decompose_pattern(
                 mtx_overhead[i] += 1
 
     return blocks, patterns, mtx_overhead
+
+
+def select_architecture(arch: str, precision: Precision):
+    """Make arch the architecture the statements are emitted for.
+
+    Returns the module that implements it, its generator for the precision and
+    the vector width in units of 128 bit, which the caller gives the generator
+    once it has settled what else depends on it.
+    """
+
+    archspec, v_len_regs = registry.parse(arch)
+    module = archspec.module
+
+    pypspamm.architecture.init()
+    pypspamm.architecture.arch = module
+    pypspamm.architecture.Generator = pypspamm.architecture.get_class(
+        "pypspamm.codegen.architectures." + module + ".generator"
+    ).Generator
+    pypspamm.architecture.operands = pypspamm.architecture.get_class(
+        "pypspamm.codegen.architectures." + module + ".operands"
+    )
+    pypspamm.architecture.blocksize = pypspamm.architecture.get_class(
+        "pypspamm.codegen.architectures." + module + ".blocksize"
+    ).Default
+
+    return module, pypspamm.architecture.Generator(precision), v_len_regs
 
 
 class MatMul:
@@ -89,6 +118,9 @@ class MatMul:
         arch: str = "knl",
         precision: str = "d",
         prefetching: str = None,
+        scheduling: str = "none",
+        operand_copies: int = None,
+        abake: bool = False,
         **kwargs,  # Accept and ignore args which don't belong
     ) -> None:
 
@@ -109,91 +141,11 @@ class MatMul:
         except:
             self.beta = "generic"
 
-        if arch.startswith("skx"):
-            arch = "knl" + arch[3:]
+        self.precision = Precision.fromCode(precision)
+        self.types = Types.uniform(self.precision)
 
-        # hacky implementation of multi-register length
-        if arch.startswith("arm_sve"):
-            if len(arch) == 7:
-                v_len_regs = 4  # compatibility: arm_sve == arm_sve512
-            else:
-                v_len_bits = int(arch[7:])
-                assert v_len_bits % 128 == 0 and v_len_bits <= 2048
-                v_len_regs = v_len_bits // 128
-            arch = "arm_sve"
-
-        if arch.startswith("knl"):
-            if len(arch) == 3:
-                v_len_regs = 4
-            else:
-                v_len_bits = int(arch[3:])
-                assert v_len_bits in (128, 256, 512)
-                v_len_regs = v_len_bits // 128
-            arch = "knl"
-
-        if arch.startswith("hsw"):
-            if len(arch) == 3:
-                v_len_regs = 2
-            else:
-                v_len_bits = int(arch[3:])
-                assert v_len_bits in (128, 256)
-                v_len_regs = v_len_bits // 128
-            arch = "hsw"
-
-        if arch.startswith("rvv"):
-            if len(arch) == 3:
-                v_len_regs = 1
-            else:
-                v_len_bits = int(arch[3:])
-                assert v_len_bits in (128, 256, 512, 1024, 2048, 4096, 8192)
-                v_len_regs = v_len_bits // 128
-            arch = "rvv"
-
-        if arch.startswith("arm") and not arch.startswith("arm_sve"):
-            # only 128 supported
-            v_len_regs = 1
-            arch = "arm"
-
-        if arch.startswith("lsx"):
-            if len(arch) == 3:
-                v_len_regs = 1
-            else:
-                v_len_bits = int(arch[3:])
-                assert v_len_bits in (128, 256)
-                v_len_regs = v_len_bits // 128
-            arch = "lsx"
-
-        if arch.startswith("lasx"):
-            if len(arch) == 4:
-                v_len_regs = 2
-            else:
-                v_len_bits = int(arch[4:])
-                assert v_len_bits in (128, 256)
-                v_len_regs = v_len_bits // 128
-            arch = "lsx"
-
+        arch, self.generator, v_len_regs = select_architecture(arch, self.precision)
         self.arch = arch
-        assert precision.lower() in ["bf16", "h", "s", "d"]
-        self.precision = {
-            "h": Precision.HALF,
-            "s": Precision.SINGLE,
-            "d": Precision.DOUBLE,
-            "bf16": Precision.BFLOAT16,
-        }[precision.lower()]
-
-        pypspamm.architecture.init()
-        pypspamm.architecture.arch = arch
-        pypspamm.architecture.Generator = pypspamm.architecture.get_class(
-            "pypspamm.codegen.architectures." + arch + ".generator"
-        ).Generator
-        pypspamm.architecture.operands = pypspamm.architecture.get_class(
-            "pypspamm.codegen.architectures." + arch + ".operands"
-        )
-        pypspamm.architecture.blocksize = pypspamm.architecture.get_class(
-            "pypspamm.codegen.architectures." + arch + ".blocksize"
-        ).Default
-
-        self.generator = pypspamm.architecture.Generator(self.precision)
 
         # flag that determines if a matmul kernel uses sve instructions -> needed for sve predicates
         self.masks = self.generator.has_masks()
@@ -208,7 +160,7 @@ class MatMul:
             bk = 2 if arch == "knl" else 1
 
         if bm == None or bn == None:
-            (self.bm, self.bn, self.bk) = pypspamm.architecture.blocksize.getBlocksize(
+            self.bm, self.bn, self.bk = pypspamm.architecture.blocksize.getBlocksize(
                 m, n, bk, self.v_size, self.precision
             )
         else:
@@ -218,9 +170,37 @@ class MatMul:
 
         self.prefetching = prefetching
 
+        assert scheduling in ("none", "peephole", "pipeline")
+        self.scheduling = scheduling
+        # a rotated loop holds the operands of two iterations at once
+        if operand_copies is None:
+            operand_copies = (
+                2
+                if scheduling == "pipeline"
+                and self.generator.target.operand_copies_supported
+                else 1
+            )
+        self.operand_copies = operand_copies
+
+        if self.operand_copies > 1:
+            vm = self.generator.ceil_div(self.bm, self.v_size)
+            size = self.types.b.size()
+            target = self.generator.target
+            while self.bk > 1 and not target.fits(
+                self.bn, self.bk, vm, size, self.operand_copies
+            ):
+                self.bk -= 1
+            while self.bn > 1 and not target.fits(
+                self.bn, self.bk, vm, size, self.operand_copies
+            ):
+                self.bn -= 1
+
         self.output_funcname = output_funcname
         self.output_filename = output_filename
         self.output_overwrite = output_overwrite
+
+        # C code ahead of the assembly, for data the kernel carries itself
+        self.prelude = ""
 
         if ldb == 0:
             if bmtx_filename is None or bmtx_filename == "":
@@ -238,6 +218,12 @@ class MatMul:
             apattern = Matrix.full(m, k, True)
             assert self.m <= lda
 
+        # the values in the file of a sparse A are its values, and the kernel
+        # keeps them in a table of its own instead of reading A
+        assert not abake or lda == 0, "only the values of a sparse A are built in"
+        self.abake = abake
+        self.avalues = apattern if abake else None
+
         self.bmtx_filename = bmtx_filename
         self.amtx_filename = amtx_filename
         self.mtx_format = mtx_format
@@ -254,7 +240,9 @@ class MatMul:
 
         # if matrices are always padded to multiple of v_size, we can remove the if-part and execute the assert for SVE too
         if not self.masks:
-            assert self.m % self.v_size == 0
+            assert (
+                self.m % self.v_size == 0
+            ), f"{arch} has no masking, so m ({self.m}) must be a multiple of the vector length ({self.v_size})"
 
         (
             self.A_regs,
@@ -277,6 +265,16 @@ class MatMul:
             self.n,
             self.k,
             self.prefetching,
+            self.operand_copies,
+        )
+
+        self.A_block = (
+            self.A_regs.shape[0],
+            self.A_regs.shape[1] // self.operand_copies,
+        )
+        self.B_block = (
+            self.B_regs.shape[0] // self.operand_copies,
+            self.B_regs.shape[1],
         )
 
         self.A_pool = RegisterPool(
@@ -284,21 +282,24 @@ class MatMul:
                 self.A_regs[i, j]
                 for i in range(self.A_regs.shape[0])
                 for j in range(self.A_regs.shape[1])
-            ]
+            ],
+            "A",
         )
         self.B_pool = RegisterPool(
             [
                 self.B_regs[i, j]
                 for i in range(self.B_regs.shape[0])
                 for j in range(self.B_regs.shape[1])
-            ]
+            ],
+            "B",
         )
         self.C_pool = RegisterPool(
             [
                 self.C_regs[i, j]
                 for i in range(self.C_regs.shape[0])
                 for j in range(self.C_regs.shape[1])
-            ]
+            ],
+            "C",
         )
 
         self.alpha_bcst_reg, self.beta_bcst_reg = (
@@ -307,6 +308,10 @@ class MatMul:
         )
 
         if lda == 0:
+            if self.abake:
+                # the table is laid out here, so the kernel may load whole
+                # vector tiles wherever a column has an entry
+                apattern = vector_tiles(apattern, self.m, self.bm, self.v_size)
             blocks, patterns, mtx_overhead = decompose_pattern(
                 self.m, self.k, apattern, self.bm, self.bk
             )
@@ -318,12 +323,20 @@ class MatMul:
                 self.lda,
                 self.bm,
                 self.bk,
-                self.precision.size(),
+                self.types.a.size(),
                 blocks,
                 patterns,
                 mtx_overhead,
             )
             self.annz += sum(mtx_overhead)
+            if self.abake:
+                offsets = numpy.asarray(self.A.offsets)
+                length = int(offsets.max()) + 1
+                words = [
+                    bits(value, self.types.a)
+                    for value in values_at(self.A.offsets, self.avalues, length)
+                ]
+                self.prelude = table_prelude("A", words, self.types.a)
         else:
             self.A = DenseCursor(
                 "A",
@@ -333,7 +346,7 @@ class MatMul:
                 self.lda,
                 self.bm,
                 self.bk,
-                self.precision.size(),
+                self.types.a.size(),
             )
         if ldb == 0:
             blocks, patterns, mtx_overhead = decompose_pattern(
@@ -347,7 +360,7 @@ class MatMul:
                 self.ldb,
                 self.bk,
                 self.bn,
-                self.precision.size(),
+                self.types.b.size(),
                 blocks,
                 patterns,
                 mtx_overhead,
@@ -362,7 +375,7 @@ class MatMul:
                 self.ldb,
                 self.bk,
                 self.bn,
-                self.precision.size(),
+                self.types.b.size(),
             )
         self.C = DenseCursor(
             "C",
@@ -372,7 +385,7 @@ class MatMul:
             self.ldc,
             self.bm,
             self.bn,
-            self.precision.size(),
+            self.types.c.size(),
         )
         self.C_pf = (
             DenseCursor(
@@ -383,7 +396,7 @@ class MatMul:
                 self.ldc,
                 self.bm,
                 self.bn,
-                self.precision.size(),
+                self.types.c.size(),
             )
             if self.prefetch_reg
             else None
@@ -521,18 +534,18 @@ class MatMul:
                     [
                         [
                             VirtualRegister(self.A_regs[0, 0].typeinfo, self.A_pool)
-                            for _ in range(self.A_regs.shape[1])
+                            for _ in range(self.A_block[1])
                         ]
-                        for _ in range(self.A_regs.shape[0])
+                        for _ in range(self.A_block[0])
                     ]
                 )
                 B_regs = Matrix(
                     [
                         [
                             VirtualRegister(self.B_regs[0, 0].typeinfo, self.B_pool)
-                            for _ in range(self.B_regs.shape[1])
+                            for _ in range(self.B_block[1])
                         ]
-                        for _ in range(self.B_regs.shape[0])
+                        for _ in range(self.B_block[0])
                     ]
                 )
                 asm.add(
@@ -578,18 +591,18 @@ class MatMul:
                         bcst(self.beta_bcst_reg, self.beta_reg[1], "Broadcast beta")
                     )
 
-            for x in range(0, regs.shape[1], self.A_regs.shape[1]):
+            for x in range(0, regs.shape[1], self.A_block[1]):
                 A_regs = Matrix(
                     [
                         [
                             VirtualRegister(self.A_regs[0, 0].typeinfo, self.A_pool)
-                            for _ in range(self.A_regs.shape[1])
+                            for _ in range(self.A_block[1])
                         ]
-                        for _ in range(self.A_regs.shape[0])
+                        for _ in range(self.A_block[0])
                     ]
                 )
                 A_regs_cut = A_regs[
-                    0 : min(self.A_regs.shape[0], regs.shape[0]), 0 : regs.shape[1] - x
+                    0 : min(self.A_block[0], regs.shape[0]), 0 : regs.shape[1] - x
                 ]
                 if self.beta != 0.0:
                     store_block.add(
@@ -811,10 +824,6 @@ class MatMul:
         asm = block("kernel")
 
         asm.add(
-            self.generator.make_argument_load(self.starting_regs, self.C_pf is not None)
-        )
-
-        asm.add(
             block(
                 "header",
                 self.generator.make_scaling_offsets(self.additional_regs, self.bnnz),
@@ -828,6 +837,34 @@ class MatMul:
 
         self.blockloop(asm, A_ptr, B_ptr, C_ptr, C_pf_ptr)
 
+        asm = self.optimize(asm)
+
         assignVirtualRegisters(asm, [self.A_pool, self.B_pool, self.C_pool])
 
+        loads, self.arguments, self.reserved_regs = self.generator.take_arguments(
+            self.starting_regs, self.C_pf is not None, asm
+        )
+        if loads:
+            asm.contents.insert(0, block("Load arguments", *loads))
+
         return asm
+
+    def optimize(self, asm):
+        """Run the optimization passes selected by the scheduling level.
+
+        The passes work on a flat statement list with loops kept intact, and
+        they run before register assignment: they reorder the statements that
+        define the live ranges the assignment is derived from.
+        """
+
+        if self.scheduling == "none":
+            return asm
+
+        statements = list(asm.normalize())
+
+        if self.scheduling == "pipeline":
+            statements = moveLoads(statements)
+
+        statements = prune(statements)
+
+        return block("kernel", *statements)

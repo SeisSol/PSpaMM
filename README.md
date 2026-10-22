@@ -31,3 +31,14 @@ pspamm-generator M N K LDA LDB LDC ALPHA BETA \
     --output_funcname FUNCTION_NAME --output_filename OUTPUT_NAME
 
 ```
+
+### A sparse A with known values
+
+With `--abake`, the values in the file of a sparse A are the values of A: the
+kernel keeps them in a table of its own and does not read A, and any pattern
+works, not only one of whole vector tiles. Such a kernel works through A in
+vector tiles (`--aformat blocked`) or in sliced ELLPACK, gathering the rows of
+B it needs by permutations (`--aformat ellpack`, on AVX-512 and AVX2);
+`--aformat auto`, the default, takes the one estimated to be faster.
+
+`pspamm-generator --capabilities` prints what the generator supports, as JSON.

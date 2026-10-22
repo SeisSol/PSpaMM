@@ -1,18 +1,22 @@
+from pypspamm.codegen.address import ScratchBase
 from pypspamm.codegen.architectures.arm.operands import *
 from pypspamm.codegen.ast import *
 from pypspamm.codegen.generator import *
+from pypspamm.codegen.microkernel import cells, contribution
 from pypspamm.codegen.precision import *
 from pypspamm.codegen.sugar import *
+from pypspamm.codegen.target import TARGETS
 from pypspamm.cursors import *
 
 
 class Generator(AbstractGenerator):
+    target = TARGETS["arm"]
 
     template = """
 void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {real_type} alpha, {real_type} beta, const {real_type}* prefetch) {{
-  __asm__ __volatile__(
+{prelude}{arguments}  __asm__ __volatile__(
 {body_text}
-    : : {args} : {clobbered});
+    : {outputs} : {args} : {clobbered});
 
     #ifndef NDEBUG
     #ifdef _OPENMP
@@ -29,25 +33,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
     def get_template(self):
         return Generator.template
 
-    def use_broadcast(self):
-        return True
-
-    def has_masks(self):
-        return False
-
     def init_mask(self, m, bm, v_size, tempreg, maskregs):
         return block("")
-
-    def make_argument_load(self, starting_regs, prefetch):
-        asm = block("Load arguments")
-        asm.add(ld(InputOperand(f"0", "m", "A"), starting_regs[0], False))
-        asm.add(ld(InputOperand(f"1", "m", "B"), starting_regs[1], False))
-        asm.add(ld(InputOperand(f"2", "m", "C"), starting_regs[2], False))
-        asm.add(ld(InputOperand(f"3", "m", "alpha"), starting_regs[3], False))
-        asm.add(ld(InputOperand(f"4", "m", "beta"), starting_regs[4], False))
-        if prefetch:
-            asm.add(ld(InputOperand(f"5", "m", "prefetch"), starting_regs[5], False))
-        return asm
 
     def make_reg_blocks(
         self,
@@ -60,12 +47,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         n: int,
         k: int,
         prefetch: str,
+        copies: int = 1,
     ):
+        assert copies == 1, "arm does not lay out a second copy of the operands yet"
         assert bm % v_size == 0
         vm = bm // v_size
         elem128 = 16 // self.get_precision().size()
         vk = -(bk // -elem128)
-        assert (bn + bk) * vm + bn * vk <= 32  # Needs to fit in NEON v registers
+        assert self.target.fits(bn, bk, vm, self.precision.size())
 
         prec = {
             Precision.DOUBLE: "2d",
@@ -188,10 +177,14 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         asm = block(f"{action} {name} register block @ {block_offset}")
 
         curpf = 0
-        cur11 = -1000
+        base = ScratchBase(
+            additional_regs[0],
+            immediate=self.target.scalar_immediate,
+            prefer_original=self.target.prefer_original_base,
+        )
         fuse_cache = []
 
-        def try_flush_cache(force, cur11):
+        def try_flush_cache(force):
             if len(fuse_cache) == 0:
                 return
 
@@ -201,9 +194,6 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 op3 = fuse_cache[2] if len(fuse_cache) > 2 else None
                 op4 = fuse_cache[3] if len(fuse_cache) > 3 else None
 
-                max_offset = [65520, 1008, 48, 64][len(fuse_cache) - 1]
-                div_offset = [16, 16, 24, 32][len(fuse_cache) - 1]
-
                 comment = f"{op1.comment}"
                 if op2 is not None:
                     comment += f", {op2.comment}"
@@ -212,21 +202,8 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 if op4 is not None:
                     comment += f", {op4.comment}"
 
-                offset = op1.addr.disp - cur11 if cur11 >= 0 else op1.addr.disp
-
-                if cur11 >= 0:
-                    op1.addr.disp = offset
-                    op1.addr.base = additional_regs[0]
-
-                if offset > max_offset or offset % div_offset != 0:
-                    if cur11 < 0:
-                        asm.add(add(offset, additional_regs[0], "", op1.addr.base))
-                        cur11 = offset
-                    else:
-                        asm.add(add(offset, additional_regs[0], ""))
-                        cur11 += offset
-                    op1.addr.disp = 0
-                    op1.addr.base = additional_regs[0]
+                limit, granularity = self.target.memory_offset_limit(len(fuse_cache))
+                base.place(asm, op1.addr, limit, granularity)
 
                 op1r = op1.register
                 op2r = op2.register if op2 is not None else None
@@ -260,7 +237,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
 
                 fuse_cache.clear()
 
-            return cur11
+            return
 
         for _, location in offsets:
             if len(fuse_cache) > 0:
@@ -269,7 +246,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                 # TODO: extend to 4?
                 max_length = len(fuse_cache) == 2
 
-                cur11 = try_flush_cache(not can_fuse or max_length, cur11)
+                try_flush_cache(not can_fuse or max_length)
 
             fuse_cache += [location]
 
@@ -300,7 +277,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                     )
                 )
 
-        cur11 = try_flush_cache(True, cur11)
+        try_flush_cache(True)
 
         return asm
 
@@ -356,24 +333,31 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
         bs = []
         firstloc = {}
         locations = []
-        for Vmi in range(bm // v_size):
-            for bni in range(bn):  # inside this n-block
-                for bki in range(bk):  # inside this k-block
-                    bki_reg = bki // elem128
-                    to_bcell = Coords(down=bki, right=bni)
-                    to_acell = Coords(down=Vmi * v_size, right=bki)
-                    if B.has_nonzero_cell(B_ptr, to_B_block, to_bcell):
-                        if (bki_reg, bni) not in firstloc:
-                            B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                            firstloc[(bki_reg, bni)] = self.LoadStoreLocation(
-                                B_cell_addr, B_regs[bki_reg, bni], B_comment
-                            )
-                        if (
-                            A.has_nonzero_cell(A_ptr, to_A_block, to_acell)
-                            and B_regs[bki_reg, bni] not in bs
-                        ):
-                            locations += [firstloc[(bki_reg, bni)]]
-                            bs.append(B_regs[bki_reg, bni])
+        for Vmi, bni, bki, to_acell, to_bcell in cells(
+            A,
+            B,
+            A_ptr,
+            B_ptr,
+            to_A_block,
+            to_B_block,
+            bm // v_size,
+            bn,
+            bk,
+            v_size,
+            require_a=False,
+        ):
+            bki_reg = bki // elem128
+            if (bki_reg, bni) not in firstloc:
+                B_cell_addr, B_comment = B.look(B_ptr, to_B_block, to_bcell)
+                firstloc[(bki_reg, bni)] = self.LoadStoreLocation(
+                    B_cell_addr, B_regs[bki_reg, bni], B_comment
+                )
+            if (
+                A.has_nonzero_cell(A_ptr, to_A_block, to_acell)
+                and B_regs[bki_reg, bni] not in bs
+            ):
+                locations += [firstloc[(bki_reg, bni)]]
+                bs.append(B_regs[bki_reg, bni])
         asm.add(
             self.fuse_loadstore_block(
                 locations, False, B.name, to_B_block, additional_regs
@@ -395,7 +379,7 @@ void {funcName} (const {real_type}* A, const {real_type}* B, {real_type}* C, {re
                         B_ptr, to_B_block, to_bcell
                     ) and A.has_nonzero_cell(A_ptr, to_A_block, to_acell):
                         _, B_comment = B.look(B_ptr, to_B_block, to_bcell)
-                        comment = f"C[{Vmi*v_size}:{Vmi*v_size+v_size},{bni}] += A[{Vmi*v_size}:{Vmi*v_size+v_size},{bki}]*{B_comment}"
+                        comment = contribution(Vmi, bni, bki, v_size, B_comment)
                         asm.add(
                             fma(
                                 B_regs[bki_reg, bni],

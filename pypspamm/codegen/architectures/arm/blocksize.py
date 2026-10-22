@@ -1,3 +1,6 @@
+from pypspamm.codegen.target import TARGETS
+
+
 class Old:
     @classmethod
     def getBlocksize(cls, m, n, bk, v_size, prec):
@@ -35,7 +38,7 @@ class Old:
     def ARM_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm + bn * bk <= 32
+        return (bn + bk) * vm + bn * bk <= TARGETS["arm"].vector_registers
 
 
 class Max:
@@ -62,7 +65,7 @@ class Max:
     def ARM_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm + bn * bk <= 32
+        return (bn + bk) * vm + bn * bk <= TARGETS["arm"].vector_registers
 
 
 class MaxK:
@@ -91,8 +94,7 @@ class MaxK:
     def ARM_condition(cls, bm, bn, bk, v_size, elem128):
         # ceiling division
         vm = -(bm // -v_size)
-        vk = -(bk // -elem128)
-        return (bn + bk) * vm + bn * vk <= 32
+        return TARGETS["arm"].fits(bn, bk, vm, 16 // elem128)
 
 
 class Cube:
@@ -120,8 +122,7 @@ class Cube:
     def ARM_condition(cls, bm, bn, bk, v_size, elem128):
         # ceiling division
         vm = -(bm // -v_size)
-        vk = -(bk // -elem128)
-        return (bn + bk) * vm + bn * vk <= 32
+        return TARGETS["arm"].fits(bn, bk, vm, 16 // elem128)
 
 
 Default = MaxK

@@ -1,3 +1,6 @@
+from pypspamm.codegen.target import TARGETS
+
+
 class Old:
     @classmethod
     def getBlocksize(cls, m, n, bk, v_size, prec):
@@ -35,7 +38,7 @@ class Old:
     def KNL_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm <= 32
+        return TARGETS["knl"].fits(bn, bk, vm)
 
 
 class Max:
@@ -64,7 +67,7 @@ class Max:
     def KNL_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm <= 32
+        return TARGETS["knl"].fits(bn, bk, vm)
 
     @classmethod
     def tileable(cls, m, bm):
@@ -91,7 +94,7 @@ class MaxBn:
     def KNL_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm <= 32
+        return TARGETS["knl"].fits(bn, bk, vm)
 
 
 class CubeBn:
@@ -117,7 +120,7 @@ class CubeBn:
     def KNL_condition(cls, bm, bn, bk, v_size):
         # ceiling division
         vm = -(bm // -v_size)
-        return (bn + bk) * vm <= 32
+        return TARGETS["knl"].fits(bn, bk, vm)
 
 
 Default = MaxBn

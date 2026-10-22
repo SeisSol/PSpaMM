@@ -66,6 +66,34 @@ def mul(
     return stmt
 
 
+def permute(
+    control: Operand,
+    table: Operand,
+    dest: Register,
+    table2: Operand = None,
+    comment: str = None,
+    pred: Register = None,
+):
+    stmt = PermuteStmt()
+    stmt.control = control
+    stmt.table = table
+    stmt.table2 = table2
+    stmt.dest = dest
+    stmt.comment = comment
+    stmt.pred = pred
+    return stmt
+
+
+def blend(src: Register, src2: Operand, dest: Register, mask: int, comment: str = None):
+    stmt = BlendStmt()
+    stmt.src = src
+    stmt.src2 = src2
+    stmt.dest = dest
+    stmt.mask = mask
+    stmt.comment = comment
+    return stmt
+
+
 def bcst(bcast_src: Register, dest: Register, comment: str = None):
     stmt = BcstStmt()
     stmt.bcast_src = bcast_src
